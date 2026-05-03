@@ -71,11 +71,10 @@ export function validateEnv() {
     process.exit(1);
   }
 
-  // Warn about test keys in production
+  // Warn about test keys in production (warn only, do not exit — test keys are acceptable during staging)
   if (process.env.NODE_ENV === 'production') {
     if (process.env.PAYSTACK_SECRET_KEY?.startsWith('sk_test_')) {
-      console.error('❌ PAYSTACK_SECRET_KEY is a TEST key in production!\n');
-      process.exit(1);
+      console.warn('⚠️  PAYSTACK_SECRET_KEY is a TEST key — payments will use Paystack sandbox.\n');
     }
   }
 
