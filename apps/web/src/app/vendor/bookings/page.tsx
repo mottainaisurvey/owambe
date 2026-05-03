@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { bookingsApi } from '@/lib/api';
 import { formatNGN, formatEventDate, formatTimeAgo } from '@/lib/utils';
 import toast from 'react-hot-toast';
-import { CheckCircle, XCircle, FileText, MessageSquare, ChevronDown, Loader2 } from 'lucide-react';
+import { CheckCircle, XCircle, FileText, FileSignature, MessageSquare, ChevronDown, Loader2 } from 'lucide-react';
 
 const STATUS_TABS = ['ALL', 'PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED'];
 
@@ -116,7 +116,7 @@ export default function VendorBookingsPage() {
             <BookingDetail
               booking={selectedBooking}
               onConfirm={() => confirmMutation.mutate(selectedBooking.id)}
-              onCancel={(reason) => cancelMutation.mutate({ id: selectedBooking.id, reason })}
+              onCancel={(reason: string) => cancelMutation.mutate({ id: selectedBooking.id, reason })}
               onQuote={() => setShowQuoteModal(true)}
               isConfirming={confirmMutation.isPending}
               isCancelling={cancelMutation.isPending}

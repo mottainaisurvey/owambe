@@ -118,7 +118,7 @@ function PackageModal({ pkg, onClose, onSave }: any) {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const includes = form.includes.split('\n').map(s => s.trim()).filter(Boolean);
+      const includes = form.includes.split('\n').map((s: string) => s.trim()).filter(Boolean);
       await vendorsApi.addPackage({
         ...form,
         price: Number(form.price),

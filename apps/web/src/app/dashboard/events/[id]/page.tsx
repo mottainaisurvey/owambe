@@ -469,7 +469,7 @@ export default function EventDetailPage() {
                   channel: 'EVENTBRITE',
                   logo: '🎟️',
                   name: 'Eventbrite',
-                  desc: 'Nigeria's most-used ticketing platform. Reach millions of event-goers.',
+                  desc: "Nigeria's most-used ticketing platform. Reach millions of event-goers.",
                   color: '#F05537',
                   note: 'Requires EVENTBRITE_API_KEY in env',
                   requiresGrowth: true,

@@ -52,7 +52,7 @@ export default function EventRegistrationForm({ event, slug }: { event: EventDat
     }
     try {
       const ticket = event.ticketTypes?.find((t) => t.id === form.ticketTypeId);
-      const res = await promosApi.validate(promoCode.trim().toUpperCase(), event.id, ticket?.price);
+      const res = await promosApi.validate(promoCode.trim().toUpperCase(), event.id, ticket?.price !== undefined ? Number(ticket.price) : undefined);
       setPromoValid(res.data);
       toast.success(`✅ Code applied! You save ${formatNGN(res.data.promo.discountAmount)}`);
     } catch {

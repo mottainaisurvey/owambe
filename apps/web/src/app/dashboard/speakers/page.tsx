@@ -142,7 +142,7 @@ export default function SpeakersPage() {
                   <SpeakerCard key={s.id} speaker={s}
                     onEdit={() => openEdit(s)}
                     onDelete={() => deleteMutation.mutate(s.id)}
-                    onChecklist={(key, val) => checklistMutation.mutate({
+                    onChecklist={(key: string, val: boolean) => checklistMutation.mutate({
                       id: s.id,
                       data: { [`checklist${key.charAt(0).toUpperCase() + key.slice(1)}`]: val }
                     })}
@@ -154,7 +154,7 @@ export default function SpeakersPage() {
 
           {activeTab === 'Schedule' && <ScheduleTab speakers={speakers} />}
           {activeTab === 'Onboarding' && <OnboardingTab speakers={speakers}
-            onToggle={(id, key, val) => checklistMutation.mutate({
+            onToggle={(id: string, key: string, val: boolean) => checklistMutation.mutate({
               id, data: { [`checklist${key.charAt(0).toUpperCase() + key.slice(1)}`]: val }
             })} />}
           {activeTab === 'Comms' && <CommsTab eventId={selectedEventId} />}
@@ -400,7 +400,8 @@ function SpeakerModal({ eventId, speaker, onClose, onSave }: any) {
       name: speaker.name, title: speaker.title, company: speaker.company,
       email: speaker.email, topic: speaker.topic, track: speaker.track,
       room: speaker.room, status: speaker.status, bio: speaker.bio,
-    } : { status: 'INVITED' }
+      sessionTime: speaker.sessionTime,
+    } : { status: 'INVITED', sessionTime: '' }
   });
 
   async function onSubmit(data: any) {
