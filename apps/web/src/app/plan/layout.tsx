@@ -13,8 +13,8 @@ export default function PlanLayout({ children }: { children: React.ReactNode }) 
       {/* Top nav */}
       <nav className="bg-white border-b border-[var(--border)] sticky top-0 z-20">
         <div className="max-w-6xl mx-auto px-5 h-14 flex items-center gap-4">
-          <Link href="/" className="font-bold text-[18px] text-[var(--dark)] shrink-0">
-            event<span className="text-[var(--accent2)]">flow</span>
+          <Link href="/" className="shrink-0">
+            <img src="/owambe-logo-nav.png" alt="Owambe" className="h-14 w-auto" />
           </Link>
           <div className="flex-1" />
           <nav className="hidden md:flex items-center gap-1">

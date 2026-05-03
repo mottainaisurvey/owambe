@@ -31,17 +31,22 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
     else if (user?.role !== 'VENDOR') router.replace('/dashboard');
   }, [isAuthenticated, user, router]);
 
-  if (!user) return null;
+  // Show loading spinner while store hydrates
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--bg)]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--accent)]" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--bg)]">
       <aside className="w-[200px] bg-[var(--dark)] flex flex-col flex-shrink-0">
         <div className="px-4 py-5 border-b border-white/[0.08]">
-          <Link href="/vendor">
-            <div className="font-bold text-[18px] text-white">
-              event<span className="text-[var(--accent2)]">flow</span>
-            </div>
-            <div className="text-[9px] text-white/30 uppercase tracking-[2px] mt-0.5">Vendor Portal</div>
+          <Link href="/vendor" className="flex flex-col gap-0.5">
+            <img src="/owambe-logo-nav.png" alt="Owambe" className="h-14 w-auto" />
+            <div className="text-[9px] text-white/30 uppercase tracking-[2px]">Vendor Portal</div>
           </Link>
         </div>
         <nav className="flex-1 px-2.5 py-3 space-y-0.5">

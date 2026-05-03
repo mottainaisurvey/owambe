@@ -181,14 +181,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* SIDEBAR */}
       <aside className="w-[212px] bg-[var(--dark)] flex flex-col flex-shrink-0 overflow-y-auto no-scrollbar">
         {/* Logo */}
-        <div className="px-4 py-4 border-b border-white/[0.08] flex-shrink-0">
-          <Link href="/dashboard">
-            <div className="font-bold text-[19px] text-white tracking-tight">
-              owambe
-            </div>
-            <div className="text-[9px] text-white/30 uppercase tracking-[2px] mt-0.5">
-              Platform
-            </div>
+        <div className="px-4 py-5 border-b border-white/[0.08] flex-shrink-0">
+          <Link href="/dashboard" className="flex items-center gap-2.5">
+            <img src="/owambe-logo-nav.png" alt="Owambe" className="h-14 w-auto" />
           </Link>
         </div>
 
