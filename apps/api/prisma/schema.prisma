@@ -764,7 +764,6 @@ model Event {
   sponsors      EventSponsor[]
   emailCampaigns EmailCampaign[]
   checkIns      CheckIn[]
-  contracts     Contract[]
   distributions EventDistribution[]
   @@index([plannerId])
   @@index([status])
