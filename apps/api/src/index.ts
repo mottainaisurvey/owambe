@@ -35,6 +35,12 @@ import { ticketsRouter } from './routes/tickets';
 import { crmRouter } from './routes/crm';
 import { instalmentsRouter } from './routes/instalments';
 import { distributionRouter } from './routes/distribution';
+import modeRouter from './routes/mode';
+import propertiesRouter from './routes/properties';
+import experiencesRouter from './routes/experiences';
+import stayBookingsRouter from './routes/stay-bookings';
+import experienceBookingsRouter from './routes/experience-bookings';
+import { initQueues, startWorkers, closeQueues } from './services/queue.service';
 
 import { initSocket } from './socket';
 import { logger } from './utils/logger';
@@ -104,6 +110,12 @@ app.use('/api/tickets', ticketsRouter);
 app.use('/api/crm', crmRouter);
 app.use('/api/instalments', instalmentsRouter);
 app.use('/api/distribution', distributionRouter);
+// Phase A: Three-mode routes
+app.use('/api/mode', modeRouter);
+app.use('/api/properties', propertiesRouter);
+app.use('/api/experiences', experiencesRouter);
+app.use('/api/stay-bookings', stayBookingsRouter);
+app.use('/api/experience-bookings', experienceBookingsRouter);
 
 app.use((_req, res) => { res.status(404).json({ success: false, error: 'Route not found' }); });
 app.use(errorHandler);
@@ -114,11 +126,13 @@ async function bootstrap() {
   try {
     await prisma.$connect();
     logger.info('Database connected');
+    await initQueues();
+    await startWorkers();
     httpServer.listen(PORT, '0.0.0.0', () => {
       logger.info(`Owambe API running on port ${PORT}`);
     });
-    process.on('SIGTERM', async () => { httpServer.close(); await prisma.$disconnect(); process.exit(0); });
-    process.on('SIGINT', async () => { await prisma.$disconnect(); process.exit(0); });
+    process.on('SIGTERM', async () => { httpServer.close(); await closeQueues(); await prisma.$disconnect(); process.exit(0); });
+    process.on('SIGINT', async () => { await closeQueues(); await prisma.$disconnect(); process.exit(0); });
   } catch (err) {
     logger.error('Failed to start server', err);
     process.exit(1);

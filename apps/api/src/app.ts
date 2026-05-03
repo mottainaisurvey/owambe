@@ -38,6 +38,11 @@ import { ticketsRouter } from './routes/tickets';
 import { crmRouter } from './routes/crm';
 import { instalmentsRouter } from './routes/instalments';
 import { distributionRouter } from './routes/distribution';
+import modeRouter from './routes/mode';
+import propertiesRouter from './routes/properties';
+import experiencesRouter from './routes/experiences';
+import stayBookingsRouter from './routes/stay-bookings';
+import experienceBookingsRouter from './routes/experience-bookings';
 
 import { initSocket } from './socket';
 
@@ -105,6 +110,12 @@ app.use('/api/tickets', ticketsRouter);
 app.use('/api/crm', crmRouter);
 app.use('/api/instalments', instalmentsRouter);
 app.use('/api/distribution', distributionRouter);
+// Phase A: Three-mode routes
+app.use('/api/mode', modeRouter);
+app.use('/api/properties', propertiesRouter);
+app.use('/api/experiences', experiencesRouter);
+app.use('/api/stay-bookings', stayBookingsRouter);
+app.use('/api/experience-bookings', experienceBookingsRouter);
 
 // 404 + error handlers
 app.use((_req, res) => { res.status(404).json({ success: false, error: 'Route not found' }); });

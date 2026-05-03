@@ -270,3 +270,143 @@ adminRouter.delete('/reviews/:id', async (req, res, next) => {
     res.json({ success: true });
   } catch (err) { next(err); }
 });
+
+// ─── CATEGORY MANAGEMENT (Phase A) ───────────────────
+function slugify(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
+// Vendor Categories
+adminRouter.get('/categories/vendor', async (_req, res, next) => {
+  try {
+    const categories = await (prisma as any).vendorCategoryLookup.findMany({ orderBy: { sortOrder: 'asc' } });
+    res.json({ success: true, categories });
+  } catch (err) { next(err); }
+});
+adminRouter.post('/categories/vendor', async (req, res, next) => {
+  try {
+    const { name, description, icon, sortOrder } = req.body;
+    const cat = await (prisma as any).vendorCategoryLookup.create({
+      data: { name, slug: slugify(name), description, icon, sortOrder: sortOrder ?? 0 }
+    });
+    res.status(201).json({ success: true, category: cat });
+  } catch (err) { next(err); }
+});
+adminRouter.put('/categories/vendor/:id', async (req, res, next) => {
+  try {
+    const { name, description, icon, sortOrder, isActive } = req.body;
+    const cat = await (prisma as any).vendorCategoryLookup.update({
+      where: { id: req.params.id },
+      data: { name, slug: name ? slugify(name) : undefined, description, icon, sortOrder, isActive }
+    });
+    res.json({ success: true, category: cat });
+  } catch (err) { next(err); }
+});
+adminRouter.delete('/categories/vendor/:id', async (req, res, next) => {
+  try {
+    await (prisma as any).vendorCategoryLookup.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
+
+// Property Types
+adminRouter.get('/categories/property', async (_req, res, next) => {
+  try {
+    const categories = await (prisma as any).propertyTypeLookup.findMany({ orderBy: { sortOrder: 'asc' } });
+    res.json({ success: true, categories });
+  } catch (err) { next(err); }
+});
+adminRouter.post('/categories/property', async (req, res, next) => {
+  try {
+    const { name, description, icon, sortOrder } = req.body;
+    const cat = await (prisma as any).propertyTypeLookup.create({
+      data: { name, slug: slugify(name), description, icon, sortOrder: sortOrder ?? 0 }
+    });
+    res.status(201).json({ success: true, category: cat });
+  } catch (err) { next(err); }
+});
+adminRouter.put('/categories/property/:id', async (req, res, next) => {
+  try {
+    const { name, description, icon, sortOrder, isActive } = req.body;
+    const cat = await (prisma as any).propertyTypeLookup.update({
+      where: { id: req.params.id },
+      data: { name, slug: name ? slugify(name) : undefined, description, icon, sortOrder, isActive }
+    });
+    res.json({ success: true, category: cat });
+  } catch (err) { next(err); }
+});
+adminRouter.delete('/categories/property/:id', async (req, res, next) => {
+  try {
+    await (prisma as any).propertyTypeLookup.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
+
+// Experience Types
+adminRouter.get('/categories/experience', async (_req, res, next) => {
+  try {
+    const categories = await (prisma as any).experienceTypeLookup.findMany({ orderBy: { sortOrder: 'asc' } });
+    res.json({ success: true, categories });
+  } catch (err) { next(err); }
+});
+adminRouter.post('/categories/experience', async (req, res, next) => {
+  try {
+    const { name, description, icon, sortOrder } = req.body;
+    const cat = await (prisma as any).experienceTypeLookup.create({
+      data: { name, slug: slugify(name), description, icon, sortOrder: sortOrder ?? 0 }
+    });
+    res.status(201).json({ success: true, category: cat });
+  } catch (err) { next(err); }
+});
+adminRouter.put('/categories/experience/:id', async (req, res, next) => {
+  try {
+    const { name, description, icon, sortOrder, isActive } = req.body;
+    const cat = await (prisma as any).experienceTypeLookup.update({
+      where: { id: req.params.id },
+      data: { name, slug: name ? slugify(name) : undefined, description, icon, sortOrder, isActive }
+    });
+    res.json({ success: true, category: cat });
+  } catch (err) { next(err); }
+});
+adminRouter.delete('/categories/experience/:id', async (req, res, next) => {
+  try {
+    await (prisma as any).experienceTypeLookup.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
+
+// Email Templates
+adminRouter.get('/templates/email', async (_req, res, next) => {
+  try {
+    const templates = await (prisma as any).emailTemplate.findMany({ orderBy: { key: 'asc' } });
+    res.json({ success: true, templates });
+  } catch (err) { next(err); }
+});
+adminRouter.put('/templates/email/:id', async (req, res, next) => {
+  try {
+    const { name, subject, bodyHtml, isActive } = req.body;
+    const t = await (prisma as any).emailTemplate.update({
+      where: { id: req.params.id },
+      data: { name, subject, bodyHtml, isActive, version: { increment: 1 }, updatedAt: new Date() }
+    });
+    res.json({ success: true, template: t });
+  } catch (err) { next(err); }
+});
+
+// Contract Templates
+adminRouter.get('/templates/contract', async (_req, res, next) => {
+  try {
+    const templates = await (prisma as any).contractTemplate.findMany({ orderBy: { key: 'asc' } });
+    res.json({ success: true, templates });
+  } catch (err) { next(err); }
+});
+adminRouter.put('/templates/contract/:id', async (req, res, next) => {
+  try {
+    const { name, description, bodyHtml, isActive } = req.body;
+    const t = await (prisma as any).contractTemplate.update({
+      where: { id: req.params.id },
+      data: { name, description, bodyHtml, isActive, version: { increment: 1 }, updatedAt: new Date() }
+    });
+    res.json({ success: true, template: t });
+  } catch (err) { next(err); }
+});

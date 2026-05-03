@@ -1,33 +1,35 @@
 // ─────────────────────────────────────────────────────
 // Owambe.com — Prisma Database Schema
-// PostgreSQL + PostGIS for geo-queries
+// PostgreSQL (uuid-ossp for IDs)
 // ─────────────────────────────────────────────────────
-
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["postgresqlExtensions"]
+  provider = "prisma-client-js"
 }
-
 datasource db {
-  provider   = "postgresql"
-  url        = env("DATABASE_URL")
-  extensions = [postgis, uuid_ossp]
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
-
 // ─── ENUMS ───────────────────────────────────────────
-
 enum UserRole {
   PLANNER
   VENDOR
   CONSUMER
   ADMIN
+  HOST       // Phase A: Stays mode
+  OPERATOR   // Phase A: Experiences mode
 }
-
 enum AuthProvider {
   EMAIL
   GOOGLE
   FACEBOOK
   APPLE
+}
+
+// Phase A: Platform mode enum
+enum PlatformMode {
+  EVENTS
+  STAYS
+  EXPERIENCES
 }
 
 enum EventStatus {
@@ -37,13 +39,11 @@ enum EventStatus {
   ENDED
   CANCELLED
 }
-
 enum EventFormat {
   IN_PERSON
   VIRTUAL
   HYBRID
 }
-
 enum BookingStatus {
   PENDING
   CONFIRMED
@@ -51,12 +51,10 @@ enum BookingStatus {
   CANCELLED
   DISPUTED
 }
-
 enum BookingType {
   INSTANT
   RFQ
 }
-
 enum VendorCategory {
   VENUE
   CATERING
@@ -67,7 +65,6 @@ enum VendorCategory {
   MAKEUP_ARTIST
   SPEAKER
 }
-
 enum VendorStatus {
   PENDING
   IN_REVIEW
@@ -75,7 +72,6 @@ enum VendorStatus {
   REJECTED
   SUSPENDED
 }
-
 enum PaymentStatus {
   PENDING
   DEPOSIT_PAID
@@ -84,7 +80,6 @@ enum PaymentStatus {
   PARTIALLY_REFUNDED
   FAILED
 }
-
 enum ContractStatus {
   DRAFT
   SENT
@@ -93,13 +88,11 @@ enum ContractStatus {
   VOID
   EXPIRED
 }
-
 enum SignerRole {
   PLANNER
   VENDOR
   WITNESS
 }
-
 enum QuoteStatus {
   PENDING
   SENT
@@ -107,32 +100,27 @@ enum QuoteStatus {
   DECLINED
   EXPIRED
 }
-
 enum TicketStatus {
   ACTIVE
   SOLD_OUT
   PAUSED
 }
-
 enum CheckInStatus {
   REGISTERED
   CHECKED_IN
   NO_SHOW
 }
-
 enum SpeakerStatus {
   INVITED
   CONFIRMED
   DECLINED
   PENDING
 }
-
 enum SponsorTier {
   GOLD
   SILVER
   BRONZE
 }
-
 enum NotificationType {
   BOOKING_CONFIRMED
   BOOKING_CANCELLED
@@ -143,15 +131,70 @@ enum NotificationType {
   REVIEW_RECEIVED
   VENDOR_VERIFIED
 }
-
 enum PlanType {
   STARTER
   GROWTH
   SCALE
 }
 
-// ─── USERS ───────────────────────────────────────────
+// Phase A: Property types for Stays mode
+enum PropertyType {
+  HOTEL
+  GUESTHOUSE
+  VILLA
+  APARTMENT
+  RESORT
+  LODGE
+  BOUTIQUE_HOTEL
+  SERVICED_APARTMENT
+}
 
+// Phase A: Room types for Stays mode
+enum RoomType {
+  STANDARD
+  DELUXE
+  SUITE
+  EXECUTIVE
+  FAMILY
+  TWIN
+  SINGLE
+  PRESIDENTIAL
+}
+
+// Phase A: Experience categories
+enum ExperienceType {
+  CULTURAL_TOUR
+  FOOD_TASTING
+  ADVENTURE
+  WELLNESS_SPA
+  NIGHTLIFE
+  WORKSHOP
+  SPORTS
+  SIGHTSEEING
+  PRIVATE_DINING
+  MUSIC_PERFORMANCE
+}
+
+// Phase A: Stay booking status
+enum StayBookingStatus {
+  PENDING
+  CONFIRMED
+  CHECKED_IN
+  CHECKED_OUT
+  CANCELLED
+  NO_SHOW
+}
+
+// Phase A: Experience booking status
+enum ExperienceBookingStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+// ─── USERS ───────────────────────────────────────────
 model User {
   id               String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   email            String       @unique
@@ -170,167 +213,108 @@ model User {
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
+  // Phase A: Mode infrastructure
+  activeMode       PlatformMode  @default(EVENTS)
+  availableModes   PlatformMode[] @default([EVENTS])
+  cohortCode       String?       // Coastal Corridor cohort code
+
   // Relations
   planner          Planner?
   vendor           Vendor?
   consumer         Consumer?
+  host             Host?
+  operator         Operator?
   refreshTokens    RefreshToken[]
   notifications    Notification[]
   sentMessages     Message[]    @relation("SentMessages")
   receivedMessages Message[]    @relation("ReceivedMessages")
-
   @@index([email])
   @@index([role])
+  @@index([activeMode])
+  @@index([cohortCode])
   @@map("users")
 }
-
 model RefreshToken {
   id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   userId    String   @db.Uuid
   token     String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
-
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
   @@index([token])
   @@map("refresh_tokens")
 }
-
 // ─── PLANNER ─────────────────────────────────────────
-
 model Planner {
-  id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  userId       String   @unique @db.Uuid
-  companyName  String?
-  plan         PlanType @default(STARTER)
-  planExpiresAt DateTime?
-  paystackCustomerId String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  events       Event[]
-  bookings     Booking[]
-  tenants      Tenant[]
-  contracts    Contract[]
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId          String    @unique @db.Uuid
+  businessName    String?
+  businessType    String?
+  city            String?
+  state           String?
+  country         String    @default("NG")
+  website         String?
+  bio             String?
+  logoUrl         String?
+  plan            PlanType  @default(STARTER)
+  planExpiresAt   DateTime?
+  paystackSubAccountCode String?
+  paystackSubAccountId   String?
+  isVerified      Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events    Event[]
+  bookings  Booking[]
+  contracts Contract[]
   crmConnections CrmConnection[]
   instalmentPlans InstalmentPlan[]
-
   @@map("planners")
 }
-
-// ─── WHITE-LABEL TENANT ──────────────────────────────
-model Tenant {
-  id              String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  plannerId       String   @db.Uuid
-  subdomain       String   @unique
-  customDomain    String?  @unique
-  name            String
-  tagline         String?
-  logoUrl         String?
-  faviconUrl      String?
-  primaryColor    String   @default("#2D6A4F")
-  accentColor     String   @default("#E76F2A")
-  bgColor         String   @default("#FDFAF4")
-  fontFamily      String   @default("Inter")
-  footerText      String?
-  socialLinks     Json?
-  metaTitle       String?
-  metaDescription String?
-  metaImage       String?
-  isActive        Boolean  @default(true)
-  allowPublicReg  Boolean  @default(true)
-  requireApproval Boolean  @default(false)
-  customCss       String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  planner  Planner @relation(fields: [plannerId], references: [id], onDelete: Cascade)
-
-  @@map("tenants")
-}
-
 // ─── VENDOR ──────────────────────────────────────────
-
 model Vendor {
   id                  String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   userId              String         @unique @db.Uuid
   businessName        String
-  slug                String         @unique
   category            VendorCategory
-  subCategories       String[]
   description         String?
-  shortBio            String?
-  status              VendorStatus   @default(PENDING)
-  isInstantBook       Boolean        @default(false)
-  minPrice            Decimal?       @db.Decimal(12, 2)
-  maxPrice            Decimal?       @db.Decimal(12, 2)
-  currency            String         @default("NGN")
-  commissionRate      Decimal        @default(8) @db.Decimal(5, 2)
-  rating              Decimal        @default(0) @db.Decimal(3, 2)
-  reviewCount         Int            @default(0)
-  responseRate        Decimal        @default(0) @db.Decimal(5, 2)
-  bookingCount        Int            @default(0)
-  // Location
-  address             String?
   city                String?
   state               String?
-  country             String         @default("Nigeria")
-  latitude            Decimal?       @db.Decimal(10, 8)
-  longitude           Decimal?       @db.Decimal(11, 8)
-  serviceRadius       Int            @default(30) // km
-  // Business details
-  businessRegNo       String?
+  country             String         @default("NG")
+  address             String?
+  latitude            Decimal?       @db.Decimal(10, 7)
+  longitude           Decimal?       @db.Decimal(10, 7)
+  coverImageUrl       String?
+  galleryUrls         String[]       @default([])
+  basePrice           Decimal?       @db.Decimal(12, 2)
+  currency            String         @default("NGN")
+  rating              Decimal        @default(0) @db.Decimal(3, 2)
+  reviewCount         Int            @default(0)
+  status              VendorStatus   @default(PENDING)
+  isActive            Boolean        @default(true)
+  isFeatured          Boolean        @default(false)
+  verifiedAt          DateTime?
+  verificationNotes   String?
   paystackSubAccountCode String?
   paystackSubAccountId   String?
-  bankAccountName     String?
   bankCode            String?
   bankAccountNumber   String?
-  isFeatured          Boolean        @default(false)
-  featuredUntil       DateTime?
-  launchBonusActive   Boolean        @default(true)
-  launchBonusExpiresAt DateTime?
-  verifiedAt          DateTime?
-  rejectionReason     String?
-  phone               String?
-  isPhoneVerified     Boolean        @default(false)
-  website             String?
-  instagram           String?
+  bankAccountName     String?
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
-
-  user                User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  portfolioItems      PortfolioItem[]
-  availability        VendorAvailability[]
-  bookings            Booking[]
-  reviews             Review[]
-  packages            VendorPackage[]
-  quotes              Quote[]
-  contracts           Contract[]
-
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  packages      VendorPackage[]
+  availability  VendorAvailability[]
+  bookings      Booking[]
+  reviews       Review[]
+  quotes        Quote[]
+  contracts     Contract[]
   @@index([category])
-  @@index([status])
   @@index([city])
-  @@index([isInstantBook])
+  @@index([status])
+  @@index([latitude, longitude])
   @@map("vendors")
 }
-
-model PortfolioItem {
-  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  vendorId    String   @db.Uuid
-  url         String
-  thumbnailUrl String?
-  caption     String?
-  isMain      Boolean  @default(false)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-
-  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
-
-  @@map("portfolio_items")
-}
-
 model VendorPackage {
   id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   vendorId    String   @db.Uuid
@@ -343,13 +327,10 @@ model VendorPackage {
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
   vendor   Vendor    @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   bookings Booking[]
-
   @@map("vendor_packages")
 }
-
 model VendorAvailability {
   id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   vendorId    String   @db.Uuid
@@ -358,16 +339,386 @@ model VendorAvailability {
   isBlocked   Boolean  @default(false)
   note        String?
   createdAt   DateTime @default(now())
-
   vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
-
   @@unique([vendorId, date])
   @@index([vendorId, date])
   @@map("vendor_availability")
 }
 
-// ─── CONSUMER ────────────────────────────────────────
+// ─── HOST (Phase A: Stays mode) ──────────────────────
+model Host {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId          String    @unique @db.Uuid
+  businessName    String?
+  city            String?
+  state           String?
+  country         String    @default("NG")
+  phone           String?
+  bio             String?
+  logoUrl         String?
+  isVerified      Boolean   @default(false)
+  verifiedAt      DateTime?
+  paystackSubAccountCode String?
+  paystackSubAccountId   String?
+  bankCode        String?
+  bankAccountNumber String?
+  bankAccountName String?
+  rating          Decimal   @default(0) @db.Decimal(3, 2)
+  reviewCount     Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  properties Property[]
+
+  @@map("hosts")
+}
+
+// ─── PROPERTY (Phase A: Stays mode) ──────────────────
+model Property {
+  id              String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  hostId          String       @db.Uuid
+  name            String
+  slug            String       @unique
+  description     String?
+  propertyType    PropertyType
+  city            String
+  state           String?
+  country         String       @default("NG")
+  address         String?
+  latitude        Decimal?     @db.Decimal(10, 7)
+  longitude       Decimal?     @db.Decimal(10, 7)
+  coverImageUrl   String?
+  galleryUrls     String[]     @default([])
+  amenities       String[]     @default([])
+  checkInTime     String?      // e.g. "14:00"
+  checkOutTime    String?      // e.g. "11:00"
+  houseRules      String?
+  cancellationPolicy String?
+  isActive        Boolean      @default(true)
+  isFeatured      Boolean      @default(false)
+  rating          Decimal      @default(0) @db.Decimal(3, 2)
+  reviewCount     Int          @default(0)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  host         Host           @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  rooms        Room[]
+  stayBookings StayBooking[]
+
+  @@index([hostId])
+  @@index([city])
+  @@index([propertyType])
+  @@index([latitude, longitude])
+  @@map("properties")
+}
+
+// ─── ROOM (Phase A: Stays mode) ──────────────────────
+model Room {
+  id              String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  propertyId      String   @db.Uuid
+  name            String
+  roomType        RoomType
+  description     String?
+  capacity        Int      @default(2)
+  bedCount        Int      @default(1)
+  bathCount       Int      @default(1)
+  pricePerNight   Decimal  @db.Decimal(12, 2)
+  currency        String   @default("NGN")
+  amenities       String[] @default([])
+  imageUrls       String[] @default([])
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  property     Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  stayBookings StayBooking[]
+
+  @@index([propertyId])
+  @@index([roomType])
+  @@map("rooms")
+}
+
+// ─── STAY BOOKING (Phase A: Stays mode) ──────────────
+model StayBooking {
+  id              String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  reference       String            @unique
+  propertyId      String            @db.Uuid
+  roomId          String            @db.Uuid
+  guestUserId     String?           @db.Uuid
+  guestName       String
+  guestEmail      String
+  guestPhone      String?
+  checkInDate     DateTime          @db.Date
+  checkOutDate    DateTime          @db.Date
+  nights          Int
+  guestCount      Int               @default(1)
+  totalAmount     Decimal           @db.Decimal(12, 2)
+  depositAmount   Decimal           @db.Decimal(12, 2)
+  currency        String            @default("NGN")
+  status          StayBookingStatus @default(PENDING)
+  paymentStatus   PaymentStatus     @default(PENDING)
+  paystackRef     String?
+  specialRequests String?
+  cancellationReason String?
+  cancelledAt     DateTime?
+  confirmedAt     DateTime?
+  checkedInAt     DateTime?
+  checkedOutAt    DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  property Property @relation(fields: [propertyId], references: [id])
+  room     Room     @relation(fields: [roomId], references: [id])
+
+  @@index([propertyId])
+  @@index([roomId])
+  @@index([guestEmail])
+  @@index([status])
+  @@index([checkInDate])
+  @@map("stay_bookings")
+}
+
+// ─── OPERATOR (Phase A: Experiences mode) ────────────
+model Operator {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId          String    @unique @db.Uuid
+  businessName    String?
+  city            String?
+  state           String?
+  country         String    @default("NG")
+  phone           String?
+  bio             String?
+  logoUrl         String?
+  isVerified      Boolean   @default(false)
+  verifiedAt      DateTime?
+  paystackSubAccountCode String?
+  paystackSubAccountId   String?
+  bankCode        String?
+  bankAccountNumber String?
+  bankAccountName String?
+  rating          Decimal   @default(0) @db.Decimal(3, 2)
+  reviewCount     Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  experiences Experience[]
+
+  @@map("operators")
+}
+
+// ─── EXPERIENCE (Phase A: Experiences mode) ──────────
+model Experience {
+  id              String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  operatorId      String         @db.Uuid
+  name            String
+  slug            String         @unique
+  description     String?
+  experienceType  ExperienceType
+  city            String
+  state           String?
+  country         String         @default("NG")
+  address         String?
+  latitude        Decimal?       @db.Decimal(10, 7)
+  longitude       Decimal?       @db.Decimal(10, 7)
+  coverImageUrl   String?
+  galleryUrls     String[]       @default([])
+  durationMinutes Int?
+  maxGroupSize    Int?
+  minGroupSize    Int            @default(1)
+  pricePerPerson  Decimal        @db.Decimal(12, 2)
+  currency        String         @default("NGN")
+  includes        String[]       @default([])
+  requirements    String[]       @default([])
+  languages       String[]       @default(["English"])
+  isActive        Boolean        @default(true)
+  isFeatured      Boolean        @default(false)
+  rating          Decimal        @default(0) @db.Decimal(3, 2)
+  reviewCount     Int            @default(0)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  operator            Operator              @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+  availableSlots      ExperienceSlot[]
+  experienceBookings  ExperienceBooking[]
+
+  @@index([operatorId])
+  @@index([city])
+  @@index([experienceType])
+  @@index([latitude, longitude])
+  @@map("experiences")
+}
+
+// ─── EXPERIENCE SLOT (Phase A: Experiences mode) ─────
+model ExperienceSlot {
+  id              String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  experienceId    String     @db.Uuid
+  startTime       DateTime
+  endTime         DateTime
+  capacity        Int
+  bookedCount     Int        @default(0)
+  isActive        Boolean    @default(true)
+  createdAt       DateTime   @default(now())
+
+  experience         Experience          @relation(fields: [experienceId], references: [id], onDelete: Cascade)
+  experienceBookings ExperienceBooking[]
+
+  @@index([experienceId])
+  @@index([startTime])
+  @@map("experience_slots")
+}
+
+// ─── EXPERIENCE BOOKING (Phase A: Experiences mode) ──
+model ExperienceBooking {
+  id              String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  reference       String                  @unique
+  experienceId    String                  @db.Uuid
+  slotId          String                  @db.Uuid
+  guestUserId     String?                 @db.Uuid
+  guestName       String
+  guestEmail      String
+  guestPhone      String?
+  guestCount      Int                     @default(1)
+  totalAmount     Decimal                 @db.Decimal(12, 2)
+  currency        String                  @default("NGN")
+  status          ExperienceBookingStatus @default(PENDING)
+  paymentStatus   PaymentStatus           @default(PENDING)
+  paystackRef     String?
+  specialRequests String?
+  cancellationReason String?
+  cancelledAt     DateTime?
+  confirmedAt     DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  experience Experience     @relation(fields: [experienceId], references: [id])
+  slot       ExperienceSlot @relation(fields: [slotId], references: [id])
+
+  @@index([experienceId])
+  @@index([slotId])
+  @@index([guestEmail])
+  @@index([status])
+  @@map("experience_bookings")
+}
+
+// ─── COHORT CODE (Phase A: Coastal Corridor onboarding) ──
+model CohortCode {
+  id              String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code            String       @unique
+  name            String       // e.g. "Coastal Corridor Cohort 1"
+  description     String?
+  modes           PlatformMode[] // Which modes this cohort unlocks
+  maxRedemptions  Int?         // null = unlimited
+  redemptionCount Int          @default(0)
+  isActive        Boolean      @default(true)
+  expiresAt       DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([code])
+  @@map("cohort_codes")
+}
+
+// ─── LOOKUP TABLES (Phase A: Admin-managed categories) ──
+
+model VendorCategoryLookup {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  key         String   @unique  // e.g. "VENUE", "CATERING"
+  label       String            // e.g. "Venue", "Catering"
+  description String?
+  iconName    String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive])
+  @@map("vendor_category_lookup")
+}
+
+model PropertyTypeLookup {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  key         String   @unique  // e.g. "HOTEL", "VILLA"
+  label       String
+  description String?
+  iconName    String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive])
+  @@map("property_type_lookup")
+}
+
+model ExperienceTypeLookup {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  key         String   @unique  // e.g. "CULTURAL_TOUR", "FOOD_TASTING"
+  label       String
+  description String?
+  iconName    String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive])
+  @@map("experience_type_lookup")
+}
+
+model RoomTypeLookup {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  key         String   @unique  // e.g. "STANDARD", "SUITE"
+  label       String
+  description String?
+  iconName    String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive])
+  @@map("room_type_lookup")
+}
+
+// ─── EMAIL TEMPLATE STORE (Phase A: DB-stored templates) ──
+model EmailTemplate {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  key         String   @unique  // e.g. "booking_confirmed", "event_reminder"
+  name        String
+  subject     String
+  bodyHtml    String
+  bodyText    String?
+  variables   String[] @default([])  // List of template variable names
+  version     Int      @default(1)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([key])
+  @@map("email_templates")
+}
+
+// ─── CONTRACT TEMPLATE STORE (Phase A: DB-stored templates) ──
+model ContractTemplate {
+  id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  key          String   @unique  // e.g. "SERVICE_AGREEMENT", "VENUE_HIRE"
+  name         String
+  description  String?
+  bodyHtml     String
+  variables    String[] @default([])
+  version      Int      @default(1)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([key])
+  @@map("contract_templates")
+}
+
+// ─── CONSUMER ────────────────────────────────────────
 model Consumer {
   id                String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   userId            String   @unique @db.Uuid
@@ -378,18 +729,13 @@ model Consumer {
   aiPreferences     Json?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
-
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   bookings Booking[]
   aiPlans  AiEventPlan[]
-
   instalmentPlans InstalmentPlan[]
-
   @@map("consumers")
 }
-
 // ─── EVENTS ──────────────────────────────────────────
-
 model Event {
   id            String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   plannerId     String      @db.Uuid
@@ -411,7 +757,6 @@ model Event {
   metaDesc      String?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
-
   planner       Planner     @relation(fields: [plannerId], references: [id], onDelete: Cascade)
   ticketTypes   TicketType[]
   attendees     Attendee[]
@@ -421,13 +766,11 @@ model Event {
   checkIns      CheckIn[]
   contracts     Contract[]
   distributions EventDistribution[]
-
   @@index([plannerId])
   @@index([status])
   @@index([startDate])
   @@map("events")
 }
-
 model TicketType {
   id           String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   eventId      String       @db.Uuid
@@ -440,20 +783,17 @@ model TicketType {
   status       TicketStatus @default(ACTIVE)
   saleStartsAt DateTime?
   saleEndsAt   DateTime?
-  salesEndDate DateTime?    // alias kept for backward compat
+  salesEndDate DateTime?
   minPerOrder  Int          @default(1)
   maxPerOrder  Int          @default(10)
   benefits     String[]     @default([])
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
-
   event     Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
   attendees Attendee[]
-
   @@index([eventId])
   @@map("ticket_types")
 }
-
 model Attendee {
   id             String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   eventId        String        @db.Uuid
@@ -466,49 +806,42 @@ model Attendee {
   qrCode         String        @unique
   status         CheckInStatus @default(REGISTERED)
   promoCode      String?
-  referralSource String?   // "EVENTBRITE" | "FACEBOOK" | "WIDGET" | "DIRECT"
-  referralMedium String?   // hostname of embedding site for widgets
+  referralSource String?
+  referralMedium String?
   amountPaid     Decimal       @db.Decimal(12, 2)
   paystackRef    String?
   registeredAt   DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
-
   event      Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
   ticketType TicketType @relation(fields: [ticketTypeId], references: [id])
   checkIn    CheckIn?
-
   @@index([eventId])
   @@index([email])
   @@index([qrCode])
   @@map("attendees")
 }
-
 model CheckIn {
   id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   eventId     String   @db.Uuid
   attendeeId  String   @unique @db.Uuid
   checkedInAt DateTime @default(now())
   checkedInBy String?
-
   event    Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   attendee Attendee @relation(fields: [attendeeId], references: [id], onDelete: Cascade)
-
   @@index([eventId])
   @@map("check_ins")
 }
-
 model PromoCode {
   id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   eventId       String   @db.Uuid
   code          String
-  discountType  String   // PERCENTAGE | FIXED
+  discountType  String
   discountValue Decimal  @db.Decimal(10, 2)
   maxUses       Int?
   usedCount     Int      @default(0)
   expiresAt     DateTime?
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
-
   @@unique([eventId, code])
   @@map("promo_codes")
 }
@@ -539,9 +872,7 @@ model Speaker {
   checklistSlides    Boolean @default(false)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
-
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
-
   @@index([eventId])
   @@map("speakers")
 }
@@ -558,9 +889,7 @@ model EventSponsor {
   perks       String?
   contactEmail String?
   createdAt   DateTime    @default(now())
-
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
-
   @@map("event_sponsors")
 }
 
@@ -572,17 +901,15 @@ model EmailCampaign {
   name        String
   subject     String
   body        String
-  audience    String   // ALL | VIP | NOT_REGISTERED | WAITLIST
-  status      String   @default("DRAFT") // DRAFT | SCHEDULED | SENT
+  audience    String
+  status      String   @default("DRAFT")
   scheduledAt DateTime?
   sentAt      DateTime?
   openCount   Int      @default(0)
   clickCount  Int      @default(0)
   recipientCount Int   @default(0)
   createdAt   DateTime @default(now())
-
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
-
   @@map("email_campaigns")
 }
 
@@ -619,7 +946,6 @@ model Booking {
   notes            String?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
-
   vendor   Vendor        @relation(fields: [vendorId], references: [id])
   planner  Planner?      @relation(fields: [plannerId], references: [id])
   consumer Consumer?     @relation(fields: [consumerId], references: [id])
@@ -627,16 +953,13 @@ model Booking {
   quote    Quote?
   review   Review?
   messages Message[]
-
+  contracts Contract[]
+  instalmentPlans InstalmentPlan[]
   @@index([vendorId])
   @@index([plannerId])
   @@index([consumerId])
   @@index([status])
   @@index([eventDate])
-
-  contracts Contract[]
-  instalmentPlans InstalmentPlan[]
-
   @@map("bookings")
 }
 
@@ -651,10 +974,8 @@ model Quote {
   status      QuoteStatus @default(PENDING)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
-
   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   vendor  Vendor  @relation(fields: [vendorId], references: [id])
-
   @@map("quotes")
 }
 
@@ -671,10 +992,8 @@ model Review {
   respondedAt DateTime?
   isVerified Boolean  @default(true)
   createdAt  DateTime @default(now())
-
   vendor  Vendor  @relation(fields: [vendorId], references: [id])
   booking Booking @relation(fields: [bookingId], references: [id])
-
   @@index([vendorId])
   @@map("reviews")
 }
@@ -690,11 +1009,9 @@ model Message {
   isRead     Boolean  @default(false)
   readAt     DateTime?
   createdAt  DateTime @default(now())
-
   booking  Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   sender   User    @relation("SentMessages", fields: [senderId], references: [id])
   receiver User    @relation("ReceivedMessages", fields: [receiverId], references: [id])
-
   @@index([bookingId])
   @@index([senderId])
   @@index([receiverId])
@@ -713,9 +1030,7 @@ model Notification {
   isRead    Boolean          @default(false)
   readAt    DateTime?
   createdAt DateTime         @default(now())
-
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
   @@index([userId, isRead])
   @@map("notifications")
 }
@@ -740,9 +1055,7 @@ model AiEventPlan {
   status       String   @default("DRAFT")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-
   consumer Consumer @relation(fields: [consumerId], references: [id], onDelete: Cascade)
-
   @@index([consumerId])
   @@map("ai_event_plans")
 }
@@ -759,7 +1072,6 @@ model Waitlist {
   notifiedAt   DateTime?
   expiresAt    DateTime?
   createdAt    DateTime @default(now())
-
   @@unique([eventId, email])
   @@index([eventId])
   @@map("waitlist")
@@ -773,10 +1085,10 @@ model Contract {
   plannerId       String         @db.Uuid
   vendorId        String         @db.Uuid
   title           String
-  templateType    String         // SERVICE_AGREEMENT | VENUE_HIRE | PHOTOGRAPHY | CUSTOM
+  templateType    String
   status          ContractStatus @default(DRAFT)
-  bodyHtml        String         // The contract body (HTML/rich text)
-  pdfUrl          String?        // Generated PDF stored in S3
+  bodyHtml        String
+  pdfUrl          String?
   totalAmount     Decimal?       @db.Decimal(12, 2)
   currency        String         @default("NGN")
   eventDate       DateTime?
@@ -788,12 +1100,10 @@ model Contract {
   fullySignedAt   DateTime?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
-
   planner    Planner            @relation(fields: [plannerId], references: [id])
   vendor     Vendor             @relation(fields: [vendorId], references: [id])
   booking    Booking?           @relation(fields: [bookingId], references: [id])
   signatures ContractSignature[]
-
   @@map("contracts")
 }
 
@@ -804,17 +1114,15 @@ model ContractSignature {
   signerName   String
   signerEmail  String
   signedAt     DateTime?
-  signingToken String     @unique  // Secure token for signing link
+  signingToken String     @unique
   tokenExpiry  DateTime
   ipAddress    String?
   userAgent    String?
-  signatureData String?  // Base64 drawn signature or typed name
+  signatureData String?
   isSigned     Boolean  @default(false)
   viewedAt     DateTime?
   reminderSentAt DateTime?
-
   contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
-
   @@map("contract_signatures")
 }
 
@@ -833,8 +1141,8 @@ enum SyncStatus {
 }
 
 enum SyncDirection {
-  PUSH        // Owambe → CRM
-  PULL        // CRM → Owambe
+  PUSH
+  PULL
   BIDIRECTIONAL
 }
 
@@ -843,43 +1151,30 @@ model CrmConnection {
   plannerId         String      @db.Uuid
   provider          CrmProvider
   isActive          Boolean     @default(true)
-
-  // OAuth tokens (encrypted at rest in production)
   accessToken       String
   refreshToken      String?
   tokenExpiresAt    DateTime?
-  instanceUrl       String?     // Salesforce org URL e.g. https://myorg.my.salesforce.com
-  portalId          String?     // HubSpot portal/hub ID
-
-  // Sync configuration
+  instanceUrl       String?
+  portalId          String?
   syncDirection     SyncDirection @default(BIDIRECTIONAL)
   syncAttendees     Boolean     @default(true)
   syncBookings      Boolean     @default(true)
   syncContacts      Boolean     @default(true)
   autoSyncEnabled   Boolean     @default(true)
   syncIntervalHours Int         @default(6)
-
-  // Field mapping (JSON): { owambeField: crmField }
   attendeeFieldMap  Json        @default("{}")
   bookingFieldMap   Json        @default("{}")
-
-  // CRM object IDs for tracking
-  crmContactOwnerId String?     // Assign synced contacts to this CRM user
-  crmPipelineId     String?     // HubSpot pipeline / SF opportunity stage
-
-  // State
+  crmContactOwnerId String?
+  crmPipelineId     String?
   lastSyncAt        DateTime?
   lastSyncStatus    SyncStatus  @default(IDLE)
   lastSyncError     String?
   totalSynced       Int         @default(0)
   totalErrors       Int         @default(0)
-
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
-
   planner  Planner      @relation(fields: [plannerId], references: [id], onDelete: Cascade)
   syncLogs CrmSyncLog[]
-
   @@unique([plannerId, provider])
   @@map("crm_connections")
 }
@@ -887,18 +1182,16 @@ model CrmConnection {
 model CrmSyncLog {
   id              String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   connectionId    String        @db.Uuid
-  entityType      String        // "attendee" | "booking" | "contact"
-  entityId        String        // Owambe entity UUID
-  crmId           String?       // CRM record ID after sync
+  entityType      String
+  entityId        String
+  crmId           String?
   direction       SyncDirection
   status          SyncStatus
   errorMessage    String?
-  payload         Json?         // What was sent/received
+  payload         Json?
   durationMs      Int?
   syncedAt        DateTime      @default(now())
-
   connection CrmConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
-
   @@index([connectionId])
   @@index([entityType, entityId])
   @@index([syncedAt])
@@ -907,44 +1200,38 @@ model CrmSyncLog {
 
 // ─── INSTALMENT PAYMENT PLANS ────────────────────────
 enum InstalmentStatus {
-  ACTIVE       // Plan running, instalments being collected
-  COMPLETED    // All instalments paid
-  DEFAULTED    // Payment failed and not recovered
-  CANCELLED    // User cancelled
-  PAUSED       // Temporarily paused (e.g. card expired)
+  ACTIVE
+  COMPLETED
+  DEFAULTED
+  CANCELLED
+  PAUSED
 }
 
 enum InstalmentPaymentStatus {
-  SCHEDULED    // Future payment, not yet due
-  PENDING      // Due soon (within 3 days)
-  PROCESSING   // Charge initiated
-  PAID         // Successfully collected
-  FAILED       // Charge failed
-  WAIVED       // Manually waived
+  SCHEDULED
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+  WAIVED
 }
 
 model InstalmentPlan {
   id                  String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  reference           String          @unique  // e.g. INST-XXXXX
+  reference           String          @unique
   bookingId           String          @db.Uuid
   plannerId           String?         @db.Uuid
   consumerId          String?         @db.Uuid
-
-  // Plan configuration
-  totalAmount         Decimal         @db.Decimal(12, 2)    // Full booking amount
-  instalmentCount     Int             // 3 or 6
-  instalmentAmount    Decimal         @db.Decimal(12, 2)    // Per instalment (may vary for first)
-  serviceFeeRate      Decimal         @default(3.5) @db.Decimal(5, 2) // % fee on top of total
-  serviceFeeAmount    Decimal         @db.Decimal(12, 2)   // Total fee charged
-  grandTotal          Decimal         @db.Decimal(12, 2)   // totalAmount + serviceFeeAmount
+  totalAmount         Decimal         @db.Decimal(12, 2)
+  instalmentCount     Int
+  instalmentAmount    Decimal         @db.Decimal(12, 2)
+  serviceFeeRate      Decimal         @default(3.5) @db.Decimal(5, 2)
+  serviceFeeAmount    Decimal         @db.Decimal(12, 2)
+  grandTotal          Decimal         @db.Decimal(12, 2)
   currency            String          @default("NGN")
-
-  // Paystack integration
-  paystackAuthCode    String?         // Reusable authorization code from first charge
-  paystackCustomerCode String?        // Paystack customer code
-  paystackEmail       String?         // Email for recurring charges
-
-  // Status tracking
+  paystackAuthCode    String?
+  paystackCustomerCode String?
+  paystackEmail       String?
   status              InstalmentStatus @default(ACTIVE)
   amountPaid          Decimal         @default(0) @db.Decimal(12, 2)
   nextDueDate         DateTime?
@@ -952,19 +1239,14 @@ model InstalmentPlan {
   cancelReason        String?
   completedAt         DateTime?
   defaultedAt         DateTime?
-  failureCount        Int             @default(0)  // consecutive failures
-
-  // First instalment start date
+  failureCount        Int             @default(0)
   startDate           DateTime        @default(now())
-
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
-
   booking   Booking          @relation(fields: [bookingId], references: [id])
   planner   Planner?         @relation(fields: [plannerId], references: [id])
   consumer  Consumer?        @relation(fields: [consumerId], references: [id])
   payments  InstalmentPayment[]
-
   @@index([bookingId])
   @@index([plannerId])
   @@index([consumerId])
@@ -976,23 +1258,18 @@ model InstalmentPlan {
 model InstalmentPayment {
   id                  String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   planId              String                  @db.Uuid
-  instalmentNumber    Int                     // 1 of 3, 2 of 3, etc.
+  instalmentNumber    Int
   amount              Decimal                 @db.Decimal(12, 2)
   dueDate             DateTime
   paidAt              DateTime?
   status              InstalmentPaymentStatus @default(SCHEDULED)
-
-  // Paystack charge details
   paystackReference   String?     @unique
   paystackChargeId    String?
   failureReason       String?
   retryCount          Int         @default(0)
-
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
-
   plan InstalmentPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
-
   @@index([planId])
   @@index([dueDate])
   @@index([status])
@@ -1004,7 +1281,7 @@ enum DistributionChannel {
   EVENTBRITE
   FACEBOOK_EVENTS
   GOOGLE_EVENTS
-  WIDGET_EMBED    // iFrame widget on external sites
+  WIDGET_EMBED
 }
 
 enum DistributionStatus {
@@ -1019,29 +1296,19 @@ model EventDistribution {
   eventId         String               @db.Uuid
   channel         DistributionChannel
   status          DistributionStatus   @default(PENDING)
-
-  // External IDs returned by each channel on publish
-  externalId      String?   // Eventbrite event ID, FB event ID, etc.
-  externalUrl     String?   // Link to the listing on the channel
-  externalRef     String?   // Any extra ref (FB post ID, etc.)
-
-  // Sync tracking
+  externalId      String?
+  externalUrl     String?
+  externalRef     String?
   lastSyncAt      DateTime?
   lastError       String?
   publishedAt     DateTime?
   unpublishedAt   DateTime?
-
-  // Source attribution: bookings/registrations from this channel
   clickCount      Int       @default(0)
   registrationCount Int     @default(0)
-
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
-
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
-
   @@unique([eventId, channel])
   @@index([eventId])
   @@map("event_distributions")
 }
-

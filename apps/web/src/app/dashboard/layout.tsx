@@ -3,20 +3,35 @@
 import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { useAuthStore } from '@/store/auth.store';
+import { useAuthStore, PlatformMode } from '@/store/auth.store';
+import { ModeSwitcher } from '@/components/ModeSwitcher';
 import { cn, initials } from '@/lib/utils';
 import {
   Zap, Calendar, Plus, Globe, Scan, Clock, Mail,
   Mic, MapPin, Trophy, Smartphone, BarChart2, CreditCard,
-  LogOut, Search, Bell, LayoutTemplate, FileSignature, Link2
+  LogOut, Search, Bell, LayoutTemplate, FileSignature, Link2,
+  Home, Bed, Compass, Star, Package
 } from 'lucide-react';
 
-const NAV_SECTIONS = [
+// ─── Mode-aware navigation ────────────────────────────
+type NavItem = {
+  href: string;
+  icon: React.ElementType;
+  label: string;
+  badge?: string | null;
+};
+
+type NavSection = {
+  label: string;
+  items: NavItem[];
+};
+
+const EVENTS_NAV: NavSection[] = [
   {
     label: 'Main',
     items: [
       { href: '/dashboard', icon: Zap, label: 'Dashboard' },
-      { href: '/dashboard/events', icon: Calendar, label: 'My Events', badge: null },
+      { href: '/dashboard/events', icon: Calendar, label: 'My Events' },
       { href: '/dashboard/events/new', icon: Plus, label: 'Create Event' },
     ]
   },
@@ -43,7 +58,7 @@ const NAV_SECTIONS = [
     ]
   },
   {
-    label: 'Other',
+    label: 'Tools',
     items: [
       { href: '/dashboard/mobile', icon: Smartphone, label: 'Attendee App' },
       { href: '/dashboard/analytics', icon: BarChart2, label: 'Analytics' },
@@ -56,8 +71,100 @@ const NAV_SECTIONS = [
   },
 ];
 
+const STAYS_NAV: NavSection[] = [
+  {
+    label: 'Main',
+    items: [
+      { href: '/dashboard/stays', icon: Home, label: 'Dashboard' },
+      { href: '/dashboard/stays/properties', icon: Bed, label: 'My Properties' },
+      { href: '/dashboard/stays/properties/new', icon: Plus, label: 'Add Property' },
+    ]
+  },
+  {
+    label: 'Bookings',
+    items: [
+      { href: '/dashboard/stays/bookings', icon: Calendar, label: 'Bookings' },
+      { href: '/dashboard/stays/calendar', icon: Clock, label: 'Availability Calendar' },
+    ]
+  },
+  {
+    label: 'Tools',
+    items: [
+      { href: '/dashboard/stays/analytics', icon: BarChart2, label: 'Analytics' },
+      { href: '/dashboard/stays/reviews', icon: Star, label: 'Reviews' },
+      { href: '/dashboard/pricing', icon: CreditCard, label: 'Pricing' },
+    ]
+  },
+];
+
+const EXPERIENCES_NAV: NavSection[] = [
+  {
+    label: 'Main',
+    items: [
+      { href: '/dashboard/experiences', icon: Compass, label: 'Dashboard' },
+      { href: '/dashboard/experiences/list', icon: Package, label: 'My Experiences' },
+      { href: '/dashboard/experiences/new', icon: Plus, label: 'Add Experience' },
+    ]
+  },
+  {
+    label: 'Bookings',
+    items: [
+      { href: '/dashboard/experiences/bookings', icon: Calendar, label: 'Bookings' },
+      { href: '/dashboard/experiences/slots', icon: Clock, label: 'Manage Slots' },
+    ]
+  },
+  {
+    label: 'Tools',
+    items: [
+      { href: '/dashboard/experiences/analytics', icon: BarChart2, label: 'Analytics' },
+      { href: '/dashboard/experiences/reviews', icon: Star, label: 'Reviews' },
+      { href: '/dashboard/pricing', icon: CreditCard, label: 'Pricing' },
+    ]
+  },
+];
+
+const MODE_NAV: Record<PlatformMode, NavSection[]> = {
+  EVENTS: EVENTS_NAV,
+  STAYS: STAYS_NAV,
+  EXPERIENCES: EXPERIENCES_NAV,
+};
+
+// ─── Mode-aware page titles ───────────────────────────
+const PAGE_TITLES: Record<string, string> = {
+  '/dashboard': 'Dashboard',
+  '/dashboard/events': 'My Events',
+  '/dashboard/events/new': 'Create Event',
+  '/dashboard/registration': 'Registration Page',
+  '/dashboard/checkin': 'Check-in Scanner',
+  '/dashboard/waitlist': 'Waitlist & Promos',
+  '/dashboard/emails': 'Email Campaigns',
+  '/dashboard/speakers': 'Speaker Management',
+  '/dashboard/venue': 'Venue & Map',
+  '/dashboard/sponsors': 'Sponsors',
+  '/dashboard/mobile': 'Attendee App',
+  '/dashboard/analytics': 'Analytics',
+  '/dashboard/pricing': 'Pricing',
+  '/dashboard/contracts': 'Contracts & E-Sign',
+  '/dashboard/crm': 'CRM Sync',
+  '/dashboard/instalments': 'Instalment Plans',
+  '/dashboard/whitelabel': 'White-label Portal',
+  '/dashboard/stays': 'Stays Dashboard',
+  '/dashboard/stays/properties': 'My Properties',
+  '/dashboard/stays/bookings': 'Bookings',
+  '/dashboard/stays/calendar': 'Availability Calendar',
+  '/dashboard/stays/reviews': 'Reviews',
+  '/dashboard/stays/analytics': 'Analytics',
+  '/dashboard/experiences': 'Experiences Dashboard',
+  '/dashboard/experiences/list': 'My Experiences',
+  '/dashboard/experiences/bookings': 'Bookings',
+  '/dashboard/experiences/slots': 'Manage Slots',
+  '/dashboard/experiences/reviews': 'Reviews',
+  '/dashboard/experiences/analytics': 'Analytics',
+};
+
+// ─── Layout ───────────────────────────────────────────
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { user, isAuthenticated, logout } = useAuthStore();
+  const { user, isAuthenticated, logout, activeMode } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -67,32 +174,42 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (!user) return null;
 
+  const navSections = MODE_NAV[activeMode] ?? EVENTS_NAV;
+
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--bg)]">
       {/* SIDEBAR */}
       <aside className="w-[212px] bg-[var(--dark)] flex flex-col flex-shrink-0 overflow-y-auto no-scrollbar">
         {/* Logo */}
-        <div className="px-4 py-5 border-b border-white/[0.08] flex-shrink-0">
+        <div className="px-4 py-4 border-b border-white/[0.08] flex-shrink-0">
           <Link href="/dashboard">
             <div className="font-bold text-[19px] text-white tracking-tight">
-              event<span className="text-[var(--accent2)]">flow</span>
+              owambe
             </div>
             <div className="text-[9px] text-white/30 uppercase tracking-[2px] mt-0.5">
-              Owambe Platform
+              Platform
             </div>
           </Link>
         </div>
 
+        {/* Mode Switcher */}
+        <div className="px-2.5 pt-3 pb-1 flex-shrink-0">
+          <ModeSwitcher />
+        </div>
+
         {/* Nav */}
-        <nav className="flex-1 px-2.5 py-3">
-          {NAV_SECTIONS.map((section) => (
+        <nav className="flex-1 px-2.5 py-2">
+          {navSections.map((section) => (
             <div key={section.label}>
               <div className="text-[9px] uppercase tracking-[2px] text-white/20 px-2 py-2 mt-2">
                 {section.label}
               </div>
               {section.items.map((item) => {
                 const isActive = pathname === item.href ||
-                  (item.href !== '/dashboard' && pathname.startsWith(item.href));
+                  (item.href !== '/dashboard' &&
+                   item.href !== '/dashboard/stays' &&
+                   item.href !== '/dashboard/experiences' &&
+                   pathname.startsWith(item.href));
                 return (
                   <Link
                     key={item.href}
@@ -124,7 +241,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 {user.firstName} {user.lastName}
               </div>
               <div className="text-[9px] text-[var(--accent2)] font-semibold tracking-wide">
-                {user.profile?.plan || 'STARTER'} PLAN
+                {user.planner?.plan || user.role} {user.planner ? 'PLAN' : ''}
               </div>
             </div>
           </div>
@@ -140,10 +257,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* MAIN */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        {/* Topbar */}
         <TopBar />
-
-        {/* Page content */}
         <main className="flex-1 overflow-y-auto">
           {children}
         </main>
@@ -152,27 +266,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   );
 }
 
+// ─── TopBar ───────────────────────────────────────────
 function TopBar() {
   const pathname = usePathname();
+  const { activeMode } = useAuthStore();
 
-  const titles: Record<string, string> = {
-    '/dashboard': 'Dashboard',
-    '/dashboard/events': 'My Events',
-    '/dashboard/events/new': 'Create Event',
-    '/dashboard/registration': 'Registration Page',
-    '/dashboard/checkin': 'Check-in Scanner',
-    '/dashboard/waitlist': 'Waitlist & Promos',
-    '/dashboard/emails': 'Email Campaigns',
-    '/dashboard/speakers': 'Speaker Management',
-    '/dashboard/venue': 'Venue & Map',
-    '/dashboard/sponsors': 'Sponsors',
-    '/dashboard/mobile': 'Attendee App',
-    '/dashboard/analytics': 'Analytics',
-    '/dashboard/pricing': 'Pricing',
+  const title = PAGE_TITLES[pathname] ||
+    (pathname.includes('/events/') ? 'Event Details' :
+     pathname.includes('/properties/') ? 'Property Details' :
+     pathname.includes('/experiences/') ? 'Experience Details' : 'Owambe');
+
+  // Mode-aware CTA
+  const ctaMap: Record<PlatformMode, { href: string; label: string }> = {
+    EVENTS: { href: '/dashboard/events/new', label: 'New Event' },
+    STAYS: { href: '/dashboard/stays/properties/new', label: 'Add Property' },
+    EXPERIENCES: { href: '/dashboard/experiences/new', label: 'Add Experience' },
   };
-
-  const title = titles[pathname] ||
-    (pathname.includes('/events/') ? 'Event Details' : 'Owambe');
+  const cta = ctaMap[activeMode];
 
   return (
     <header className="bg-[var(--surface)] border-b border-[var(--border)] h-[52px] px-6 flex items-center gap-3 flex-shrink-0 sticky top-0 z-10">
@@ -186,11 +296,11 @@ function TopBar() {
         <span className="absolute -top-1 -right-1 w-2 h-2 bg-[var(--accent2)] rounded-full" />
       </button>
       <Link
-        href="/dashboard/events/new"
+        href={cta.href}
         className="btn-primary text-xs px-3 py-1.5 flex items-center gap-1.5"
       >
         <Plus size={13} />
-        New Event
+        {cta.label}
       </Link>
     </header>
   );
