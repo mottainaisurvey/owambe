@@ -67,7 +67,7 @@ api.interceptors.response.use(
         processQueue(refreshError, null);
         const { useAuthStore } = await import('@/store/auth.store');
         useAuthStore.getState().clearAuth();
-        window.location.href = '/login';
+        if (typeof window !== 'undefined') { window.location.href = '/login'; }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
@@ -156,10 +156,9 @@ export const waitlistApi = {
 };
 
 export const attendeesApi = {
-  list: (eventId: string, params?: any) => api.get(`/attendees/event/${eventId,
+  list: (eventId: string, params?: any) => api.get(`/attendees/event/${eventId}`, { params }),
   export: (eventId: string, format: 'csv' | 'xlsx' = 'csv') =>
     api.get(`/attendees/event/${eventId}/export`, { params: { format }, responseType: 'blob' }),
-}`, { params }),
   checkIn: (data: { qrCode: string; eventId: string }) => api.post('/attendees/checkin', data),
   getTicket: (qrCode: string) => api.get(`/attendees/ticket/${qrCode}`),
 };

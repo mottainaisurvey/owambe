@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { api } from '@/lib/api';
 import Link from 'next/link';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 
-export default function PaymentCallbackPage() {
+// Force dynamic rendering to avoid SSG issues with useSearchParams
+export const dynamic = 'force-dynamic';
+
+function PaymentCallbackContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState<'loading' | 'success' | 'failed'>('loading');
@@ -88,5 +90,20 @@ export default function PaymentCallbackPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function PaymentCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center p-6">
+        <div className="bg-white rounded-2xl p-8 max-w-md w-full text-center shadow-lg">
+          <Loader2 size={48} className="animate-spin text-[var(--accent)] mx-auto mb-4" />
+          <h1 className="font-bold text-xl mb-2">Loading...</h1>
+        </div>
+      </div>
+    }>
+      <PaymentCallbackContent />
+    </Suspense>
   );
 }
