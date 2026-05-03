@@ -105,7 +105,7 @@ export async function login(req: Request, res: Response, next: NextFunction) {
     ]);
 
     // Get profile data based on role
-    let profile = null;
+    let profile: any = null;
     if (user.role === 'PLANNER') {
       profile = await prisma.planner.findUnique({ where: { userId: user.id } });
     } else if (user.role === 'VENDOR') {

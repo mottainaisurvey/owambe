@@ -66,19 +66,31 @@ router.post('/',
         throw new AppError('This room is not available for the selected dates', 409);
       }
 
-      const totalAmount = room.pricePerNight * nights;
+      const totalAmount = Number(room.pricePerNight) * nights;
+      const depositAmount = totalAmount * 0.3; // 30% deposit
       const reference = `STAY-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+
+      // Get guest name/email from user record
+      const guestUser = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { firstName: true, lastName: true, email: true, phone: true }
+      });
 
       const booking = await prisma.stayBooking.create({
         data: {
           propertyId: room.property.id,
           roomId,
+          guestUserId: userId,
           guestId: userId,
+          guestName: guestUser ? `${guestUser.firstName} ${guestUser.lastName}` : 'Guest',
+          guestEmail: guestUser?.email || '',
+          guestPhone: guestUser?.phone || null,
           checkInDate: checkIn,
           checkOutDate: checkOut,
           nights,
           guestCount,
           totalAmount,
+          depositAmount,
           currency: room.currency,
           reference,
           specialRequests: specialRequests || null,

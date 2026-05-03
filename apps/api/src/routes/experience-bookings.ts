@@ -46,15 +46,25 @@ router.post('/',
         throw new AppError(`Minimum group size is ${slot.experience.minGroupSize}`, 400);
       }
 
-      const totalAmount = slot.experience.pricePerPerson * guestCount;
+       const totalAmount = Number(slot.experience.pricePerPerson) * guestCount;
       const reference = `EXP-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+
+      // Get guest name/email from user record
+      const guestUser = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { firstName: true, lastName: true, email: true, phone: true }
+      });
 
       const [booking] = await prisma.$transaction([
         prisma.experienceBooking.create({
           data: {
             experienceId: slot.experience.id,
             slotId,
+            guestUserId: userId,
             guestId: userId,
+            guestName: guestUser ? `${guestUser.firstName} ${guestUser.lastName}` : 'Guest',
+            guestEmail: guestUser?.email || '',
+            guestPhone: guestUser?.phone || null,
             guestCount,
             totalAmount,
             currency: slot.experience.currency,

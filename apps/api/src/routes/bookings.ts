@@ -24,7 +24,7 @@ bookingsRouter.get('/:id', async (req, res, next) => {
         planner: { include: { user: { select: { firstName: true, lastName: true, email: true } } } },
         consumer: { include: { user: { select: { firstName: true, lastName: true, email: true } } } },
         messages: { orderBy: { createdAt: 'asc' } },
-        quotes: { orderBy: { createdAt: 'desc' }, take: 1 },
+        quote: true,
       },
     });
     if (!booking) throw new AppError('Booking not found', 404);

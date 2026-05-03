@@ -13,6 +13,16 @@ function toRad(deg: number): number {
 }
 
 /**
+ * Safely convert a Prisma Decimal, number, or string to a JS number.
+ */
+function toNum(v: any): number {
+  if (v == null) return 0;
+  if (typeof v === 'number') return v;
+  if (typeof v.toNumber === 'function') return v.toNumber();
+  return Number(v);
+}
+
+/**
  * Calculate the Haversine distance between two lat/lng points in kilometres.
  */
 export function haversineDistanceKm(
@@ -53,6 +63,7 @@ export function getBoundingBox(
  * Filter an array of records that have `latitude` and `longitude` fields
  * to only those within `radiusKm` of the given centre point.
  *
+ * Accepts Prisma Decimal, number, or string for lat/lng fields.
  * Assumes records have already been pre-filtered by bounding box.
  * Attaches `distanceKm` to each matching record.
  *
@@ -62,7 +73,8 @@ export function getBoundingBox(
  * @param radiusKm - Maximum distance in kilometres
  * @returns Filtered and sorted array with `distanceKm` attached
  */
-export function geoSearch<T extends { latitude?: number | null; longitude?: number | null }>(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function geoSearch<T extends { latitude?: any; longitude?: any }>(
   records: T[],
   centerLat: number,
   centerLng: number,
@@ -72,7 +84,10 @@ export function geoSearch<T extends { latitude?: number | null; longitude?: numb
     .filter(r => r.latitude != null && r.longitude != null)
     .map(r => ({
       ...r,
-      distanceKm: haversineDistanceKm(centerLat, centerLng, r.latitude!, r.longitude!),
+      distanceKm: haversineDistanceKm(
+        centerLat, centerLng,
+        toNum(r.latitude), toNum(r.longitude)
+      ),
     }))
     .filter(r => r.distanceKm <= radiusKm)
     .sort((a, b) => a.distanceKm - b.distanceKm);
