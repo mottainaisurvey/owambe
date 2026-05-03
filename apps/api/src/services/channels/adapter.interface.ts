@@ -4,6 +4,8 @@
 // must implement this interface.
 
 export type ChannelName =
+  | 'COASTAL_CORRIDOR'
+  | 'HOTELS_NG'
   | 'GOOGLE_EVENTS'
   | 'EVENTBRITE'
   | 'FACEBOOK_EVENTS'

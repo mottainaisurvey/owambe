@@ -219,19 +219,148 @@ export class ViatorAdapter extends BaseChannelAdapter {
   }
 }
 
+// ─── Coastal Corridor Adapter (ACTIVE — Priority Channel) ────────────────────
+// The Coastal Corridor is the first live distribution channel for Stays and
+// Experiences modes. Phase A: stub with correct interface. Phase C: live API.
+export class CoastalCorridorAdapter extends BaseChannelAdapter {
+  readonly channelName = 'COASTAL_CORRIDOR' as const;
+
+  isConfigured(): boolean {
+    return !!(process.env.COASTAL_CORRIDOR_API_KEY && process.env.COASTAL_CORRIDOR_API_URL);
+  }
+
+  async createListing(payload: ChannelListingPayload): Promise<ChannelListingResult> {
+    if (!this.isConfigured()) return this.notConfiguredResult();
+    // TODO Phase C: POST to Coastal Corridor partner API
+    // Endpoint: process.env.COASTAL_CORRIDOR_API_URL + '/listings'
+    // Auth: Bearer process.env.COASTAL_CORRIDOR_API_KEY
+    logger.info(`[CoastalCorridor] createListing stub for entity ${payload.entityId} (mode: ${payload.mode})`);
+    return { success: true, externalId: `cc-stub-${payload.entityId}` };
+  }
+
+  async updateListing(externalId: string, _payload: ChannelListingPayload): Promise<ChannelListingResult> {
+    if (!this.isConfigured()) return this.notConfiguredResult();
+    logger.info(`[CoastalCorridor] updateListing stub for ${externalId}`);
+    return { success: true, externalId };
+  }
+
+  async deleteListing(externalId: string): Promise<ChannelListingResult> {
+    if (!this.isConfigured()) return this.notConfiguredResult();
+    logger.info(`[CoastalCorridor] deleteListing stub for ${externalId}`);
+    return { success: true, externalId };
+  }
+
+  async getStatus(externalId: string): Promise<ChannelSyncStatus> {
+    return { channel: this.channelName, entityId: externalId, externalId, status: 'PENDING' };
+  }
+}
+
+// ─── Hotels.ng Adapter (Stays) ────────────────────────
+export class HotelsNgAdapter extends BaseChannelAdapter {
+  readonly channelName = 'HOTELS_NG' as const;
+
+  isConfigured(): boolean {
+    return !!(process.env.HOTELS_NG_API_KEY);
+  }
+
+  async createListing(payload: ChannelListingPayload): Promise<ChannelListingResult> {
+    if (!this.isConfigured()) return this.notConfiguredResult();
+    // TODO Phase D: implement Hotels.ng supplier API call
+    logger.info(`[HotelsNg] createListing stub for entity ${payload.entityId}`);
+    return { success: true, externalId: `hotelsng-stub-${payload.entityId}` };
+  }
+
+  async updateListing(externalId: string, _payload: ChannelListingPayload): Promise<ChannelListingResult> {
+    if (!this.isConfigured()) return this.notConfiguredResult();
+    return { success: true, externalId };
+  }
+
+  async deleteListing(externalId: string): Promise<ChannelListingResult> {
+    if (!this.isConfigured()) return this.notConfiguredResult();
+    return { success: true, externalId };
+  }
+
+  async getStatus(externalId: string): Promise<ChannelSyncStatus> {
+    return { channel: this.channelName, entityId: externalId, externalId, status: 'PENDING' };
+  }
+}
+
+// ─── Booking.com Adapter (Stays) ──────────────────────
+export class BookingComAdapter extends BaseChannelAdapter {
+  readonly channelName = 'BOOKING_COM' as const;
+
+  isConfigured(): boolean {
+    return !!(process.env.BOOKING_COM_API_KEY && process.env.BOOKING_COM_PROPERTY_ID);
+  }
+
+  async createListing(payload: ChannelListingPayload): Promise<ChannelListingResult> {
+    if (!this.isConfigured()) return this.notConfiguredResult();
+    // TODO Phase D: implement Booking.com Connectivity API call
+    logger.info(`[BookingCom] createListing stub for entity ${payload.entityId}`);
+    return { success: true, externalId: `bdc-stub-${payload.entityId}` };
+  }
+
+  async updateListing(externalId: string, _payload: ChannelListingPayload): Promise<ChannelListingResult> {
+    if (!this.isConfigured()) return this.notConfiguredResult();
+    return { success: true, externalId };
+  }
+
+  async deleteListing(externalId: string): Promise<ChannelListingResult> {
+    if (!this.isConfigured()) return this.notConfiguredResult();
+    return { success: true, externalId };
+  }
+
+  async getStatus(externalId: string): Promise<ChannelSyncStatus> {
+    return { channel: this.channelName, entityId: externalId, externalId, status: 'PENDING' };
+  }
+}
+
+// ─── GetYourGuide Adapter (Experiences) ───────────────
+export class GetYourGuideAdapter extends BaseChannelAdapter {
+  readonly channelName = 'GETYOURGUIDE' as const;
+
+  isConfigured(): boolean {
+    return !!(process.env.GETYOURGUIDE_API_KEY);
+  }
+
+  async createListing(payload: ChannelListingPayload): Promise<ChannelListingResult> {
+    if (!this.isConfigured()) return this.notConfiguredResult();
+    // TODO Phase D: implement GetYourGuide Supplier API call
+    logger.info(`[GetYourGuide] createListing stub for entity ${payload.entityId}`);
+    return { success: true, externalId: `gyg-stub-${payload.entityId}` };
+  }
+
+  async updateListing(externalId: string, _payload: ChannelListingPayload): Promise<ChannelListingResult> {
+    if (!this.isConfigured()) return this.notConfiguredResult();
+    return { success: true, externalId };
+  }
+
+  async deleteListing(externalId: string): Promise<ChannelListingResult> {
+    if (!this.isConfigured()) return this.notConfiguredResult();
+    return { success: true, externalId };
+  }
+
+  async getStatus(externalId: string): Promise<ChannelSyncStatus> {
+    return { channel: this.channelName, entityId: externalId, externalId, status: 'PENDING' };
+  }
+}
+
 // ─── Adapter Registry ─────────────────────────────────
 import { IChannelAdapter, ChannelName } from './adapter.interface';
 
+// Coastal Corridor is listed first as it is the priority active channel.
 const adapterInstances: Record<ChannelName, IChannelAdapter> = {
-  GOOGLE_EVENTS: new GoogleEventsAdapter(),
-  EVENTBRITE: new EventbriteAdapter(),
-  FACEBOOK_EVENTS: new FacebookEventsAdapter(),
-  WIDGET_EMBED: new WidgetEmbedAdapter(),
-  MANUAL: new WidgetEmbedAdapter(), // Manual uses widget embed URL generation
-  AIRBNB: new AirbnbAdapter(),
-  BOOKING_COM: new AirbnbAdapter(), // Placeholder until Booking.com adapter is implemented
-  VIATOR: new ViatorAdapter(),
-  GETYOURGUIDE: new ViatorAdapter(), // Placeholder until GetYourGuide adapter is implemented
+  COASTAL_CORRIDOR: new CoastalCorridorAdapter(),
+  HOTELS_NG:        new HotelsNgAdapter(),
+  GOOGLE_EVENTS:    new GoogleEventsAdapter(),
+  EVENTBRITE:       new EventbriteAdapter(),
+  FACEBOOK_EVENTS:  new FacebookEventsAdapter(),
+  WIDGET_EMBED:     new WidgetEmbedAdapter(),
+  MANUAL:           new WidgetEmbedAdapter(), // Manual uses widget embed URL generation
+  AIRBNB:           new AirbnbAdapter(),
+  BOOKING_COM:      new BookingComAdapter(),
+  VIATOR:           new ViatorAdapter(),
+  GETYOURGUIDE:     new GetYourGuideAdapter(),
 };
 
 export function getAdapter(channel: ChannelName): IChannelAdapter {
