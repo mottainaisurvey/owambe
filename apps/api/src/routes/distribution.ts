@@ -184,7 +184,7 @@ distributionRouter.post('/:eventId/distributions/:distId/unpublish',
       if (!dist) throw new AppError('Distribution not found', 404);
       if (dist.event.plannerId !== planner.id) throw new AppError('Access denied', 403);
 
-      let unpubResult = { success: true, error: undefined as string | undefined };
+      let unpubResult: { success: boolean; error?: string } = { success: true };
 
       if (dist.channel === 'EVENTBRITE' && dist.externalId) {
         unpubResult = await unpublishFromEventbrite(dist.externalId);
