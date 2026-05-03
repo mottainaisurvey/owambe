@@ -1,3 +1,4 @@
+import { Request, Response, NextFunction } from 'express';
 import { Router } from 'express';
 import { body } from 'express-validator';
 import { prisma } from '../database/client';
@@ -66,7 +67,7 @@ async function getActiveConnection(connectionId: string) {
 }
 
 // ─── 1. LIST CONNECTIONS ─────────────────────────────
-crmRouter.get('/', authenticate, requireRole('PLANNER'), async (req, res, next) => {
+crmRouter.get('/', authenticate, requireRole('PLANNER'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const planner = await getPlanner((req as any).userId);
     const connections = await prisma.crmConnection.findMany({
@@ -88,7 +89,7 @@ crmRouter.get('/', authenticate, requireRole('PLANNER'), async (req, res, next) 
 });
 
 // ─── 2. GET OAUTH URL ─────────────────────────────────
-crmRouter.get('/oauth/:provider/url', authenticate, requireRole('PLANNER'), async (req, res, next) => {
+crmRouter.get('/oauth/:provider/url', authenticate, requireRole('PLANNER'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const planner = await getPlanner((req as any).userId);
     const { provider } = req.params;
@@ -116,7 +117,7 @@ crmRouter.get('/oauth/:provider/url', authenticate, requireRole('PLANNER'), asyn
 });
 
 // ─── 3. OAUTH CALLBACK (handles redirect from CRM) ────
-crmRouter.get('/oauth/:provider/callback', async (req, res, next) => {
+crmRouter.get('/oauth/:provider/callback', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { provider } = req.params;
     const { code, state: plannerId, error } = req.query as Record<string, string>;
@@ -186,7 +187,7 @@ crmRouter.post('/connect',
     body('portalId').optional(),
   ],
   validate,
-  async (req, res, next) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
       const planner = await getPlanner((req as any).userId);
       const { provider, accessToken, refreshToken, instanceUrl, portalId } = req.body;
@@ -235,7 +236,7 @@ crmRouter.post('/connect',
 );
 
 // ─── 5. UPDATE SETTINGS ───────────────────────────────
-crmRouter.put('/:connectionId', authenticate, requireRole('PLANNER'), async (req, res, next) => {
+crmRouter.put('/:connectionId', authenticate, requireRole('PLANNER'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     await getPlanner((req as any).userId);
     const {
@@ -265,7 +266,7 @@ crmRouter.put('/:connectionId', authenticate, requireRole('PLANNER'), async (req
 });
 
 // ─── 6. DISCONNECT ────────────────────────────────────
-crmRouter.delete('/:connectionId', authenticate, requireRole('PLANNER'), async (req, res, next) => {
+crmRouter.delete('/:connectionId', authenticate, requireRole('PLANNER'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     await getPlanner((req as any).userId);
     await prisma.crmConnection.delete({ where: { id: req.params.connectionId } });
@@ -274,7 +275,7 @@ crmRouter.delete('/:connectionId', authenticate, requireRole('PLANNER'), async (
 });
 
 // ─── 7. SYNC LOGS ─────────────────────────────────────
-crmRouter.get('/:connectionId/logs', authenticate, requireRole('PLANNER'), async (req, res, next) => {
+crmRouter.get('/:connectionId/logs', authenticate, requireRole('PLANNER'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     await getPlanner((req as any).userId);
     const { limit = 50, page = 1 } = req.query;
@@ -295,7 +296,7 @@ crmRouter.get('/:connectionId/logs', authenticate, requireRole('PLANNER'), async
 });
 
 // ─── 8. MANUAL SYNC ───────────────────────────────────
-crmRouter.post('/:connectionId/sync', authenticate, requireRole('PLANNER'), async (req, res, next) => {
+crmRouter.post('/:connectionId/sync', authenticate, requireRole('PLANNER'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const planner = await getPlanner((req as any).userId);
     const conn = await getActiveConnection(req.params.connectionId);
@@ -317,7 +318,7 @@ crmRouter.post('/:connectionId/sync', authenticate, requireRole('PLANNER'), asyn
 });
 
 // ─── 9. GET CRM METADATA (pipelines, stages) ──────────
-crmRouter.get('/:connectionId/metadata', authenticate, requireRole('PLANNER'), async (req, res, next) => {
+crmRouter.get('/:connectionId/metadata', authenticate, requireRole('PLANNER'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     await getPlanner((req as any).userId);
     const conn = await getActiveConnection(req.params.connectionId);
@@ -336,7 +337,7 @@ crmRouter.get('/:connectionId/metadata', authenticate, requireRole('PLANNER'), a
 });
 
 // ─── 10. TEST CONNECTION ─────────────────────────────
-crmRouter.post('/:connectionId/test', authenticate, requireRole('PLANNER'), async (req, res, next) => {
+crmRouter.post('/:connectionId/test', authenticate, requireRole('PLANNER'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     await getPlanner((req as any).userId);
     const conn = await getActiveConnection(req.params.connectionId);

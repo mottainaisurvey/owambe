@@ -1,3 +1,4 @@
+import { Request, Response, NextFunction } from 'express';
 import { Router } from 'express';
 import { body, param } from 'express-validator';
 import { prisma } from '../database/client';
@@ -10,7 +11,7 @@ export const promosRouter = Router();
 promosRouter.use(authenticate);
 
 // ─── LIST promo codes for an event ───────────────────
-promosRouter.get('/event/:eventId', requireRole('PLANNER'), async (req, res, next) => {
+promosRouter.get('/event/:eventId', requireRole('PLANNER'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const promoCodes = await prisma.promoCode.findMany({
       where: { eventId: req.params.eventId },
@@ -31,7 +32,7 @@ promosRouter.post('/event/:eventId',
     body('expiresAt').optional().isISO8601(),
   ],
   validate,
-  async (req, res, next) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
       const existing = await prisma.promoCode.findFirst({
         where: { code: req.body.code.toUpperCase(), eventId: req.params.eventId },
@@ -57,7 +58,7 @@ promosRouter.post('/event/:eventId',
 promosRouter.post('/validate', [
   body('code').trim().notEmpty(),
   body('eventId').isUUID(),
-], validate, async (req, res, next) => {
+], validate, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { code, eventId } = req.body;
     const promo = await prisma.promoCode.findFirst({
@@ -101,7 +102,7 @@ promosRouter.post('/validate', [
 });
 
 // ─── DELETE / deactivate ──────────────────────────────
-promosRouter.delete('/:id', requireRole('PLANNER'), async (req, res, next) => {
+promosRouter.delete('/:id', requireRole('PLANNER'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     await prisma.promoCode.update({
       where: { id: req.params.id },
@@ -112,7 +113,7 @@ promosRouter.delete('/:id', requireRole('PLANNER'), async (req, res, next) => {
 });
 
 // ─── UPDATE (activate / change expiry) ───────────────
-promosRouter.put('/:id', requireRole('PLANNER'), async (req, res, next) => {
+promosRouter.put('/:id', requireRole('PLANNER'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const promo = await prisma.promoCode.update({
       where: { id: req.params.id },

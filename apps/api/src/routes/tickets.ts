@@ -1,3 +1,4 @@
+import { Request, Response, NextFunction } from 'express';
 import { Router } from 'express';
 import { body, param } from 'express-validator';
 import { prisma } from '../database/client';
@@ -10,7 +11,7 @@ export const ticketsRouter = Router();
 ticketsRouter.use(authenticate, requireRole('PLANNER'));
 
 // ─── LIST ticket types for an event ──────────────────
-ticketsRouter.get('/event/:eventId', async (req, res, next) => {
+ticketsRouter.get('/event/:eventId', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const ticketTypes = await prisma.ticketType.findMany({
       where: { eventId: req.params.eventId },
@@ -40,7 +41,7 @@ ticketsRouter.post('/event/:eventId',
     body('maxPerOrder').optional().isInt({ min: 1 }),
   ],
   validate,
-  async (req, res, next) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { name, price, capacity, description, salesEndDate, minPerOrder, maxPerOrder, benefits } = req.body;
       const ticketType = await prisma.ticketType.create({
@@ -67,7 +68,7 @@ ticketsRouter.post('/event/:eventId',
 ticketsRouter.put('/:id',
   [param('id').isUUID()],
   validate,
-  async (req, res, next) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { name, price, capacity, status, description, salesEndDate, benefits } = req.body;
       const ticketType = await prisma.ticketType.update({
@@ -88,7 +89,7 @@ ticketsRouter.put('/:id',
 );
 
 // ─── DELETE ticket type (only if no sales) ────────────
-ticketsRouter.delete('/:id', async (req, res, next) => {
+ticketsRouter.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const sold = await prisma.attendee.count({ where: { ticketTypeId: req.params.id } });
     if (sold > 0) throw new AppError(`Cannot delete — ${sold} attendees registered with this ticket`, 400);
@@ -98,7 +99,7 @@ ticketsRouter.delete('/:id', async (req, res, next) => {
 });
 
 // ─── PAUSE / RESUME sales ─────────────────────────────
-ticketsRouter.patch('/:id/status', async (req, res, next) => {
+ticketsRouter.patch('/:id/status', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { status } = req.body;
     if (!['ACTIVE', 'PAUSED', 'SOLD_OUT'].includes(status)) {

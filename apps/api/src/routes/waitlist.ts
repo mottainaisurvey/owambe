@@ -1,3 +1,4 @@
+import { Request, Response, NextFunction } from 'express';
 import { Router } from 'express';
 import { body } from 'express-validator';
 import { prisma } from '../database/client';
@@ -17,7 +18,7 @@ waitlistRouter.post('/join', [
   body('email').isEmail().normalizeEmail(),
   body('firstName').trim().notEmpty(),
   body('lastName').trim().notEmpty(),
-], validate, async (req, res, next) => {
+], validate, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { eventId, ticketTypeId, email, firstName, lastName, phone } = req.body;
 
@@ -35,7 +36,7 @@ waitlistRouter.post('/join', [
 });
 
 // ─── LIST waitlist for an event (planner only) ────────
-waitlistRouter.get('/event/:eventId', authenticate, requireRole('PLANNER'), async (req, res, next) => {
+waitlistRouter.get('/event/:eventId', authenticate, requireRole('PLANNER'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const waitlist = await prisma.waitlist.findMany({
       where: { eventId: req.params.eventId },
@@ -47,7 +48,7 @@ waitlistRouter.get('/event/:eventId', authenticate, requireRole('PLANNER'), asyn
 });
 
 // ─── NOTIFY next N people ─────────────────────────────
-waitlistRouter.post('/notify/:eventId', authenticate, requireRole('PLANNER'), async (req, res, next) => {
+waitlistRouter.post('/notify/:eventId', authenticate, requireRole('PLANNER'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { count = 3 } = req.body;
 
@@ -100,7 +101,7 @@ waitlistRouter.post('/notify/:eventId', authenticate, requireRole('PLANNER'), as
 });
 
 // ─── REMOVE from waitlist ─────────────────────────────
-waitlistRouter.delete('/:id', authenticate, requireRole('PLANNER'), async (req, res, next) => {
+waitlistRouter.delete('/:id', authenticate, requireRole('PLANNER'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     await prisma.waitlist.delete({ where: { id: req.params.id } });
     res.json({ success: true });

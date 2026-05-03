@@ -1,3 +1,4 @@
+import { Request, Response, NextFunction } from 'express';
 import { Router } from 'express';
 import { body, param } from 'express-validator';
 import { prisma } from '../database/client';
@@ -63,7 +64,7 @@ async function loadEvent(eventId: string, plannerId: string): Promise<EventPaylo
 // ─── 1. GET distribution status for an event ──────────
 distributionRouter.get('/:eventId/distributions',
   authenticate, requireRole('PLANNER'),
-  async (req, res, next) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = (req as any).userId;
       const planner = await prisma.planner.findFirst({ where: { userId } });
@@ -95,7 +96,7 @@ distributionRouter.post('/:eventId/distributions/push',
   authenticate, requireRole('PLANNER'),
   [body('channel').isIn(['EVENTBRITE', 'FACEBOOK_EVENTS', 'GOOGLE_EVENTS', 'WIDGET_EMBED'])],
   validate,
-  async (req, res, next) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = (req as any).userId;
       const planner = await prisma.planner.findFirst({ where: { userId } });
@@ -171,7 +172,7 @@ distributionRouter.post('/:eventId/distributions/push',
 // ─── 3. UNPUBLISH from a channel ──────────────────────
 distributionRouter.post('/:eventId/distributions/:distId/unpublish',
   authenticate, requireRole('PLANNER'),
-  async (req, res, next) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = (req as any).userId;
       const planner = await prisma.planner.findFirst({ where: { userId } });
@@ -215,7 +216,7 @@ distributionRouter.post('/:eventId/distributions/widget-snippet',
     body('width').optional().isString(),
   ],
   validate,
-  async (req, res, next) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = (req as any).userId;
       const planner = await prisma.planner.findFirst({ where: { userId } });
@@ -267,7 +268,7 @@ distributionRouter.post('/:eventId/distributions/widget-snippet',
 // ─── 5. TRACK widget click (called by widget iframe) ──
 // Public, no auth
 distributionRouter.post('/:eventId/distributions/track',
-  async (req, res, next) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { channel = 'WIDGET_EMBED', referrer } = req.body;
       await prisma.eventDistribution.updateMany({
@@ -281,7 +282,7 @@ distributionRouter.post('/:eventId/distributions/track',
 
 // ─── 6. GET Google schema for an event (public) ───────
 distributionRouter.get('/:slug/schema',
-  async (req, res, next) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
       const event = await prisma.event.findFirst({
         where: { slug: req.params.slug, isPublic: true },

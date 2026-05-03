@@ -1,3 +1,4 @@
+import { Request, Response, NextFunction } from 'express';
 import { Router } from 'express';
 import { body } from 'express-validator';
 import { prisma } from '../database/client';
@@ -37,7 +38,7 @@ instalmentsRouter.post('/preview',
   authenticate,
   [body('totalAmount').isNumeric(), body('instalmentCount').isIn([3, 6])],
   validate,
-  async (req, res, next) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { totalAmount, instalmentCount, startDate } = req.body;
       const count = Number(instalmentCount) as 3 | 6;
@@ -66,7 +67,7 @@ instalmentsRouter.post('/preview',
 );
 
 // ─── 2. LIST my instalment plans ─────────────────────
-instalmentsRouter.get('/', authenticate, async (req, res, next) => {
+instalmentsRouter.get('/', authenticate, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = (req as any).userId;
     const { planner, consumer } = await getUserContext(userId);
@@ -93,7 +94,7 @@ instalmentsRouter.get('/', authenticate, async (req, res, next) => {
 });
 
 // ─── 3. GET single plan ───────────────────────────────
-instalmentsRouter.get('/:id', authenticate, async (req, res, next) => {
+instalmentsRouter.get('/:id', authenticate, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const plan = await prisma.instalmentPlan.findUnique({
       where: { id: req.params.id },
@@ -120,7 +121,7 @@ instalmentsRouter.post('/',
     body('startDate').optional().isISO8601(),
   ],
   validate,
-  async (req, res, next) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = (req as any).userId;
       const { bookingId, instalmentCount, startDate } = req.body;
@@ -269,7 +270,7 @@ instalmentsRouter.post('/:id/cancel',
   authenticate,
   [body('reason').optional().trim()],
   validate,
-  async (req, res, next) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = (req as any).userId;
       const { planner, consumer } = await getUserContext(userId);
@@ -308,7 +309,7 @@ instalmentsRouter.post('/:id/cancel',
 // ─── 6. RETRY failed payment ─────────────────────────
 instalmentsRouter.post('/:id/retry/:paymentId',
   authenticate,
-  async (req, res, next) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = (req as any).userId;
       const { planner, consumer, user } = await getUserContext(userId);
@@ -381,7 +382,7 @@ instalmentsRouter.post('/:id/retry/:paymentId',
 // ─── 7. ADMIN: trigger due charges ───────────────────
 // Called by a cron job or Railway scheduled task
 instalmentsRouter.post('/cron/charge-due',
-  async (req, res, next) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
       // Simple shared secret auth for cron
       const secret = req.headers['x-cron-secret'];

@@ -1,3 +1,4 @@
+import { Request, Response, NextFunction } from 'express';
 import { Router } from 'express';
 import { body, param } from 'express-validator';
 import { prisma } from '../database/client';
@@ -13,7 +14,7 @@ export const tenantsRouter = Router();
 // ─── RESOLVE TENANT (public — called by whitelabel app) ──
 // GET /api/tenants/resolve?subdomain=techfest
 // GET /api/tenants/resolve?domain=events.techlagos.com
-tenantsRouter.get('/resolve', async (req, res, next) => {
+tenantsRouter.get('/resolve', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { subdomain, domain } = req.query as Record<string, string>;
     if (!subdomain && !domain) {
@@ -47,7 +48,7 @@ tenantsRouter.get('/resolve', async (req, res, next) => {
 });
 
 // ─── GET my tenant ─────────────────────────────────────
-tenantsRouter.get('/me', authenticate, requireRole('PLANNER'), async (req, res, next) => {
+tenantsRouter.get('/me', authenticate, requireRole('PLANNER'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = (req as any).userId;
     const planner = await prisma.planner.findFirst({ where: { userId } });
@@ -74,7 +75,7 @@ tenantsRouter.post('/',
     body('accentColor').optional().matches(/^#[0-9A-Fa-f]{6}$/),
   ],
   validate,
-  async (req, res, next) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = (req as any).userId;
       const planner = await prisma.planner.findFirst({ where: { userId } });
@@ -124,7 +125,7 @@ tenantsRouter.put('/me', authenticate, requireRole('PLANNER'),
       .matches(/^[a-z0-9-]{3,30}$/),
   ],
   validate,
-  async (req, res, next) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = (req as any).userId;
       const planner = await prisma.planner.findFirst({ where: { userId } });
@@ -176,7 +177,7 @@ tenantsRouter.put('/me', authenticate, requireRole('PLANNER'),
 );
 
 // ─── GET events for a tenant (public) ─────────────────
-tenantsRouter.get('/:subdomain/events', async (req, res, next) => {
+tenantsRouter.get('/:subdomain/events', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { subdomain } = req.params;
     const { search, limit = 20, page = 1 } = req.query;
@@ -220,7 +221,7 @@ tenantsRouter.get('/:subdomain/events', async (req, res, next) => {
 });
 
 // ─── ADMIN: list all tenants ────────────────────────────
-tenantsRouter.get('/', authenticate, async (req, res, next) => {
+tenantsRouter.get('/', authenticate, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = (req as any).userId;
     const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -243,7 +244,7 @@ tenantsRouter.get('/', authenticate, async (req, res, next) => {
 });
 
 // ─── TOGGLE active state (admin) ────────────────────────
-tenantsRouter.patch('/:id/toggle', authenticate, async (req, res, next) => {
+tenantsRouter.patch('/:id/toggle', authenticate, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = (req as any).userId;
     const user = await prisma.user.findUnique({ where: { id: userId } });

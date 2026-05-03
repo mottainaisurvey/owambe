@@ -1,3 +1,4 @@
+import { Request, Response, NextFunction } from 'express';
 import { Router } from 'express';
 import { body, param } from 'express-validator';
 import crypto from 'crypto';
@@ -27,7 +28,7 @@ function generateToken(): string {
 }
 
 // ─── LIST contracts (planner or vendor) ──────────────
-contractsRouter.get('/', authenticate, async (req, res, next) => {
+contractsRouter.get('/', authenticate, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = (req as any).userId;
     const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -69,7 +70,7 @@ contractsRouter.get('/', authenticate, async (req, res, next) => {
 });
 
 // ─── GET signing page data (public — via token) ───────
-contractsRouter.get('/sign/:token', async (req, res, next) => {
+contractsRouter.get('/sign/:token', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const sig = await prisma.contractSignature.findUnique({
       where: { signingToken: req.params.token },
@@ -109,7 +110,7 @@ contractsRouter.get('/sign/:token', async (req, res, next) => {
 contractsRouter.post('/sign/:token', [
   body('signatureData').notEmpty().withMessage('Signature is required'),
   body('agreedToTerms').isBoolean().equals('true').withMessage('You must agree to the terms'),
-], validate, async (req, res, next) => {
+], validate, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { token } = req.params;
     const ipAddress = req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || '';
@@ -185,7 +186,7 @@ contractsRouter.post('/sign/:token', [
 });
 
 // ─── GET single contract ──────────────────────────────
-contractsRouter.get('/:id', authenticate, async (req, res, next) => {
+contractsRouter.get('/:id', authenticate, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const contract = await prisma.contract.findUnique({
       where: { id: req.params.id },
@@ -217,7 +218,7 @@ contractsRouter.post('/',
     body('templateType').optional().isIn(['SERVICE_AGREEMENT', 'VENUE_HIRE', 'PHOTOGRAPHY', 'CATERING', 'CUSTOM']),
   ],
   validate,
-  async (req, res, next) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = (req as any).userId;
       const planner = await prisma.planner.findFirst({
@@ -300,7 +301,7 @@ contractsRouter.post('/',
 );
 
 // ─── UPDATE contract (DRAFT only) ────────────────────
-contractsRouter.put('/:id', authenticate, requireRole('PLANNER'), async (req, res, next) => {
+contractsRouter.put('/:id', authenticate, requireRole('PLANNER'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const contract = await prisma.contract.findUnique({ where: { id: req.params.id } });
     if (!contract) throw new AppError('Contract not found', 404);
@@ -321,7 +322,7 @@ contractsRouter.put('/:id', authenticate, requireRole('PLANNER'), async (req, re
 });
 
 // ─── SEND contract (locks it, emails signers) ─────────
-contractsRouter.post('/:id/send', authenticate, requireRole('PLANNER'), async (req, res, next) => {
+contractsRouter.post('/:id/send', authenticate, requireRole('PLANNER'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const contract = await prisma.contract.findUnique({
       where: { id: req.params.id },
@@ -367,7 +368,7 @@ contractsRouter.post('/:id/send', authenticate, requireRole('PLANNER'), async (r
 
 
 // ─── DOWNLOAD PDF ─────────────────────────────────────
-contractsRouter.get('/:id/pdf', authenticate, async (req, res, next) => {
+contractsRouter.get('/:id/pdf', authenticate, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const contract = await prisma.contract.findUnique({
       where: { id: req.params.id },
@@ -406,7 +407,7 @@ contractsRouter.get('/:id/pdf', authenticate, async (req, res, next) => {
 });
 
 // ─── VOID contract ────────────────────────────────────
-contractsRouter.post('/:id/void', authenticate, requireRole('PLANNER'), async (req, res, next) => {
+contractsRouter.post('/:id/void', authenticate, requireRole('PLANNER'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const contract = await prisma.contract.findUnique({ where: { id: req.params.id } });
     if (!contract) throw new AppError('Contract not found', 404);
@@ -421,7 +422,7 @@ contractsRouter.post('/:id/void', authenticate, requireRole('PLANNER'), async (r
 });
 
 // ─── RESEND signing link ──────────────────────────────
-contractsRouter.post('/:id/resend/:signerRole', authenticate, requireRole('PLANNER'), async (req, res, next) => {
+contractsRouter.post('/:id/resend/:signerRole', authenticate, requireRole('PLANNER'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const sig = await prisma.contractSignature.findFirst({
       where: { contractId: req.params.id, signerRole: req.params.signerRole as any, isSigned: false },
@@ -455,7 +456,7 @@ contractsRouter.post('/:id/resend/:signerRole', authenticate, requireRole('PLANN
 });
 
 // ─── GENERATE from booking (convenience) ──────────────
-contractsRouter.post('/from-booking/:bookingId', authenticate, requireRole('PLANNER'), async (req, res, next) => {
+contractsRouter.post('/from-booking/:bookingId', authenticate, requireRole('PLANNER'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = (req as any).userId;
     const planner = await prisma.planner.findFirst({
