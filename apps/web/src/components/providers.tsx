@@ -3,11 +3,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React, { useState } from 'react';
 
-interface ProvidersProps {
-  children?: React.ReactNode;
-}
-
-export function Providers({ children }: ProvidersProps) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function Providers({ children }: { children?: any }) {
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {
@@ -20,7 +17,7 @@ export function Providers({ children }: ProvidersProps) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {children as React.ReactNode}
+      {children}
     </QueryClientProvider>
   );
 }
