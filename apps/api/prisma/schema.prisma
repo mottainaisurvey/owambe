@@ -32,6 +32,44 @@ enum PlatformMode {
   EXPERIENCES
 }
 
+// Phase A.5: Currency enum
+enum Currency {
+  NGN
+  USD
+  GBP
+  EUR
+  KES
+  GHS
+  ZAR
+}
+
+// Phase A.5: Channel origin enum
+enum ChannelOrigin {
+  DIRECT
+  COASTAL_CORRIDOR
+  BOOKING_COM
+  AIRBNB
+  HOTELS_NG
+  GETYOURGUIDE
+  VIATOR
+}
+
+// Phase A.5: Cohort type enum
+enum CohortType {
+  COASTAL_CORRIDOR
+  GENERAL
+  BETA
+  PARTNER
+}
+
+// Phase A.5: Cohort code status enum
+enum CohortCodeStatus {
+  ACTIVE
+  EXPIRED
+  EXHAUSTED
+  REVOKED
+}
+
 enum EventStatus {
   DRAFT
   PUBLISHED
@@ -217,6 +255,14 @@ model User {
   activeMode       PlatformMode  @default(EVENTS)
   availableModes   PlatformMode[] @default([EVENTS])
   cohortCode       String?       // Coastal Corridor cohort code
+  // Phase A.5: Cohort membership fields
+  cohortMember     Boolean       @default(false)
+  cohortType       CohortType?
+  cohortStartDate  DateTime?
+  cohortEndDate    DateTime?
+  preferredCurrency Currency     @default(NGN)
+  onboardedAt      DateTime?
+  channelOrigin    ChannelOrigin @default(DIRECT)
 
   // Relations
   planner          Planner?
