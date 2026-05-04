@@ -34,13 +34,15 @@ jobs:
     continue-on-error: true  # Advisory mode — does not block CI
     steps:
       - uses: actions/checkout@v4
-      - name: Run vocabulary linter
-        run: |
-          if [ -f scripts/vocab-lint.sh ]; then
-            bash scripts/vocab-lint.sh || true
-          else
-            echo "⚠️  Vocabulary linter not yet configured (scripts/vocab-lint.sh missing)"
-          fi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Run vocabulary linter (advisory mode)
+        run: node scripts/vocab-lint.js
+        # Advisory mode: violations are logged but exit code is always 0.
+        # To enable strict mode (block CI on violations), set:
+        #   VOCAB_LINT_STRICT: 'true'
+        # or change the step to: node scripts/vocab-lint.js --strict
 
   # ─── TEST ────────────────────────────────────────────
   test:

@@ -1,0 +1,26 @@
+#!/bin/sh
+# ─── Owambe Pre-Commit Hook ─────────────────────────────────────────────────
+#
+# Runs vocabulary linting on staged TypeScript/JavaScript/Markdown files.
+# Runs in ADVISORY mode by default — violations are logged but do not block commits.
+# Set VOCAB_LINT_STRICT=true in your shell to enable strict mode.
+
+echo "🔍 Running Owambe vocabulary lint on staged files..."
+
+# Get list of staged files that should be scanned
+# Use || true to prevent grep exit code 1 (no matches) from aborting with sh -e
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx|js|jsx|md)$' || true)
+STAGED_FILES=$(echo "$STAGED_FILES" | grep -v 'node_modules' | grep -v 'vocab-lint.js' || true)
+
+if [ -z "$STAGED_FILES" ]; then
+  echo "✅ No relevant staged files to lint"
+  exit 0
+fi
+
+# Run the vocabulary linter on staged files only
+node scripts/vocab-lint.js $STAGED_FILES
+
+# Exit code from vocab-lint.js:
+#   0 = passed or advisory mode (always allows commit)
+#   1 = strict mode with violations (blocks commit)
+exit $?
