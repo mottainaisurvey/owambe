@@ -122,10 +122,88 @@ app.use(errorHandler);
 
 const PORT = Number(process.env.API_PORT) || 4000;
 
+async function runPhaseA5EnumMigration() {
+  // Migrate CohortType enum values from program-tier model to role-type model
+  // per brief Q&A v1.1 Q02. Uses DO $$ block to safely skip if already migrated.
+  try {
+    await prisma.$executeRawUnsafe(`
+      DO $$
+      BEGIN
+        IF EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'COASTAL_CORRIDOR'
+                   AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'CohortType')) THEN
+          ALTER TYPE "CohortType" RENAME VALUE 'COASTAL_CORRIDOR' TO 'COASTAL_CORRIDOR_HOST';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'COASTAL_CORRIDOR_OPERATOR'
+                       AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'CohortType')) THEN
+          ALTER TYPE "CohortType" ADD VALUE 'COASTAL_CORRIDOR_OPERATOR';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'BOTH'
+                       AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'CohortType')) THEN
+          ALTER TYPE "CohortType" ADD VALUE 'BOTH';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'USED'
+                       AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'CohortCodeStatus')) THEN
+          ALTER TYPE "CohortCodeStatus" ADD VALUE 'USED';
+        END IF;
+      END
+      $$;
+    `);
+    logger.info('Phase A.5 enum migration: CohortType and CohortCodeStatus updated.');
+  } catch (err: any) {
+    logger.warn('Phase A.5 enum migration (non-fatal):', err.message);
+  }
+}
+
+async function runPhaseA5Migration() {
+  try {
+    const usersNeedingBackfill = await prisma.user.count({ where: { onboardedAt: null } });
+    if (usersNeedingBackfill === 0) {
+      logger.info('Phase A.5 migration: already complete.');
+      return;
+    }
+    logger.info(`Phase A.5 migration: backfilling ${usersNeedingBackfill} users...`);
+    await prisma.user.updateMany({
+      where: { onboardedAt: null },
+      data: { activeMode: 'EVENTS', availableModes: ['EVENTS'], cohortMember: false, channelOrigin: 'DIRECT', preferredCurrency: 'NGN' },
+    });
+    await prisma.$executeRaw`UPDATE users SET "onboardedAt" = "createdAt" WHERE "onboardedAt" IS NULL`;
+    logger.info(`Phase A.5 migration: complete. Backfilled ${usersNeedingBackfill} users.`);
+  } catch (err: any) {
+    logger.warn('Phase A.5 migration error (non-fatal):', err.message);
+  }
+}
+
+async function removeProductionSeededAccounts(): Promise<void> {
+  // Remove seeded test accounts from production database.
+  // These accounts were created by the seed script before the NODE_ENV guard was added.
+  // This function is idempotent — safe to run on every startup.
+  if (process.env.NODE_ENV !== 'production') return;
+  try {
+    const seededEmails = ['admin@owambe.com', 'planner@test.com'];
+    const found = await prisma.user.findMany({
+      where: { email: { in: seededEmails } },
+      select: { email: true }
+    });
+    if (found.length === 0) {
+      logger.info('Production credential cleanup: no seeded accounts found (already clean).');
+      return;
+    }
+    const deleted = await prisma.user.deleteMany({
+      where: { email: { in: seededEmails } }
+    });
+    logger.info(`Production credential cleanup: removed ${deleted.count} seeded account(s): ${found.map(u => u.email).join(', ')}.`);
+  } catch (err: any) {
+    logger.warn('Production credential cleanup (non-fatal):', err.message);
+  }
+}
+
 async function bootstrap() {
   try {
     await prisma.$connect();
     logger.info('Database connected');
+    await runPhaseA5EnumMigration();
+    await runPhaseA5Migration();
+    await removeProductionSeededAccounts();
     await initQueues();
     await startWorkers();
     httpServer.listen(PORT, '0.0.0.0', () => {
