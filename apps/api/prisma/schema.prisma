@@ -533,6 +533,17 @@ model StayBooking {
   confirmedAt     DateTime?
   checkedInAt     DateTime?
   checkedOutAt    DateTime?
+  // Channel integration fields (Phase A.5: Coastal Corridor)
+  channelOrigin   ChannelOrigin     @default(DIRECT)
+  externalRef     String?           // Coastal Corridor reservation ID
+  externalPropertyId String?        // Coastal Corridor property ID
+  channelCommissionAmount Decimal?  @db.Decimal(12, 2)
+  channelCommissionPercent Decimal? @db.Decimal(5, 2)
+  netToHost       Decimal?          @db.Decimal(12, 2)
+  paystackReference String?         // Paystack reference from Coastal Corridor
+  refundAmount    Decimal?          @db.Decimal(12, 2)
+  refundCurrency  String?
+  numberOfGuests  Int?              // Alias for guestCount from CC payload
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -545,6 +556,7 @@ model StayBooking {
   @@index([guestEmail])
   @@index([status])
   @@index([checkInDate])
+  @@index([externalRef])
   @@map("stay_bookings")
 }
 
@@ -660,8 +672,21 @@ model ExperienceBooking {
   cancelledAt     DateTime?
   confirmedAt     DateTime?
   completedAt     DateTime?
-  createdAt       DateTime                @default(now())
-  updatedAt       DateTime                @updatedAt
+  // Channel integration fields (Phase A.5: Coastal Corridor)
+  channelOrigin   ChannelOrigin          @default(DIRECT)
+  externalRef     String?                // Coastal Corridor booking ID
+  externalExperienceId String?           // Coastal Corridor experience ID
+  channelCommissionAmount Decimal?       @db.Decimal(12, 2)
+  channelCommissionPercent Decimal?      @db.Decimal(5, 2)
+  netToOperator   Decimal?               @db.Decimal(12, 2)
+  paystackReference String?              // Paystack reference from Coastal Corridor
+  numberOfParticipants Int?              // Alias for guestCount from CC payload
+  participantNames String[]              // List of participant names
+  pickupRequested Boolean                @default(false)
+  pickupAddress   String?
+  depositAmount   Decimal                @default(0) @db.Decimal(12, 2)
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
 
   experience Experience     @relation(fields: [experienceId], references: [id])
   slot       ExperienceSlot @relation(fields: [slotId], references: [id])
@@ -671,6 +696,7 @@ model ExperienceBooking {
   @@index([slotId])
   @@index([guestEmail])
   @@index([status])
+  @@index([externalRef])
   @@map("experience_bookings")
 }
 
