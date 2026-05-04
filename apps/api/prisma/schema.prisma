@@ -32,15 +32,11 @@ enum PlatformMode {
   EXPERIENCES
 }
 
-// Phase A.5: Currency enum
+// Phase A.5: Currency enum — per brief Q&A v1.1 Q05 (Paystack three-currency set)
 enum Currency {
   NGN
   USD
   GBP
-  EUR
-  KES
-  GHS
-  ZAR
 }
 
 // Phase A.5: Channel origin enum
@@ -54,17 +50,17 @@ enum ChannelOrigin {
   VIATOR
 }
 
-// Phase A.5: Cohort type enum
+// Phase A.5: Cohort type enum — role-type model per brief Q&A v1.1 Q02
 enum CohortType {
-  COASTAL_CORRIDOR
-  GENERAL
-  BETA
-  PARTNER
+  COASTAL_CORRIDOR_HOST
+  COASTAL_CORRIDOR_OPERATOR
+  BOTH
 }
 
 // Phase A.5: Cohort code status enum
 enum CohortCodeStatus {
   ACTIVE
+  USED
   EXPIRED
   EXHAUSTED
   REVOKED
