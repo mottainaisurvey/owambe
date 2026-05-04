@@ -25,7 +25,7 @@ eventsRouter.post('/public/:slug/register',
 
 // ─── PLANNER (authenticated) ─────────────────────────
 eventsRouter.use(authenticate);
-eventsRouter.use(requireRole(['PLANNER', 'ADMIN']));
+eventsRouter.use(requireRole('PLANNER', 'ADMIN'));
 
 eventsRouter.post('/',
   [
