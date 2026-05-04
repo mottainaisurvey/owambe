@@ -4,10 +4,23 @@ import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
-async function main() {
-  console.log('🌱 Seeding Owambe database...');
+// ─── PRODUCTION GUARD ────────────────────────────────────────────────────────
+// The seed script MUST NOT run in production.
+// Production admin accounts are created manually by the technical lead.
+// See: docs/PRODUCTION_ADMIN_SETUP.md for the manual creation process.
+if (process.env.NODE_ENV === 'production') {
+  console.error('❌ SEED SCRIPT BLOCKED: NODE_ENV=production');
+  console.error('   Seed scripts must not run in production environments.');
+  console.error('   To create a production admin account, follow docs/PRODUCTION_ADMIN_SETUP.md');
+  process.exit(1);
+}
 
-  // ─── ADMIN USER ──────────────────────────────────────
+async function main() {
+  console.log('🌱 Seeding Owambe database (staging/development only)...');
+
+  // ─── ADMIN USER (staging/dev only) ───────────────────────────────────────
+  // NOTE: This admin account exists in staging and development only.
+  // Production admin accounts are created manually — see docs/PRODUCTION_ADMIN_SETUP.md
   const adminHash = await bcrypt.hash('Admin@Owambe2026!', 12);
   const admin = await prisma.user.upsert({
     where: { email: 'admin@owambe.com' },
@@ -21,9 +34,9 @@ async function main() {
       isEmailVerified: true,
     },
   });
-  console.log('✅ Admin user created');
+  console.log('✅ Admin user created (staging/dev only)');
 
-  // ─── TEST PLANNER ────────────────────────────────────
+  // ─── TEST PLANNER (staging/dev only) ─────────────────────────────────────
   const plannerHash = await bcrypt.hash('Planner123!', 12);
   const plannerUser = await prisma.user.upsert({
     where: { email: 'planner@test.com' },
@@ -44,7 +57,7 @@ async function main() {
     },
     include: { planner: true }
   });
-  console.log('✅ Test planner created');
+  console.log('✅ Test planner created (staging/dev only)');
 
   // ─── SEED VENDORS (Lagos) ────────────────────────────
   const vendors = [
@@ -238,9 +251,12 @@ async function main() {
     console.log('✅ Sample event seeded');
   }
 
-  console.log('\n🎉 Seed complete! Test credentials:');
+  console.log('\n🎉 Seed complete! Staging/dev test credentials:');
   console.log('   Admin:   admin@owambe.com / Admin@Owambe2026!');
   console.log('   Planner: planner@test.com / Planner123!');
+  console.log('\n⚠️  These credentials are for staging/development ONLY.');
+  console.log('   Production admin accounts must be created manually.');
+  console.log('   See: docs/PRODUCTION_ADMIN_SETUP.md');
 }
 
 main()
