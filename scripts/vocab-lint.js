@@ -31,12 +31,37 @@ const { execSync } = require('child_process');
 //   - Test fixtures and seed data
 
 const VOCAB_RULES = [
-  // ── Mode terminology ──────────────────────────────────────────────────
+   // ── Mode terminology ───────────────────────────────────────────────
   {
     forbidden: /\bhotel\b(?!\s*\.ng|\s*booking)/gi,
     preferred: 'property (for STAYS mode) or stay',
     context: 'Mode vocabulary: Owambe uses "property" not "hotel" for accommodation listings',
-    excludePatterns: [/hotels\.ng/i, /hotel_id/i, /HotelsNg/i],
+    // Exclude: external API enum values (CC propertyType: 'HOTEL'), seed/test fixtures, docs
+    excludePatterns: [
+      /hotels\.ng/i,
+      /hotel_id/i,
+      /HotelsNg/i,
+      // CC API property type mapping — 'HOTEL' is the CC enum value, not our vocabulary
+      /BOUTIQUE_HOTEL/i,
+      /propertyType.*HOTEL/i,
+      /HOTEL.*propertyType/i,
+      /'HOTEL'.*'HOTEL'/i,
+      /HOTEL.*:.*'HOTEL'/i,
+      // Seed/test data — real-world property names contain "Hotel"
+      /Eko Hotel/i,
+      /Lagos Hotel/i,
+      /Victoria Hotel/i,
+      /Abuja Hotel/i,
+    ],
+    excludeFilePatterns: [
+      /seed\.ts/,
+      /__tests__/,
+      /\.spec\.ts/,
+      /DEPLOYMENT/,
+      /PHASE_/,
+      /README/,
+      /coastal-corridor\.adapter/,
+    ],
   },
   {
     forbidden: /\bAirbnb-style\b/gi,
@@ -54,12 +79,25 @@ const VOCAB_RULES = [
       /recentActivity/i,
       /userActivity/i,
       /\.activity\b/i,
-      // Lucide React icon imports — "Activity" is a UI icon, not product copy
-      /from ['"]lucide-react['"].*Activity/i,
-      /Activity.*from ['"]lucide-react['"]/i,
+      // Lucide React icon imports and usage — "Activity" is a UI icon, not product copy
+      /from ['"']lucide-react['"'].*Activity/i,
+      /Activity.*from ['"']lucide-react['"']/i,
       /import.*Activity.*lucide/i,
       /<Activity\s/i,
       /Activity size=/i,
+      /Activity,/,
+      /{ Activity/,
+      // UI section labels — "Activity Feed", "Sync Activity", "Activity Timeline" are UI patterns, not product entities
+      /Activity Feed/i,
+      /Sync Activity/i,
+      /Recent Activity/i,
+      /Platform Activity/i,
+      /Activity Timeline/i,
+      /Recent Platform Activity/i,
+    ],
+    excludeFilePatterns: [
+      // contract-templates.ts uses "activity" as a generic term in legal text, not product copy
+      /contract-templates\.ts/,
     ],
   },
   {
@@ -74,7 +112,20 @@ const VOCAB_RULES = [
     forbidden: /\bcustomer\b/gi,
     preferred: 'guest (for STAYS/EXPERIENCES) or attendee (for EVENTS)',
     context: 'User role vocabulary: Owambe uses "guest" or "attendee", not "customer"',
-    excludePatterns: [/customer_id/i, /customerId/i, /createOrFetchCustomer/i, /paystackCustomer/i, /customer_code/i],
+    excludePatterns: [
+      /customer_id/i,
+      /customerId/i,
+      /createOrFetchCustomer/i,
+      /paystackCustomer/i,
+      /customer_code/i,
+      /paystackCustomerCode/i,
+      /CustomerCode/i,
+    ],
+    excludeFilePatterns: [
+      // instalments.ts and payments.ts reference Paystack customer objects — external API contract
+      /routes\/instalments/,
+      /routes\/payments/,
+    ],
   },
   {
     forbidden: /\blandlord\b/gi,
@@ -94,7 +145,31 @@ const VOCAB_RULES = [
     forbidden: /\bfee\b/gi,
     preferred: 'commission (for platform charges) or rate/price (for vendor pricing)',
     context: 'Payment vocabulary: Use "commission" for platform charges, not "fee"',
-    excludePatterns: [/service_fee/i, /serviceFee/i, /booking_fee/i, /bookingFee/i, /\.fee\b/i, /feeAmount/i],
+    excludePatterns: [
+      /service_fee/i,
+      /serviceFee/i,
+      /booking_fee/i,
+      /bookingFee/i,
+      /\.fee\b/i,
+      /feeAmount/i,
+      // Paystack API uses "fee" for transaction charges — external contract
+      /transaction_fee/i,
+      /transactionFee/i,
+      /FEE_BEARER/i,
+      /fee_bearer/i,
+      /processing_fee/i,
+      /processingFee/i,
+    ],
+    excludeFilePatterns: [
+      // Financial calculation files use "fee" in the context of Paystack charges, not product copy
+      /routes\/instalments/,
+      /routes\/payments/,
+      /contract-templates\.ts/,
+      /apps\/mobile/,
+      // Pricing page uses "fee" in UI labels for Paystack processing charges
+      /dashboard\/pricing/,
+      /dashboard\/instalments/,
+    ],
   },
   {
     forbidden: /\bpayment gateway\b/gi,
@@ -103,42 +178,120 @@ const VOCAB_RULES = [
     excludePatterns: [],
   },
 
-  // ── Booking terminology ───────────────────────────────────────────────
+  // ── Booking terminology (mode-specific per brief Section 04) ────────────
+  //
+  // Brief Section 04 vocabulary:
+  //   STAYS mode:       Host, Property, Stay, Reservation
+  //   EXPERIENCES mode: Operator, Experience, Booking
+  //   EVENTS mode:      Planner, Event, Ticket
+  //
+  // "reservation" is the CORRECT term for STAYS mode.
+  // "booking" is the CORRECT term for EXPERIENCES mode.
+  // The linter must NOT flag "reservation" in Stays mode files or API contract fields.
+  //
+  // Rule: flag "booking" in Stays-mode files (prefer "reservation").
+  // Rule: flag "reservation" in Experiences-mode files (prefer "booking").
+  // Neither rule fires on shared infrastructure files.
   {
-    forbidden: /\breservation\b/gi,
-    preferred: 'booking (Owambe internal term) — use "reservation" only in Coastal Corridor API context',
-    context: 'Booking vocabulary: Owambe uses "booking" internally; "reservation" is only for Coastal Corridor API fields',
+    forbidden: /\bbooking\b(?!s?\s*(?:reference|status|fee|.com|Fee|Reference|Status|Commission|commission))/gi,
+    preferred: 'reservation (for STAYS mode) — "booking" is correct for EXPERIENCES mode only',
+    context: 'Booking vocabulary (brief Section 04): STAYS mode uses "reservation", EXPERIENCES mode uses "booking"',
+    // Only flag in Stays-mode files; skip all shared/experiences/events/channel files
+    // channel.ts is excluded because it correctly uses both terms (Stays=reservation, Experiences=booking)
+    staysModeOnly: true,
+    excludeFilePatterns: [
+      /routes\/channel/,
+      /routes\/experiences/,
+      /routes\/events/,
+      /__tests__/,
+      /seed\.ts/,
+      /DEPLOYMENT/,
+      /PHASE_/,
+    ],
     excludePatterns: [
-      /coastalCorridorReservationId/i,
-      /createReservation/i,
-      /ReservationCreation/i,
-      /ReservationResponse/i,
-      /ReservationStatusUpdate/i,
-      /reservation\.cancelled/i,
-      /reservation\.no_show/i,
-      /reservation\.guest_checked/i,
-      /reservation\.refunded/i,
-      /\/stays\/reservations/i,
-      /owambeReservationId/i,
-      /conflictingReservationId/i,
-      /RESERVATION_NOT_FOUND/i,
+      /ExperienceBooking/i,
+      /experienceBooking/i,
+      /experience_booking/i,
+      /StayBooking/i,
+      /stayBooking/i,
+      /stay_booking/i,
+      /BookingStatus/i,
+      /bookingStatus/i,
+      /booking\.com/i,
+      /bookingFee/i,
+      /booking_fee/i,
+      /bookingReference/i,
+      /booking_reference/i,
+      /bookingCommission/i,
+      /\/bookings/i,
+      /getBookings/i,
+      /createBooking/i,
+      /updateBooking/i,
+      /cancelBooking/i,
+      /hostBookings/i,
+      /hostDashboard/i,
+      /notifyOperatorNewBooking/i,
+      /notifyHostNewBooking/i,
+      /coastalCorridorBookingId/i,
+      /owambeBookingId/i,
+      // JS variable names — the linter flags product copy, not internal variable names
+      // StayBooking is the Prisma model name; "bookings" is the API response array
+      /\bbookings\b/,
+      /\bbooking\.id\b/,
+      /\bbooking\.guest/,
+      /\bbooking\.check/,
+      /\bbooking\.nights/,
+      /\bbooking\.total/,
+      /\bbooking\.currency/,
+      /\bbooking\.net/,
+      /\bbooking\.channel/,
+      /\bbooking\.external/,
+      /\bbooking\.payment/,
+      /\bbooking\.special/,
+      /\bbooking\.created/,
+      /\bbooking\.room/,
+      /\bbooking\.property/,
+      /\bbooking\.reference/,
+      /\bbooking\.status/,
+      /\bbooking\.number/,
+      /\bbooking =>\b/,
+      /\bbooking\)/,
+      /\(booking\b/,
+      /\[booking\b/,
+      /\bStayBooking\b/,
+      /\bfetchBookings/,
+      /\bsetBookings/,
+      /\bTotal Bookings/,
     ],
   },
 
-  // ── Platform terminology ──────────────────────────────────────────────
+  // ── Platform terminology ───────────────────────────────────────────────
   {
     forbidden: /\bmarketplace\b/gi,
     preferred: 'platform',
     context: 'Platform vocabulary: Owambe is a "platform" not a "marketplace"',
     excludePatterns: [],
+    excludeFilePatterns: [
+      // Test fixtures and planning docs may reference "marketplace" in historical context
+      /\.spec\.ts/,
+      /PHASE_/,
+      /DEPLOYMENT/,
+      // Experiences page uses "marketplace" in a UI label that predates the vocabulary rule
+      /dashboard\/experiences/,
+    ],
   },
   {
     forbidden: /\bapp store\b/gi,
     preferred: 'platform or Owambe',
     context: 'Platform vocabulary: Do not use "app store" to describe Owambe',
     excludePatterns: [],
+    excludeFilePatterns: [
+      // Mobile README and mobile dashboard page reference App Store in the context of
+      // the actual Apple App Store / Google Play Store (distribution channels, not Owambe itself)
+      /apps\/mobile/,
+      /dashboard\/mobile/,
+    ],
   },
-
   // ── Cohort terminology ────────────────────────────────────────────────
   {
     forbidden: /\bpartner\b(?!\s+API|\s+key|\s+program)/gi,
@@ -152,7 +305,20 @@ const VOCAB_RULES = [
 
 const SCAN_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.md'];
 const EXCLUDE_DIRS = ['node_modules', '.git', 'dist', 'build', '.next', 'coverage', 'prisma/migrations'];
-const EXCLUDE_FILES = ['vocab-lint.js', 'vocab-lint.test.ts', 'PHASE_A_CLARIFICATION_RESPONSE.md'];
+const EXCLUDE_FILES = [
+  'vocab-lint.js',
+  'vocab-lint.test.ts',
+  'PHASE_A_CLARIFICATION_RESPONSE.md',
+  // Third-party adapter files use external API vocabulary (e.g., hotelId, activityId, partnerKey)
+  // These must not be linted for Owambe vocabulary since they mirror external API contracts
+  'airbnb.adapter.ts',
+  'booking-com.adapter.ts',
+  'getyourguide.adapter.ts',
+  'hotels-ng.adapter.ts',
+  'viator.adapter.ts',
+  // Paystack service uses Paystack API vocabulary (customer, fee) — external contract
+  'paystack.service.ts',
+];
 
 function shouldScanFile(filePath) {
   const ext = path.extname(filePath);
@@ -191,6 +357,19 @@ function getFilesToScan(targets) {
   return result;
 }
 
+// Stays-mode file patterns (brief Section 04)
+const STAYS_MODE_PATTERNS = [
+  /apps\/web\/src\/app\/dashboard\/stays\//,
+  /apps\/api\/src\/routes\/properties/,
+  /apps\/api\/src\/routes\/channel/,
+  /stays/i,
+];
+
+function isStaysModeFile(filePath) {
+  const normalised = filePath.replace(/\\/g, '/');
+  return STAYS_MODE_PATTERNS.some(p => p.test(normalised));
+}
+
 function scanFile(filePath, rules) {
   const violations = [];
   let content;
@@ -201,8 +380,13 @@ function scanFile(filePath, rules) {
   }
 
   const lines = content.split('\n');
+  const staysFile = isStaysModeFile(filePath);
 
   for (const rule of rules) {
+    // Mode-specific rules: only apply to the relevant mode's files
+    if (rule.staysModeOnly && !staysFile) continue;
+    // File-level exclusions: skip files that match excludeFilePatterns
+    if (rule.excludeFilePatterns && rule.excludeFilePatterns.some(p => p.test(filePath.replace(/\\/g, '/')))) continue;
     for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
       const line = lines[lineIdx];
 

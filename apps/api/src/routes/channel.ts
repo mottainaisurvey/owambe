@@ -59,7 +59,7 @@ router.use(verifyCoastalCorridorSignature);
 // ─── FLOW 2: Stays Reservations ────────────────────────────────────────────
 
 /**
- * POST /api/v1/channel/stays/reservations
+ * POST /api/v1/channel/coastal-corridor/reservations
  *
  * Called by Coastal Corridor when a guest completes a reservation.
  * Owambe creates the reservation in the host's calendar and triggers
@@ -68,7 +68,7 @@ router.use(verifyCoastalCorridorSignature);
  * Idempotent on coastalCorridorReservationId.
  * Returns 409 if dates are no longer available.
  */
-router.post('/stays/reservations', async (req: Request, res: Response): Promise<void> => {
+router.post('/coastal-corridor/reservations', async (req: Request, res: Response): Promise<void> => {
   const requestId = req.headers['x-request-id'] as string ?? 'unknown';
   const {
     coastalCorridorReservationId,
@@ -243,11 +243,11 @@ router.post('/stays/reservations', async (req: Request, res: Response): Promise<
 });
 
 /**
- * PATCH /api/v1/channel/stays/reservations/:coastalCorridorReservationId
+ * PATCH /api/v1/channel/coastal-corridor/reservations/:coastalCorridorReservationId
  *
  * Called by Coastal Corridor when reservation status changes.
  */
-router.patch('/stays/reservations/:coastalCorridorReservationId', async (req: Request, res: Response): Promise<void> => {
+router.patch('/coastal-corridor/reservations/:coastalCorridorReservationId', async (req: Request, res: Response): Promise<void> => {
   const { coastalCorridorReservationId } = req.params;
   const { status, cancellationReason, cancellationInitiatedBy, refundAmount, refundCurrency } = req.body;
 
