@@ -37,6 +37,8 @@ import { instalmentsRouter } from './routes/instalments';
 import { distributionRouter } from './routes/distribution';
 import modeRouter from './routes/mode';
 import propertiesRouter from './routes/properties';
+import channelRouter from './routes/channel';
+import { usersRouter } from './routes/users';
 import experiencesRouter from './routes/experiences';
 import stayBookingsRouter from './routes/stay-bookings';
 import experienceBookingsRouter from './routes/experience-bookings';
@@ -116,6 +118,14 @@ app.use('/api/properties', propertiesRouter);
 app.use('/api/experiences', experiencesRouter);
 app.use('/api/stay-bookings', stayBookingsRouter);
 app.use('/api/experience-bookings', experienceBookingsRouter);
+
+// Phase B: Coastal Corridor inbound channel router (HMAC-signed, no JWT auth)
+// Raw body needed for HMAC signature verification — must be mounted before express.json parses the body
+// Note: express.json is already mounted above; the channel router uses req.rawBody fallback
+app.use('/api/v1/channel', channelRouter);
+
+// Phase B: User self-service routes (change password, profile)
+app.use('/api/users', usersRouter);
 
 app.use((_req, res) => { res.status(404).json({ success: false, error: 'Route not found' }); });
 app.use(errorHandler);
