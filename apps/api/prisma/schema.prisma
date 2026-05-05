@@ -32,6 +32,14 @@ enum PlatformMode {
   EXPERIENCES
 }
 
+// Phase B: User mode enum (per-user active mode, distinct from platform mode)
+enum UserMode {
+  EVENTS
+  STAYS
+  EXPERIENCES
+  FULL  // Access to all modes
+}
+
 // Phase A.5: Currency enum — per brief Q&A v1.1 Q05 (Paystack three-currency set)
 enum Currency {
   NGN
@@ -55,6 +63,10 @@ enum CohortType {
   COASTAL_CORRIDOR_HOST
   COASTAL_CORRIDOR_OPERATOR
   BOTH
+  BETA        // Phase B: Beta cohort
+  PARTNER     // Phase B: Partner cohort
+  INTERNAL    // Phase B: Internal team cohort
+  PRESS       // Phase B: Press/media cohort
 }
 
 // Phase A.5: Cohort code status enum
@@ -464,9 +476,15 @@ model Property {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
+  // Phase B: Coastal Corridor channel sync fields
+  coastalCorridorPropertyId String?  // CC-assigned property ID after push registration
+  coastalCorridorSyncedAt   DateTime? // Last successful sync timestamp
+  coastalCorridorListingUrl String?  // CC listing URL
+
   host         Host           @relation(fields: [hostId], references: [id], onDelete: Cascade)
   rooms        Room[]
   stayBookings StayBooking[]
+  calendarEntries CalendarEntry[]
 
   @@index([hostId])
   @@index([city])
@@ -493,8 +511,12 @@ model Room {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  // Phase B: Coastal Corridor channel sync fields
+  coastalCorridorRoomId     String?  // CC-assigned room ID after push registration
+
   property     Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   stayBookings StayBooking[]
+  calendarEntries CalendarEntry[]
 
   @@index([propertyId])
   @@index([roomType])
@@ -1379,6 +1401,8 @@ enum DistributionChannel {
   FACEBOOK_EVENTS
   GOOGLE_EVENTS
   WIDGET_EMBED
+  COASTAL_CORRIDOR  // Phase B: Coastal Corridor distribution channel
+  HOTELS_NG         // Phase B: Hotels.ng distribution channel
 }
 
 enum DistributionStatus {
@@ -1439,6 +1463,54 @@ model Tenant {
   @@index([subdomain])
   @@index([customDomain])
   @@map("tenants")
+}
+
+// ─── CALENDAR ENTRY (Phase B: Stays mode date-level overrides) ─────────────
+//
+// Represents a single date's availability and pricing state for a room.
+// Used for:
+//   1. Host-managed blocks (isBlocked=true, reason e.g. "maintenance")
+//   2. Pricing overrides (rate different from room base rate)
+//   3. Minimum-stay overrides for specific dates
+//   4. Syncing availability to Coastal Corridor (updateAvailability call)
+//
+// A date with no CalendarEntry is implicitly available at the room's base rate.
+
+enum CalendarEntryStatus {
+  AVAILABLE
+  BLOCKED
+  BOOKED       // Set automatically when a StayBooking covers this date
+  MAINTENANCE
+}
+
+model CalendarEntry {
+  id              String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  propertyId      String              @db.Uuid
+  roomId          String              @db.Uuid
+  date            DateTime            @db.Date
+  status          CalendarEntryStatus @default(AVAILABLE)
+  rateOverride    Decimal?            @db.Decimal(12, 2)  // Null = use room base rate
+  currency        String?             // Null = inherit from room
+  minimumStay     Int?                // Minimum nights for this date
+  maximumStay     Int?                // Maximum nights for this date
+  closedReason    String?             // Human-readable reason for block
+  // Coastal Corridor sync tracking
+  ccSyncedAt      DateTime?           // When this entry was last pushed to CC
+  ccSyncStatus    String?             // 'SYNCED' | 'PENDING' | 'FAILED'
+  // Audit
+  createdByUserId String?             @db.Uuid
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  room     Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, date])
+  @@index([propertyId, date])
+  @@index([roomId, date])
+  @@index([status])
+  @@index([ccSyncStatus])
+  @@map("calendar_entries")
 }
 
 // ─── PORTFOLIO ITEM (Phase A: Vendor portfolio) ──────

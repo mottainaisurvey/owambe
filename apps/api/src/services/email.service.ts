@@ -115,6 +115,76 @@ const templates: Record<string, (data: any) => string> = {
       </div>
     </div>`,
 
+  'host-new-reservation': (d) => `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+      <div style="background:#2D6A4F;padding:24px;border-radius:8px 8px 0 0;text-align:center">
+        <h1 style="color:#fff;margin:0">owambe.com — Stays</h1>
+      </div>
+      <div style="padding:32px;background:#fff;border:1px solid #e5e7eb;border-radius:0 0 8px 8px">
+        <h2 style="color:#1A1612">New Reservation at ${d.propertyName} 🏠</h2>
+        <p>Hi ${d.firstName}, you have a new reservation from <strong>${d.channelLabel}</strong>.</p>
+        <div style="background:#EEF7F2;border-radius:8px;padding:20px;margin:20px 0">
+          <p style="margin:4px 0"><strong>Guest:</strong> ${d.guestName} (${d.guestEmail})</p>
+          <p style="margin:4px 0"><strong>Room:</strong> ${d.roomName}</p>
+          <p style="margin:4px 0"><strong>Check-in:</strong> ${d.checkIn}</p>
+          <p style="margin:4px 0"><strong>Check-out:</strong> ${d.checkOut} (${d.nights} nights)</p>
+          <p style="margin:4px 0"><strong>Total:</strong> ${d.totalAmount}</p>
+          <p style="margin:4px 0"><strong>Your net:</strong> ${d.netToHost}</p>
+          <p style="margin:4px 0;color:#6B7280;font-size:13px">${d.commissionNote}</p>
+          <p style="margin:4px 0"><strong>Special requests:</strong> ${d.specialRequests}</p>
+          <p style="margin:4px 0"><strong>Reference:</strong> ${d.reference}</p>
+        </div>
+        <div style="text-align:center;margin:24px 0">
+          <a href="${d.dashboardUrl}" style="background:#2D6A4F;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold">View Reservation →</a>
+        </div>
+        <p style="color:#9CA3AF;font-size:13px">Log in to your Stays dashboard to manage this reservation.</p>
+      </div>
+    </div>`,
+
+  'host-reservation-cancelled': (d) => `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+      <div style="background:#E76F2A;padding:24px;border-radius:8px 8px 0 0;text-align:center">
+        <h1 style="color:#fff;margin:0">owambe.com — Stays</h1>
+      </div>
+      <div style="padding:32px;background:#fff;border:1px solid #e5e7eb;border-radius:0 0 8px 8px">
+        <h2 style="color:#1A1612">Reservation Cancelled</h2>
+        <p>Hi ${d.firstName}, a reservation at <strong>${d.propertyName}</strong> has been cancelled.</p>
+        <div style="background:#FEF3C7;border-radius:8px;padding:16px;margin:20px 0">
+          <p style="margin:4px 0"><strong>Guest:</strong> ${d.guestName}</p>
+          <p style="margin:4px 0"><strong>Reference:</strong> ${d.reference}</p>
+          <p style="margin:4px 0"><strong>Cancelled by:</strong> ${d.cancelledBy}</p>
+          <p style="margin:4px 0"><strong>Reason:</strong> ${d.cancellationReason}</p>
+        </div>
+        <div style="text-align:center;margin:24px 0">
+          <a href="${d.dashboardUrl}" style="background:#E76F2A;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold">View Details →</a>
+        </div>
+      </div>
+    </div>`,
+
+  'operator-new-booking': (d) => `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+      <div style="background:#2D6A4F;padding:24px;border-radius:8px 8px 0 0;text-align:center">
+        <h1 style="color:#fff;margin:0">owambe.com — Experiences</h1>
+      </div>
+      <div style="padding:32px;background:#fff;border:1px solid #e5e7eb;border-radius:0 0 8px 8px">
+        <h2 style="color:#1A1612">New Booking for ${d.experienceName} 🎟</h2>
+        <p>Hi ${d.firstName}, you have a new booking from <strong>${d.channelLabel}</strong>.</p>
+        <div style="background:#EEF7F2;border-radius:8px;padding:20px;margin:20px 0">
+          <p style="margin:4px 0"><strong>Lead participant:</strong> ${d.leadParticipantName} (${d.leadParticipantEmail})</p>
+          <p style="margin:4px 0"><strong>Participants:</strong> ${d.numberOfParticipants}</p>
+          <p style="margin:4px 0"><strong>Date:</strong> ${d.slotDate} at ${d.slotTime}</p>
+          <p style="margin:4px 0"><strong>Total:</strong> ${d.totalAmount}</p>
+          <p style="margin:4px 0"><strong>Your net:</strong> ${d.netToOperator}</p>
+          <p style="margin:4px 0"><strong>Pickup requested:</strong> ${d.pickupRequested} ${d.pickupAddress !== 'N/A' ? '— ' + d.pickupAddress : ''}</p>
+          <p style="margin:4px 0"><strong>Special requirements:</strong> ${d.specialRequirements}</p>
+          <p style="margin:4px 0"><strong>Reference:</strong> ${d.reference}</p>
+        </div>
+        <div style="text-align:center;margin:24px 0">
+          <a href="${d.dashboardUrl}" style="background:#2D6A4F;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold">View Booking →</a>
+        </div>
+      </div>
+    </div>`,
+
   'custom-campaign': (d) => `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
       <div style="background:#2D6A4F;padding:24px;border-radius:8px 8px 0 0;text-align:center">

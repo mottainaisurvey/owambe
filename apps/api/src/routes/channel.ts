@@ -19,6 +19,11 @@ import { prisma } from '../database/client';
 import { logger } from '../utils/logger';
 import { verifyInboundSignature } from '../services/channels/adapters/coastal-corridor.adapter';
 import { StayBookingStatus, ExperienceBookingStatus } from '@prisma/client';
+import {
+  notifyHostNewReservation,
+  notifyHostReservationCancelled,
+  notifyOperatorNewBooking,
+} from '../services/notification.service';
 
 const router = Router();
 
@@ -190,10 +195,36 @@ router.post('/stays/reservations', async (req: Request, res: Response): Promise<
       hostId: room.property.hostId,
     });
 
-    // TODO: Trigger host notification (email/push) — Phase B notification service
-    // await notificationService.notifyHost(room.property.host, reservation);
+    // Phase B: Trigger host notification (fire-and-forget)
+    const host = room.property.host;
+    const hostUser = await prisma.user.findUnique({ where: { id: host.userId } }).catch(() => null);
+    if (hostUser?.email) {
+      setImmediate(() =>
+        notifyHostNewReservation({
+          hostEmail: hostUser.email!,
+          hostFirstName: hostUser.firstName ?? 'Host',
+          propertyName: room.property.name,
+          guestName: reservation.guestName,
+          guestEmail: reservation.guestEmail,
+          checkInDate: reservation.checkInDate,
+          checkOutDate: reservation.checkOutDate,
+          nights: reservation.nights,
+          roomName: room.name,
+          totalAmount: parseFloat(reservation.totalAmount.toString()),
+          currency: reservation.currency,
+          netToHost: reservation.netToHost ? parseFloat(reservation.netToHost.toString()) : null,
+          channelCommissionPercent: reservation.channelCommissionPercent
+            ? parseFloat(reservation.channelCommissionPercent.toString())
+            : null,
+          channelOrigin: reservation.channelOrigin ?? 'COASTAL_CORRIDOR',
+          reservationReference: reservation.reference,
+          reservationId: reservation.id,
+          specialRequests: reservation.specialRequests,
+        })
+      );
+    }
 
-    // TODO: Trigger contract generation — Phase B contract service
+    // TODO: Trigger contract generation — Phase C contract service
     // await contractService.generateBookingContract(reservation);
 
     res.status(201).json({
@@ -201,7 +232,7 @@ router.post('/stays/reservations', async (req: Request, res: Response): Promise<
       coastalCorridorReservationId,
       status: reservation.status,
       createdAt: reservation.createdAt.toISOString(),
-      hostNotified: false, // Will be true once notification service is wired
+      hostNotified: !!hostUser?.email,
       contractGenerationStatus: 'PENDING',
     });
   } catch (error) {
@@ -404,15 +435,45 @@ router.post('/experiences/bookings', async (req: Request, res: Response): Promis
       operatorId: slot.experience.operatorId,
     });
 
-    // TODO: Trigger operator notification — Phase B notification service
-    // await notificationService.notifyOperator(slot.experience.operator, booking);
+    // Phase B: Trigger operator notification (fire-and-forget)
+    const operatorUser = await prisma.user.findUnique({ where: { id: slot.experience.operator.userId } }).catch(() => null);
+    if (operatorUser?.email) {
+      const slotDate = slot.startTime ? new Date(slot.startTime) : new Date();
+      const slotTime = slot.startTime
+        ? new Date(slot.startTime).toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' })
+        : 'TBC';
+      setImmediate(() =>
+        notifyOperatorNewBooking({
+          operatorEmail: operatorUser.email!,
+          operatorFirstName: operatorUser.firstName ?? 'Operator',
+          experienceName: slot.experience.name,
+          leadParticipantName: booking.guestName,
+          leadParticipantEmail: booking.guestEmail,
+          slotDate,
+          slotTime,
+          numberOfParticipants: booking.numberOfParticipants,
+          totalAmount: parseFloat(booking.totalAmount.toString()),
+          currency: booking.currency,
+          netToOperator: booking.netToOperator ? parseFloat(booking.netToOperator.toString()) : null,
+          channelCommissionPercent: booking.channelCommissionPercent
+            ? parseFloat(booking.channelCommissionPercent.toString())
+            : null,
+          channelOrigin: booking.channelOrigin ?? 'COASTAL_CORRIDOR',
+          bookingReference: booking.reference,
+          bookingId: booking.id,
+          specialRequirements: booking.specialRequests,
+          pickupRequested: booking.pickupRequested,
+          pickupAddress: booking.pickupAddress,
+        })
+      );
+    }
 
     res.status(201).json({
       owambeBookingId: booking.id,
       coastalCorridorBookingId,
       status: booking.status,
       createdAt: booking.createdAt.toISOString(),
-      operatorNotified: false, // Will be true once notification service is wired
+      operatorNotified: !!operatorUser?.email,
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
