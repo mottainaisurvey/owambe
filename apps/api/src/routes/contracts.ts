@@ -35,7 +35,9 @@ contractsRouter.get('/', authenticate, async (req: Request, res: Response, next:
     const { status, limit = 20, page = 1 } = req.query;
 
     let where: any = {};
-    if (user?.role === 'PLANNER') {
+    if (user?.role === 'ADMIN') {
+      // ADMIN sees all contracts — no filter
+    } else if (user?.role === 'PLANNER') {
       const planner = await prisma.planner.findFirst({ where: { userId } });
       if (!planner) throw new AppError('Planner not found', 404);
       where.plannerId = planner.id;
