@@ -1,13 +1,14 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/auth.store';
 import { cn, initials } from '@/lib/utils';
+import { ChangePasswordModal } from '@/components/ChangePasswordModal';
 import {
   LayoutDashboard, BookOpen, Calendar, BarChart2,
-  Star, MessageSquare, Settings, LogOut, Bell, Package
+  Star, MessageSquare, Settings, LogOut, Bell, Package, KeyRound
 } from 'lucide-react';
 
 const NAV = [
@@ -25,6 +26,7 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
   const { user, isAuthenticated, logout } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
+  const [showChangePwd, setShowChangePwd] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) router.replace('/login');
@@ -72,12 +74,19 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
               <div className="text-[9px] text-[var(--accent2)] font-semibold">VENDOR</div>
             </div>
           </div>
+          <button
+            onClick={() => setShowChangePwd(true)}
+            className="flex items-center gap-2 px-2.5 py-2 w-full rounded-lg text-white/40 text-xs hover:text-white hover:bg-white/[0.06] transition-colors"
+          >
+            <KeyRound size={12} /> Change password
+          </button>
           <button onClick={() => logout()}
             className="flex items-center gap-2 px-2.5 py-2 w-full rounded-lg text-white/40 text-xs hover:text-white hover:bg-white/[0.06] transition-colors">
             <LogOut size={12} /> Sign out
           </button>
         </div>
       </aside>
+      <ChangePasswordModal open={showChangePwd} onClose={() => setShowChangePwd(false)} />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="bg-[var(--surface)] border-b border-[var(--border)] h-[52px] px-6 flex items-center gap-3 flex-shrink-0">
