@@ -174,26 +174,95 @@ async function runPhaseA5Migration() {
 }
 
 async function removeProductionSeededAccounts(): Promise<void> {
-  // Remove seeded test accounts from production database.
-  // These accounts were created by the seed script before the NODE_ENV guard was added.
+  // Remove seeded and test accounts from the production database.
+  // Covers all patterns surfaced during the Phase A.5 / Phase B pre-deployment audit:
+  //   - planner@test.com          (original seed account)
+  //   - *@owambe.test             (planner@, vendor@, consumer@, admin@owambe.test)
+  //   - smoke_*@*.owambe.com      (smoke_prod_*, smoke_final_*, smoke_v2_*)
+  //   - verify_*@owambe.com       (verify_test@owambe.com)
+  //   - regression_*@*            (regression test accounts)
+  //   - migration_check_*@*       (migration verification accounts)
+  //   - *@owambe-vendor.com       (seeded vendor demo accounts)
+  //   - admin@owambe.com          (seeded admin account — replaced by founder admin)
   // This function is idempotent — safe to run on every startup.
+  // It performs a cascade delete: planners, vendors, and related records are removed first.
   if (process.env.NODE_ENV !== 'production') return;
   try {
-    const seededEmails = ['admin@owambe.com', 'planner@test.com'];
-    const found = await prisma.user.findMany({
-      where: { email: { in: seededEmails } },
-      select: { email: true }
+    const seededUsers = await prisma.user.findMany({
+      where: {
+        OR: [
+          { email: 'planner@test.com' },
+          { email: 'admin@owambe.com' },
+          { email: { endsWith: '@owambe.test' } },
+          { email: { endsWith: '@owambe-vendor.com' } },
+          { email: { startsWith: 'smoke_', contains: '@' } },
+          { email: { startsWith: 'verify_', endsWith: '@owambe.com' } },
+          { email: { startsWith: 'regression_' } },
+          { email: { startsWith: 'migration_check_' } },
+        ],
+      },
+      select: { id: true, email: true },
     });
-    if (found.length === 0) {
+
+    if (seededUsers.length === 0) {
       logger.info('Production credential cleanup: no seeded accounts found (already clean).');
       return;
     }
-    const deleted = await prisma.user.deleteMany({
-      where: { email: { in: seededEmails } }
+
+    const userIds = seededUsers.map((u) => u.id);
+    const emails = seededUsers.map((u) => u.email);
+
+    // Cascade delete in dependency order
+    const vendorRecords = await prisma.vendor.findMany({
+      where: { userId: { in: userIds } },
+      select: { id: true },
     });
-    logger.info(`Production credential cleanup: removed ${deleted.count} seeded account(s): ${found.map(u => u.email).join(', ')}.`);
+    const vendorIds = vendorRecords.map((v) => v.id);
+
+    if (vendorIds.length > 0) {
+      await prisma.booking.deleteMany({ where: { vendorId: { in: vendorIds } } });
+      await prisma.contract.deleteMany({ where: { vendorId: { in: vendorIds } } });
+      await prisma.quote.deleteMany({ where: { vendorId: { in: vendorIds } } });
+      await prisma.portfolioItem.deleteMany({ where: { vendorId: { in: vendorIds } } });
+      await prisma.vendorAvailability.deleteMany({ where: { vendorId: { in: vendorIds } } });
+      await prisma.vendorPackage.deleteMany({ where: { vendorId: { in: vendorIds } } });
+      await prisma.review.deleteMany({ where: { vendorId: { in: vendorIds } } });
+    }
+
+    await prisma.planner.deleteMany({ where: { userId: { in: userIds } } });
+    await prisma.vendor.deleteMany({ where: { userId: { in: userIds } } });
+    await prisma.refreshToken.deleteMany({ where: { userId: { in: userIds } } });
+    await prisma.notification.deleteMany({ where: { userId: { in: userIds } } });
+
+    const deleted = await prisma.user.deleteMany({ where: { id: { in: userIds } } });
+    logger.info(
+      `Production credential cleanup: removed ${deleted.count} seeded account(s): ${emails.join(', ')}.`
+    );
   } catch (err: any) {
     logger.warn('Production credential cleanup (non-fatal):', err.message);
+  }
+}
+
+async function ensureStagingPlannerProfile(): Promise<void> {
+  // Ensure the seeded planner@test.com user has a corresponding planner profile record.
+  // This is idempotent — safe to run on every startup in staging/development.
+  if (process.env.NODE_ENV === 'production') return;
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email: 'planner@test.com' },
+      include: { planner: true }
+    });
+    if (!user) return;
+    if (user.planner) {
+      logger.info('Staging bootstrap: planner profile already exists for planner@test.com');
+      return;
+    }
+    await prisma.planner.create({
+      data: { userId: user.id, companyName: 'AO Events Lagos', plan: 'GROWTH' }
+    });
+    logger.info('Staging bootstrap: created missing planner profile for planner@test.com');
+  } catch (err: any) {
+    logger.warn('Staging planner profile bootstrap (non-fatal):', err.message);
   }
 }
 
@@ -204,6 +273,7 @@ async function bootstrap() {
     await runPhaseA5EnumMigration();
     await runPhaseA5Migration();
     await removeProductionSeededAccounts();
+    await ensureStagingPlannerProfile();
     await initQueues();
     await startWorkers();
     httpServer.listen(PORT, '0.0.0.0', () => {
