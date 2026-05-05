@@ -43,6 +43,7 @@ import propertiesRouter from './routes/properties';
 import experiencesRouter from './routes/experiences';
 import stayBookingsRouter from './routes/stay-bookings';
 import experienceBookingsRouter from './routes/experience-bookings';
+import channelRouter from './routes/channel';
 
 import { initSocket } from './socket';
 
@@ -69,8 +70,9 @@ app.use(compression());
 app.use(requestId);
 app.use(ipLogger);
 
-// Raw body for Paystack webhook signature verification
+// Raw body for Paystack webhook signature verification and Coastal Corridor inbound channel
 app.use('/api/payments/webhook/paystack', express.raw({ type: 'application/json' }));
+app.use('/api/v1/channel/webhooks/inbound', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(requestLogger);
@@ -116,6 +118,8 @@ app.use('/api/properties', propertiesRouter);
 app.use('/api/experiences', experiencesRouter);
 app.use('/api/stay-bookings', stayBookingsRouter);
 app.use('/api/experience-bookings', experienceBookingsRouter);
+// Phase A.5: Coastal Corridor inbound channel router
+app.use('/api/v1/channel', channelRouter);
 
 // 404 + error handlers
 app.use((_req, res) => { res.status(404).json({ success: false, error: 'Route not found' }); });

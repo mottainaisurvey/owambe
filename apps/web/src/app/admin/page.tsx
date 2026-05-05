@@ -10,13 +10,13 @@ import toast from 'react-hot-toast';
 import { TenantsAdminPanel } from '@/components/TenantsAdminPanel';
 import {
   CheckCircle, XCircle, AlertTriangle, Users, Store,
-  DollarSign, BarChart2, Shield, Loader2, Eye, Bell
+  DollarSign, BarChart2, Shield, Loader2, Eye, Bell, LogOut
 } from 'lucide-react';
 
 const TABS = ['Overview', 'Vendor Queue', 'Users', 'Disputes', 'Commission', 'Portals', 'Contracts'];
 
 export default function AdminPage() {
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('Overview');
   const queryClient = useQueryClient();
@@ -26,6 +26,11 @@ export default function AdminPage() {
     return null;
   }
 
+  const handleSignOut = async () => {
+    await logout();
+    router.replace('/login');
+  };
+
   return (
     <div className="min-h-screen bg-[var(--bg)]">
       {/* Admin topbar */}
@@ -34,9 +39,19 @@ export default function AdminPage() {
           owambe<span className="text-[var(--accent2)]">.admin</span>
         </div>
         <div className="flex-1" />
-        <div className="flex items-center gap-2 text-xs text-white/50">
-          <Shield size={13} className="text-[var(--accent2)]" />
-          Admin · {user?.email}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-xs text-white/50">
+            <Shield size={13} className="text-[var(--accent2)]" />
+            Admin · {user?.email}
+          </div>
+          <button
+            onClick={handleSignOut}
+            className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white/90 transition-colors px-3 py-1.5 rounded-lg hover:bg-white/10 border border-white/10"
+            title="Sign out"
+          >
+            <LogOut size={13} />
+            Sign out
+          </button>
         </div>
       </header>
 

@@ -2,9 +2,9 @@ name: Owambe CI/CD
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, staging]
   pull_request:
-    branches: [main]
+    branches: [main, staging]
 
 env:
   NODE_VERSION: '20'
@@ -26,6 +26,23 @@ jobs:
         run: cd apps/api && npx tsc --noEmit
       - name: Type check Web
         run: cd apps/web && npx tsc --noEmit
+
+  # ─── VOCABULARY LINT ─────────────────────────────────
+  vocab-lint:
+    name: Vocabulary Lint (Advisory)
+    runs-on: ubuntu-latest
+    continue-on-error: true  # Advisory mode — does not block CI
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Run vocabulary linter (advisory mode)
+        run: node scripts/vocab-lint.js
+        # Advisory mode: violations are logged but exit code is always 0.
+        # To enable strict mode (block CI on violations), set:
+        #   VOCAB_LINT_STRICT: 'true'
+        # or change the step to: node scripts/vocab-lint.js --strict
 
   # ─── TEST ────────────────────────────────────────────
   test:
@@ -89,32 +106,67 @@ jobs:
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
           NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
 
-  # ─── DEPLOY API (Railway) ────────────────────────────
-  deploy-api:
-    name: Deploy API to Railway
+  # ─── DEPLOY API TO STAGING (Railway) ─────────────────
+  deploy-api-staging:
+    name: Deploy API to Staging (Railway)
     runs-on: ubuntu-latest
     needs: build
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/staging'
+    environment: staging
     steps:
       - uses: actions/checkout@v4
       - name: Install Railway CLI
         run: npm install -g @railway/cli
-      - name: Deploy to Railway
-        run: railway up --service owambe-api
+      - name: Deploy API to Railway staging
+        run: railway up --service owambe-api --environment staging --detach
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
 
-  # ─── DEPLOY WEB (Vercel) ─────────────────────────────
-  deploy-web:
-    name: Deploy Web to Vercel
+  # ─── DEPLOY WEB TO STAGING (Vercel Preview) ──────────
+  deploy-web-staging:
+    name: Deploy Web to Staging (Vercel Preview)
     runs-on: ubuntu-latest
     needs: build
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/staging'
+    environment: staging
     steps:
       - uses: actions/checkout@v4
       - name: Install Vercel CLI
         run: npm install -g vercel
-      - name: Deploy to Vercel
+      - name: Deploy to Vercel Preview
+        run: vercel --token ${{ secrets.VERCEL_TOKEN }} --yes
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+  # ─── DEPLOY API TO PRODUCTION (Railway) ──────────────
+  deploy-api-production:
+    name: Deploy API to Production (Railway)
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+      - name: Deploy API to Railway production
+        run: railway up --service owambe-api --environment production --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+  # ─── DEPLOY WEB TO PRODUCTION (Vercel) ───────────────
+  deploy-web-production:
+    name: Deploy Web to Production (Vercel)
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+      - name: Deploy to Vercel Production
         run: vercel --prod --token ${{ secrets.VERCEL_TOKEN }} --yes
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}

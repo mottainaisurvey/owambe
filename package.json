@@ -12,12 +12,16 @@
     "lint": "turbo run lint",
     "test": "turbo run test",
     "db:migrate": "cd apps/api && npm run db:migrate",
-    "db:seed": "cd apps/api && npm run db:seed"
+    "db:seed": "cd apps/api && npm run db:seed",
+    "vocab:lint": "node scripts/vocab-lint.js",
+    "vocab:lint:strict": "node scripts/vocab-lint.js --strict",
+    "prepare": "husky"
   },
   "devDependencies": {
-    "turbo": "^2.0.0",
+    "eslint": "^8.57.0",
+    "husky": "^9.1.7",
     "prettier": "^3.2.0",
-    "eslint": "^8.57.0"
+    "turbo": "^2.0.0"
   },
   "overrides": {
     "@types/react": "^18.3.3",

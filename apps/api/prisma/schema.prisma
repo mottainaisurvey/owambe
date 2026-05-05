@@ -32,6 +32,40 @@ enum PlatformMode {
   EXPERIENCES
 }
 
+// Phase A.5: Currency enum — per brief Q&A v1.1 Q05 (Paystack three-currency set)
+enum Currency {
+  NGN
+  USD
+  GBP
+}
+
+// Phase A.5: Channel origin enum
+enum ChannelOrigin {
+  DIRECT
+  COASTAL_CORRIDOR
+  BOOKING_COM
+  AIRBNB
+  HOTELS_NG
+  GETYOURGUIDE
+  VIATOR
+}
+
+// Phase A.5: Cohort type enum — role-type model per brief Q&A v1.1 Q02
+enum CohortType {
+  COASTAL_CORRIDOR_HOST
+  COASTAL_CORRIDOR_OPERATOR
+  BOTH
+}
+
+// Phase A.5: Cohort code status enum
+enum CohortCodeStatus {
+  ACTIVE
+  USED
+  EXPIRED
+  EXHAUSTED
+  REVOKED
+}
+
 enum EventStatus {
   DRAFT
   PUBLISHED
@@ -196,7 +230,7 @@ enum ExperienceBookingStatus {
 
 // ─── USERS ───────────────────────────────────────────
 model User {
-  id               String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id               String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email            String       @unique
   passwordHash     String?
   role             UserRole
@@ -217,6 +251,14 @@ model User {
   activeMode       PlatformMode  @default(EVENTS)
   availableModes   PlatformMode[] @default([EVENTS])
   cohortCode       String?       // Coastal Corridor cohort code
+  // Phase A.5: Cohort membership fields
+  cohortMember     Boolean       @default(false)
+  cohortType       CohortType?
+  cohortStartDate  DateTime?
+  cohortEndDate    DateTime?
+  preferredCurrency Currency     @default(NGN)
+  onboardedAt      DateTime?
+  channelOrigin    ChannelOrigin @default(DIRECT)
 
   // Relations
   planner          Planner?
@@ -237,7 +279,7 @@ model User {
   @@map("users")
 }
 model RefreshToken {
-  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId    String   @db.Uuid
   token     String   @unique
   expiresAt DateTime
@@ -248,7 +290,7 @@ model RefreshToken {
 }
 // ─── PLANNER ─────────────────────────────────────────
 model Planner {
-  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId          String    @unique @db.Uuid
   businessName    String?
   businessType    String?
@@ -277,7 +319,7 @@ model Planner {
 }
 // ─── VENDOR ──────────────────────────────────────────
 model Vendor {
-  id                  String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id                  String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId              String         @unique @db.Uuid
   businessName        String
   category            VendorCategory
@@ -336,7 +378,7 @@ model Vendor {
   @@map("vendors")
 }
 model VendorPackage {
-  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   vendorId    String   @db.Uuid
   name        String
   description String?
@@ -352,7 +394,7 @@ model VendorPackage {
   @@map("vendor_packages")
 }
 model VendorAvailability {
-  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   vendorId    String   @db.Uuid
   date        DateTime @db.Date
   isAvailable Boolean  @default(false)
@@ -367,7 +409,7 @@ model VendorAvailability {
 
 // ─── HOST (Phase A: Stays mode) ──────────────────────
 model Host {
-  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId          String    @unique @db.Uuid
   businessName    String?
   city            String?
@@ -396,7 +438,7 @@ model Host {
 
 // ─── PROPERTY (Phase A: Stays mode) ──────────────────
 model Property {
-  id              String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   hostId          String       @db.Uuid
   name            String
   slug            String       @unique
@@ -435,7 +477,7 @@ model Property {
 
 // ─── ROOM (Phase A: Stays mode) ──────────────────────
 model Room {
-  id              String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   propertyId      String   @db.Uuid
   name            String
   roomType        RoomType
@@ -461,7 +503,7 @@ model Room {
 
 // ─── STAY BOOKING (Phase A: Stays mode) ──────────────
 model StayBooking {
-  id              String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   reference       String            @unique
   propertyId      String            @db.Uuid
   roomId          String            @db.Uuid
@@ -487,6 +529,17 @@ model StayBooking {
   confirmedAt     DateTime?
   checkedInAt     DateTime?
   checkedOutAt    DateTime?
+  // Channel integration fields (Phase A.5: Coastal Corridor)
+  channelOrigin   ChannelOrigin     @default(DIRECT)
+  externalRef     String?           // Coastal Corridor reservation ID
+  externalPropertyId String?        // Coastal Corridor property ID
+  channelCommissionAmount Decimal?  @db.Decimal(12, 2)
+  channelCommissionPercent Decimal? @db.Decimal(5, 2)
+  netToHost       Decimal?          @db.Decimal(12, 2)
+  paystackReference String?         // Paystack reference from Coastal Corridor
+  refundAmount    Decimal?          @db.Decimal(12, 2)
+  refundCurrency  String?
+  numberOfGuests  Int?              // Alias for guestCount from CC payload
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -499,12 +552,13 @@ model StayBooking {
   @@index([guestEmail])
   @@index([status])
   @@index([checkInDate])
+  @@index([externalRef])
   @@map("stay_bookings")
 }
 
 // ─── OPERATOR (Phase A: Experiences mode) ────────────
 model Operator {
-  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId          String    @unique @db.Uuid
   businessName    String?
   city            String?
@@ -533,7 +587,7 @@ model Operator {
 
 // ─── EXPERIENCE (Phase A: Experiences mode) ──────────
 model Experience {
-  id              String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   operatorId      String         @db.Uuid
   name            String
   slug            String         @unique
@@ -575,7 +629,7 @@ model Experience {
 
 // ─── EXPERIENCE SLOT (Phase A: Experiences mode) ─────
 model ExperienceSlot {
-  id              String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id              String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   experienceId    String     @db.Uuid
   startTime       DateTime
   endTime         DateTime
@@ -594,7 +648,7 @@ model ExperienceSlot {
 
 // ─── EXPERIENCE BOOKING (Phase A: Experiences mode) ──
 model ExperienceBooking {
-  id              String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id              String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   reference       String                  @unique
   experienceId    String                  @db.Uuid
   slotId          String                  @db.Uuid
@@ -614,8 +668,21 @@ model ExperienceBooking {
   cancelledAt     DateTime?
   confirmedAt     DateTime?
   completedAt     DateTime?
-  createdAt       DateTime                @default(now())
-  updatedAt       DateTime                @updatedAt
+  // Channel integration fields (Phase A.5: Coastal Corridor)
+  channelOrigin   ChannelOrigin          @default(DIRECT)
+  externalRef     String?                // Coastal Corridor booking ID
+  externalExperienceId String?           // Coastal Corridor experience ID
+  channelCommissionAmount Decimal?       @db.Decimal(12, 2)
+  channelCommissionPercent Decimal?      @db.Decimal(5, 2)
+  netToOperator   Decimal?               @db.Decimal(12, 2)
+  paystackReference String?              // Paystack reference from Coastal Corridor
+  numberOfParticipants Int?              // Alias for guestCount from CC payload
+  participantNames String[]              // List of participant names
+  pickupRequested Boolean                @default(false)
+  pickupAddress   String?
+  depositAmount   Decimal                @default(0) @db.Decimal(12, 2)
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
 
   experience Experience     @relation(fields: [experienceId], references: [id])
   slot       ExperienceSlot @relation(fields: [slotId], references: [id])
@@ -625,12 +692,13 @@ model ExperienceBooking {
   @@index([slotId])
   @@index([guestEmail])
   @@index([status])
+  @@index([externalRef])
   @@map("experience_bookings")
 }
 
 // ─── COHORT CODE (Phase A: Coastal Corridor onboarding) ──
 model CohortCode {
-  id              String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   code            String       @unique
   name            String       // e.g. "Coastal Corridor Cohort 1"
   description     String?
@@ -649,7 +717,7 @@ model CohortCode {
 // ─── LOOKUP TABLES (Phase A: Admin-managed categories) ──
 
 model VendorCategoryLookup {
-  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   key         String   @unique  // e.g. "VENUE", "CATERING"
   label       String            // e.g. "Venue", "Catering"
   description String?
@@ -664,7 +732,7 @@ model VendorCategoryLookup {
 }
 
 model PropertyTypeLookup {
-  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   key         String   @unique  // e.g. "HOTEL", "VILLA"
   label       String
   description String?
@@ -679,7 +747,7 @@ model PropertyTypeLookup {
 }
 
 model ExperienceTypeLookup {
-  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   key         String   @unique  // e.g. "CULTURAL_TOUR", "FOOD_TASTING"
   label       String
   description String?
@@ -694,7 +762,7 @@ model ExperienceTypeLookup {
 }
 
 model RoomTypeLookup {
-  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   key         String   @unique  // e.g. "STANDARD", "SUITE"
   label       String
   description String?
@@ -710,7 +778,7 @@ model RoomTypeLookup {
 
 // ─── EMAIL TEMPLATE STORE (Phase A: DB-stored templates) ──
 model EmailTemplate {
-  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   key         String   @unique  // e.g. "booking_confirmed", "event_reminder"
   name        String
   subject     String
@@ -728,7 +796,7 @@ model EmailTemplate {
 
 // ─── CONTRACT TEMPLATE STORE (Phase A: DB-stored templates) ──
 model ContractTemplate {
-  id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   key          String   @unique  // e.g. "SERVICE_AGREEMENT", "VENUE_HIRE"
   name         String
   description  String?
@@ -745,7 +813,7 @@ model ContractTemplate {
 
 // ─── CONSUMER ────────────────────────────────────────
 model Consumer {
-  id                String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId            String   @unique @db.Uuid
   city              String?
   state             String?
@@ -762,7 +830,7 @@ model Consumer {
 }
 // ─── EVENTS ──────────────────────────────────────────
 model Event {
-  id            String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   plannerId     String      @db.Uuid
   name          String
   slug          String      @unique
@@ -797,7 +865,7 @@ model Event {
   @@map("events")
 }
 model TicketType {
-  id           String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   eventId      String       @db.Uuid
   name         String
   description  String?
@@ -821,7 +889,7 @@ model TicketType {
   @@map("ticket_types")
 }
 model Attendee {
-  id             String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   eventId        String        @db.Uuid
   ticketTypeId   String        @db.Uuid
   firstName      String
@@ -847,7 +915,7 @@ model Attendee {
   @@map("attendees")
 }
 model CheckIn {
-  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   eventId     String   @db.Uuid
   attendeeId  String   @unique @db.Uuid
   checkedInAt DateTime @default(now())
@@ -858,7 +926,7 @@ model CheckIn {
   @@map("check_ins")
 }
 model PromoCode {
-  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   eventId       String   @db.Uuid
   code          String
   discountType  String
@@ -875,7 +943,7 @@ model PromoCode {
 // ─── SPEAKERS ────────────────────────────────────────
 
 model Speaker {
-  id          String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   eventId     String        @db.Uuid
   name        String
   title       String?
@@ -906,7 +974,7 @@ model Speaker {
 // ─── SPONSORS ────────────────────────────────────────
 
 model EventSponsor {
-  id          String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   eventId     String      @db.Uuid
   name        String
   logoUrl     String?
@@ -922,7 +990,7 @@ model EventSponsor {
 // ─── EMAIL CAMPAIGNS ─────────────────────────────────
 
 model EmailCampaign {
-  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   eventId     String   @db.Uuid
   name        String
   subject     String
@@ -942,7 +1010,7 @@ model EmailCampaign {
 // ─── BOOKINGS ────────────────────────────────────────
 
 model Booking {
-  id               String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   reference        String        @unique
   vendorId         String        @db.Uuid
   plannerId        String?       @db.Uuid
@@ -990,7 +1058,7 @@ model Booking {
 }
 
 model Quote {
-  id          String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   bookingId   String      @unique @db.Uuid
   vendorId    String      @db.Uuid
   lineItems   Json
@@ -1008,7 +1076,7 @@ model Quote {
 // ─── REVIEWS ─────────────────────────────────────────
 
 model Review {
-  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   vendorId   String   @db.Uuid
   bookingId  String   @unique @db.Uuid
   rating     Int
@@ -1027,7 +1095,7 @@ model Review {
 // ─── MESSAGES ────────────────────────────────────────
 
 model Message {
-  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   bookingId  String   @db.Uuid
   senderId   String   @db.Uuid
   receiverId String   @db.Uuid
@@ -1047,7 +1115,7 @@ model Message {
 // ─── NOTIFICATIONS ────────────────────────────────────
 
 model Notification {
-  id        String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id        String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId    String           @db.Uuid
   type      NotificationType
   title     String
@@ -1064,7 +1132,7 @@ model Notification {
 // ─── AI EVENT PLANS ───────────────────────────────────
 
 model AiEventPlan {
-  id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   consumerId   String   @db.Uuid
   sessionId    String   @unique
   eventType    String
@@ -1089,7 +1157,7 @@ model AiEventPlan {
 // ─── WAITLIST ─────────────────────────────────────────
 
 model Waitlist {
-  id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   eventId      String   @db.Uuid
   ticketTypeId String   @db.Uuid
   email        String
@@ -1108,7 +1176,7 @@ model Waitlist {
 
 // ─── CONTRACTS ───────────────────────────────────────
 model Contract {
-  id              String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   reference       String         @unique
   bookingId       String?        @db.Uuid
   plannerId       String         @db.Uuid
@@ -1137,7 +1205,7 @@ model Contract {
 }
 
 model ContractSignature {
-  id           String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   contractId   String     @db.Uuid
   signerRole   SignerRole
   signerName   String
@@ -1176,7 +1244,7 @@ enum SyncDirection {
 }
 
 model CrmConnection {
-  id                String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id                String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   plannerId         String      @db.Uuid
   provider          CrmProvider
   isActive          Boolean     @default(true)
@@ -1209,7 +1277,7 @@ model CrmConnection {
 }
 
 model CrmSyncLog {
-  id              String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   connectionId    String        @db.Uuid
   entityType      String
   entityId        String
@@ -1246,7 +1314,7 @@ enum InstalmentPaymentStatus {
 }
 
 model InstalmentPlan {
-  id                  String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id                  String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   reference           String          @unique
   bookingId           String          @db.Uuid
   plannerId           String?         @db.Uuid
@@ -1285,7 +1353,7 @@ model InstalmentPlan {
 }
 
 model InstalmentPayment {
-  id                  String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id                  String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   planId              String                  @db.Uuid
   instalmentNumber    Int
   amount              Decimal                 @db.Decimal(12, 2)
@@ -1321,7 +1389,7 @@ enum DistributionStatus {
 }
 
 model EventDistribution {
-  id              String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id              String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   eventId         String               @db.Uuid
   channel         DistributionChannel
   status          DistributionStatus   @default(PENDING)
@@ -1344,7 +1412,7 @@ model EventDistribution {
 
 // ─── TENANT (Phase A: White-label portals) ───────────
 model Tenant {
-  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   plannerId       String    @unique @db.Uuid
   subdomain       String    @unique
   customDomain    String?   @unique
@@ -1375,7 +1443,7 @@ model Tenant {
 
 // ─── PORTFOLIO ITEM (Phase A: Vendor portfolio) ──────
 model PortfolioItem {
-  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   vendorId    String   @db.Uuid
   url         String
   caption     String?
