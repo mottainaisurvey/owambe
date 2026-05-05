@@ -118,14 +118,14 @@ export default function StaysBookingsPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold text-[var(--dark)]">Reservations</h1>
-          <p className="text-sm text-[var(--mid)] mt-0.5">All guest bookings across your properties</p>
+          <p className="text-sm text-[var(--mid)] mt-0.5">All guest reservations across your properties</p>
         </div>
       </div>
 
       {/* Stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         {[
-          { label: 'Total Bookings', value: stats.total, color: 'text-[var(--dark)]' },
+          { label: 'Total Reservations', value: stats.total, color: 'text-[var(--dark)]' },
           { label: 'Confirmed', value: stats.confirmed, color: 'text-green-700' },
           { label: 'Checked In', value: stats.checkedIn, color: 'text-blue-700' },
           {
@@ -190,7 +190,7 @@ export default function StaysBookingsPage() {
         </div>
       )}
 
-      {/* Booking list */}
+      {/* Reservation list */}
       <div className="space-y-3">
         {filtered.map(booking => (
           <div
