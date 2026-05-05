@@ -204,7 +204,7 @@ export class CoastalCorridorAdapter extends BaseChannelAdapter {
 
   constructor() {
     super();
-    this.baseUrl = process.env.COASTAL_CORRIDOR_API_URL ?? 'https://api.coastalcorridor.africa/v1/channel';
+    this.baseUrl = process.env.COASTAL_CORRIDOR_BASE_URL ?? process.env.COASTAL_CORRIDOR_API_URL ?? 'https://api.coastalcorridor.africa/v1/channel';
     this.sharedSecret = process.env.COASTAL_CORRIDOR_SHARED_SECRET ?? '';
 
     this.client = axios.create({
