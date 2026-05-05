@@ -89,6 +89,13 @@ app.use('/api/ai', rateLimiter({ windowMs: 60000, max: 20 }));
 app.use('/api/upload', rateLimiter({ windowMs: 60000, max: 30 }));
 app.use('/api', rateLimiter({ windowMs: 60000, max: 300 }));
 
+// Phase B: Coastal Corridor inbound channel router (HMAC-signed, no JWT auth)
+// MUST be mounted before messagesRouter (/api catch-all) to avoid JWT auth interception
+app.use('/api/v1/channel', channelRouter);
+
+// Phase B: User self-service routes (change password, profile)
+app.use('/api/users', usersRouter);
+
 app.use('/api/auth', authRouter);
 app.use('/api/events', eventsRouter);
 app.use('/api/attendees', attendeesRouter);
@@ -118,14 +125,6 @@ app.use('/api/properties', propertiesRouter);
 app.use('/api/experiences', experiencesRouter);
 app.use('/api/stay-bookings', stayBookingsRouter);
 app.use('/api/experience-bookings', experienceBookingsRouter);
-
-// Phase B: Coastal Corridor inbound channel router (HMAC-signed, no JWT auth)
-// Raw body needed for HMAC signature verification — must be mounted before express.json parses the body
-// Note: express.json is already mounted above; the channel router uses req.rawBody fallback
-app.use('/api/v1/channel', channelRouter);
-
-// Phase B: User self-service routes (change password, profile)
-app.use('/api/users', usersRouter);
 
 app.use((_req, res) => { res.status(404).json({ success: false, error: 'Route not found' }); });
 app.use(errorHandler);
