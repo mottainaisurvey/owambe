@@ -44,6 +44,7 @@ import experiencesRouter from './routes/experiences';
 import stayBookingsRouter from './routes/stay-bookings';
 import experienceBookingsRouter from './routes/experience-bookings';
 import channelRouter from './routes/channel';
+import { usersRouter } from './routes/users';
 
 import { initSocket } from './socket';
 
@@ -120,6 +121,8 @@ app.use('/api/stay-bookings', stayBookingsRouter);
 app.use('/api/experience-bookings', experienceBookingsRouter);
 // Phase A.5: Coastal Corridor inbound channel router
 app.use('/api/v1/channel', channelRouter);
+// Phase B: User self-service (password change, profile)
+app.use('/api/users', usersRouter);
 
 // 404 + error handlers
 app.use((_req, res) => { res.status(404).json({ success: false, error: 'Route not found' }); });

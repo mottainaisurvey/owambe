@@ -8,9 +8,10 @@ import { api } from '@/lib/api';
 import { formatNGN, formatTimeAgo, VENDOR_CATEGORY_LABELS, VENDOR_CATEGORY_EMOJIS } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import { TenantsAdminPanel } from '@/components/TenantsAdminPanel';
+import { ChangePasswordModal } from '@/components/ChangePasswordModal';
 import {
   CheckCircle, XCircle, AlertTriangle, Users, Store,
-  DollarSign, BarChart2, Shield, Loader2, Eye, Bell, LogOut
+  DollarSign, BarChart2, Shield, Loader2, Eye, Bell, LogOut, KeyRound
 } from 'lucide-react';
 
 const TABS = ['Overview', 'Vendor Queue', 'Users', 'Disputes', 'Commission', 'Portals', 'Contracts'];
@@ -19,6 +20,7 @@ export default function AdminPage() {
   const { user, logout } = useAuthStore();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('Overview');
+  const [showChangePwd, setShowChangePwd] = useState(false);
   const queryClient = useQueryClient();
 
   if (user?.role !== 'ADMIN') {
@@ -45,6 +47,14 @@ export default function AdminPage() {
             Admin · {user?.email}
           </div>
           <button
+            onClick={() => setShowChangePwd(true)}
+            className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white/90 transition-colors px-3 py-1.5 rounded-lg hover:bg-white/10 border border-white/10"
+            title="Change password"
+          >
+            <KeyRound size={13} />
+            Change password
+          </button>
+          <button
             onClick={handleSignOut}
             className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white/90 transition-colors px-3 py-1.5 rounded-lg hover:bg-white/10 border border-white/10"
             title="Sign out"
@@ -54,6 +64,7 @@ export default function AdminPage() {
           </button>
         </div>
       </header>
+      <ChangePasswordModal open={showChangePwd} onClose={() => setShowChangePwd(false)} />
 
       <div className="max-w-7xl mx-auto px-6 py-6">
         {/* Tabs */}

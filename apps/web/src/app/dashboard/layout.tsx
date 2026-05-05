@@ -1,16 +1,17 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore, PlatformMode } from '@/store/auth.store';
 import { ModeSwitcher } from '@/components/ModeSwitcher';
+import { ChangePasswordModal } from '@/components/ChangePasswordModal';
 import { cn, initials } from '@/lib/utils';
 import {
   Zap, Calendar, Plus, Globe, Scan, Clock, Mail,
   Mic, MapPin, Trophy, Smartphone, BarChart2, CreditCard,
   LogOut, Search, Bell, LayoutTemplate, FileSignature, Link2,
-  Home, Bed, Compass, Star, Package
+  Home, Bed, Compass, Star, Package, KeyRound
 } from 'lucide-react';
 
 // ─── Mode-aware navigation ────────────────────────────
@@ -167,6 +168,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { user, isAuthenticated, logout, activeMode } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
+  const [showChangePwd, setShowChangePwd] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) router.replace('/login');
@@ -241,6 +243,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           </div>
           <button
+            onClick={() => setShowChangePwd(true)}
+            className="flex items-center gap-2.5 px-2.5 py-2 w-full rounded-lg text-white/40 text-sm hover:text-white hover:bg-white/[0.06] transition-colors mt-1"
+          >
+            <KeyRound size={14} />
+            Change password
+          </button>
+          <button
             onClick={() => logout()}
             className="flex items-center gap-2.5 px-2.5 py-2 w-full rounded-lg text-white/40 text-sm hover:text-white hover:bg-white/[0.06] transition-colors mt-1"
           >
@@ -249,6 +258,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </button>
         </div>
       </aside>
+      <ChangePasswordModal open={showChangePwd} onClose={() => setShowChangePwd(false)} />
 
       {/* MAIN */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
