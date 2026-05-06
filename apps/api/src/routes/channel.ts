@@ -12,6 +12,10 @@
  *       CC → Owambe: x-cc-signature (HMAC-SHA256 of timestamp.body), x-cc-timestamp, x-idempotency-key
  *       Owambe → CC: x-owambe-signature (HMAC-SHA256 of timestamp.body), x-owambe-timestamp, x-idempotency-key
  *
+ * Field naming: CC sends all payload fields in snake_case + flat structure.
+ *   e.g. owambe_room_id, check_in_date, guest_first_name, total_amount, etc.
+ *   Internal variables use camelCase after destructuring.
+ *
  * API Contract: coastal-corridor-owambe-api.yaml v1.0.0
  */
 
@@ -108,28 +112,50 @@ router.use((req: Request, _res: Response, next: NextFunction) => {
  * Owambe creates the reservation in the host's calendar and triggers
  * the host notification flow.
  *
- * Idempotent on coastalCorridorReservationId.
+ * Idempotent on cc_reservation_id.
  * Returns 409 if dates are no longer available.
+ *
+ * CC sends snake_case fields:
+ *   cc_reservation_id, owambe_property_id, owambe_room_id,
+ *   guest_first_name, guest_last_name, guest_email, guest_phone,
+ *   check_in_date, check_out_date, number_of_guests,
+ *   total_amount, currency, channel_commission_amount,
+ *   channel_commission_percent, net_to_host, special_requests,
+ *   payment_status, paystack_reference
  */
 router.post('/coastal-corridor/reservations', async (req: Request, res: Response): Promise<void> => {
   const requestId = req.headers['x-request-id'] as string ?? 'unknown';
+
+  // Destructure snake_case fields from CC's payload and alias to camelCase internal variables
   const {
-    coastalCorridorReservationId,
-    coastalCorridorPropertyId,
-    owambeRoomId,
+    cc_reservation_id: coastalCorridorReservationId,
+    owambe_property_id: coastalCorridorPropertyId,
+    owambe_room_id: owambeRoomId,
+    // Guest fields — CC sends flat snake_case (guest_first_name etc.) or nested guest object
+    // Support both forms for forward compatibility
     guest,
-    checkInDate,
-    checkOutDate,
-    numberOfGuests,
-    totalAmount,
+    guest_first_name,
+    guest_last_name,
+    guest_email,
+    guest_phone,
+    check_in_date: checkInDate,
+    check_out_date: checkOutDate,
+    number_of_guests: numberOfGuests,
+    total_amount: totalAmount,
     currency,
-    channelCommissionAmount,
-    channelCommissionPercent,
-    netToHost,
-    specialRequests,
-    paymentStatus,
-    paystackReference,
+    channel_commission_amount: channelCommissionAmount,
+    channel_commission_percent: channelCommissionPercent,
+    net_to_host: netToHost,
+    special_requests: specialRequests,
+    payment_status: paymentStatus,
+    paystack_reference: paystackReference,
   } = req.body;
+
+  // Normalise guest fields — support both flat and nested forms
+  const guestFirstName: string = guest_first_name ?? guest?.first_name ?? guest?.firstName ?? '';
+  const guestLastName: string = guest_last_name ?? guest?.last_name ?? guest?.lastName ?? '';
+  const guestEmail: string = guest_email ?? guest?.email ?? '';
+  const guestPhone: string | null = guest_phone ?? guest?.phone ?? null;
 
   logger.info('[Channel] Inbound stays reservation', {
     coastalCorridorReservationId,
@@ -148,12 +174,12 @@ router.post('/coastal-corridor/reservations', async (req: Request, res: Response
     if (existing) {
       logger.info('[Channel] Idempotent reservation re-call', { coastalCorridorReservationId, existingId: existing.id });
       res.status(200).json({
-        owambeReservationId: existing.id,
-        coastalCorridorReservationId,
+        owambe_reservation_id: existing.id,
+        cc_reservation_id: coastalCorridorReservationId,
         status: existing.status,
-        createdAt: existing.createdAt.toISOString(),
-        hostNotified: true,
-        contractGenerationStatus: 'PENDING',
+        created_at: existing.createdAt.toISOString(),
+        host_notified: true,
+        contract_generation_status: 'PENDING',
       });
       return;
     }
@@ -181,8 +207,8 @@ router.post('/coastal-corridor/reservations', async (req: Request, res: Response
       res.status(409).json({
         error: 'AVAILABILITY_CONFLICT',
         message: 'Requested dates are no longer available',
-        conflictingReservationId: conflictingBooking.id,
-        conflictingChannelOrigin: conflictingBooking.channelOrigin ?? 'OWAMBE',
+        conflicting_reservation_id: conflictingBooking.id,
+        conflicting_channel_origin: conflictingBooking.channelOrigin ?? 'OWAMBE',
         resolution: 'Coastal Corridor must refund the guest and surface the conflict',
       });
       return;
@@ -209,9 +235,9 @@ router.post('/coastal-corridor/reservations', async (req: Request, res: Response
         propertyId: room.property.id,
         roomId: owambeRoomId,
         guestUserId: null, // Guest may not have an Owambe account
-        guestName: `${guest.firstName} ${guest.lastName}`,
-        guestEmail: guest.email,
-        guestPhone: guest.phone ?? null,
+        guestName: `${guestFirstName} ${guestLastName}`.trim(),
+        guestEmail,
+        guestPhone,
         checkInDate: checkIn,
         checkOutDate: checkOut,
         nights,
@@ -271,29 +297,43 @@ router.post('/coastal-corridor/reservations', async (req: Request, res: Response
     // await contractService.generateBookingContract(reservation);
 
     res.status(201).json({
-      owambeReservationId: reservation.id,
-      coastalCorridorReservationId,
+      owambe_reservation_id: reservation.id,
+      cc_reservation_id: coastalCorridorReservationId,
       status: reservation.status,
-      createdAt: reservation.createdAt.toISOString(),
-      hostNotified: !!hostUser?.email,
-      contractGenerationStatus: 'PENDING',
+      created_at: reservation.createdAt.toISOString(),
+      host_notified: !!hostUser?.email,
+      contract_generation_status: 'PENDING',
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     logger.error('[Channel] Error creating stays reservation', { error: msg, coastalCorridorReservationId });
-    // DEBUG: Expose error detail temporarily for staging diagnosis
-    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to create reservation', requestId, debug: process.env.NODE_ENV !== 'production' ? msg : undefined });
+    res.status(500).json({
+      error: 'INTERNAL_ERROR',
+      message: 'Failed to create reservation',
+      requestId,
+      debug: process.env.NODE_ENV !== 'production' ? msg : undefined,
+    });
   }
 });
 
 /**
- * PATCH /api/v1/channel/coastal-corridor/reservations/:coastalCorridorReservationId
+ * PATCH /api/v1/channel/coastal-corridor/reservations/:cc_reservation_id
  *
  * Called by Coastal Corridor when reservation status changes.
+ *
+ * CC sends snake_case fields:
+ *   status, cancellation_reason, cancellation_initiated_by,
+ *   refund_amount, refund_currency, updated_at
  */
-router.patch('/coastal-corridor/reservations/:coastalCorridorReservationId', async (req: Request, res: Response): Promise<void> => {
-  const { coastalCorridorReservationId } = req.params;
-  const { status, cancellationReason, cancellationInitiatedBy, refundAmount, refundCurrency } = req.body;
+router.patch('/coastal-corridor/reservations/:cc_reservation_id', async (req: Request, res: Response): Promise<void> => {
+  const { cc_reservation_id: coastalCorridorReservationId } = req.params;
+  const {
+    status,
+    cancellation_reason: cancellationReason,
+    cancellation_initiated_by: cancellationInitiatedBy,
+    refund_amount: refundAmount,
+    refund_currency: refundCurrency,
+  } = req.body;
 
   logger.info('[Channel] Reservation status update', { coastalCorridorReservationId, status });
 
@@ -337,12 +377,12 @@ router.patch('/coastal-corridor/reservations/:coastalCorridorReservationId', asy
     });
 
     res.status(200).json({
-      owambeReservationId: updated.id,
-      coastalCorridorReservationId,
+      owambe_reservation_id: updated.id,
+      cc_reservation_id: coastalCorridorReservationId,
       status: updated.status,
-      createdAt: updated.createdAt.toISOString(),
-      hostNotified: false,
-      contractGenerationStatus: 'PENDING',
+      created_at: updated.createdAt.toISOString(),
+      host_notified: false,
+      contract_generation_status: 'PENDING',
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -360,29 +400,50 @@ router.patch('/coastal-corridor/reservations/:coastalCorridorReservationId', asy
  * Owambe creates the booking, decrements time slot capacity, and
  * triggers the operator notification flow.
  *
- * Idempotent on coastalCorridorBookingId.
+ * Idempotent on cc_booking_id.
  * Returns 409 if time slot is full or unavailable.
+ *
+ * CC sends snake_case fields:
+ *   cc_booking_id, cc_experience_id, owambe_time_slot_id,
+ *   lead_participant_first_name, lead_participant_last_name,
+ *   lead_participant_email, lead_participant_phone,
+ *   number_of_participants, participant_names,
+ *   total_amount, currency, channel_commission_amount,
+ *   channel_commission_percent, net_to_operator,
+ *   special_requirements, pickup_requested, pickup_address,
+ *   payment_status, paystack_reference
  */
 router.post('/experiences/bookings', async (req: Request, res: Response): Promise<void> => {
   const requestId = req.headers['x-request-id'] as string ?? 'unknown';
   const {
-    coastalCorridorBookingId,
-    coastalCorridorExperienceId,
-    owambeTimeSlotId,
-    leadParticipant,
-    numberOfParticipants,
-    participantNames,
-    totalAmount,
+    cc_booking_id: coastalCorridorBookingId,
+    cc_experience_id: coastalCorridorExperienceId,
+    owambe_time_slot_id: owambeTimeSlotId,
+    // Lead participant — support both flat snake_case and nested lead_participant object
+    lead_participant,
+    lead_participant_first_name,
+    lead_participant_last_name,
+    lead_participant_email,
+    lead_participant_phone,
+    number_of_participants: numberOfParticipants,
+    participant_names: participantNames,
+    total_amount: totalAmount,
     currency,
-    channelCommissionAmount,
-    channelCommissionPercent,
-    netToOperator,
-    specialRequirements,
-    pickupRequested,
-    pickupAddress,
-    paymentStatus,
-    paystackReference,
+    channel_commission_amount: channelCommissionAmount,
+    channel_commission_percent: channelCommissionPercent,
+    net_to_operator: netToOperator,
+    special_requirements: specialRequirements,
+    pickup_requested: pickupRequested,
+    pickup_address: pickupAddress,
+    payment_status: paymentStatus,
+    paystack_reference: paystackReference,
   } = req.body;
+
+  // Normalise lead participant fields — support both flat and nested forms
+  const leadFirstName: string = lead_participant_first_name ?? lead_participant?.first_name ?? lead_participant?.firstName ?? '';
+  const leadLastName: string = lead_participant_last_name ?? lead_participant?.last_name ?? lead_participant?.lastName ?? '';
+  const leadEmail: string = lead_participant_email ?? lead_participant?.email ?? '';
+  const leadPhone: string | null = lead_participant_phone ?? lead_participant?.phone ?? null;
 
   logger.info('[Channel] Inbound experience booking', {
     coastalCorridorBookingId,
@@ -400,11 +461,11 @@ router.post('/experiences/bookings', async (req: Request, res: Response): Promis
     if (existing) {
       logger.info('[Channel] Idempotent experience booking re-call', { coastalCorridorBookingId, existingId: existing.id });
       res.status(200).json({
-        owambeBookingId: existing.id,
-        coastalCorridorBookingId,
+        owambe_booking_id: existing.id,
+        cc_booking_id: coastalCorridorBookingId,
         status: existing.status,
-        createdAt: existing.createdAt.toISOString(),
-        operatorNotified: true,
+        created_at: existing.createdAt.toISOString(),
+        operator_notified: true,
       });
       return;
     }
@@ -450,9 +511,9 @@ router.post('/experiences/bookings', async (req: Request, res: Response): Promis
         experienceId: slot.experienceId,
         slotId: owambeTimeSlotId,
         guestUserId: null, // Participant may not have an Owambe account
-        guestName: `${leadParticipant.firstName} ${leadParticipant.lastName}`,
-        guestEmail: leadParticipant.email,
-        guestPhone: leadParticipant.phone ?? null,
+        guestName: `${leadFirstName} ${leadLastName}`.trim(),
+        guestEmail: leadEmail,
+        guestPhone: leadPhone,
         numberOfParticipants,
         participantNames: participantNames ?? [],
         totalAmount,
@@ -513,11 +574,11 @@ router.post('/experiences/bookings', async (req: Request, res: Response): Promis
     }
 
     res.status(201).json({
-      owambeBookingId: booking.id,
-      coastalCorridorBookingId,
+      owambe_booking_id: booking.id,
+      cc_booking_id: coastalCorridorBookingId,
       status: booking.status,
-      createdAt: booking.createdAt.toISOString(),
-      operatorNotified: !!operatorUser?.email,
+      created_at: booking.createdAt.toISOString(),
+      operator_notified: !!operatorUser?.email,
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -533,9 +594,17 @@ router.post('/experiences/bookings', async (req: Request, res: Response): Promis
  *
  * Receives asynchronous event notifications from Coastal Corridor.
  * Signature already verified by the middleware above.
+ *
+ * CC sends snake_case fields:
+ *   event_type, event_id, timestamp, data (event-specific snake_case object)
  */
 router.post('/webhooks/inbound', async (req: Request, res: Response): Promise<void> => {
-  const { eventType, eventId, timestamp, data } = req.body;
+  const {
+    event_type: eventType,
+    event_id: eventId,
+    timestamp,
+    data,
+  } = req.body;
 
   logger.info('[Channel] Inbound webhook', { eventType, eventId, timestamp });
 
@@ -602,7 +671,7 @@ router.post('/webhooks/inbound', async (req: Request, res: Response): Promise<vo
         return;
     }
 
-    res.status(200).json({ acknowledged: true, eventId });
+    res.status(200).json({ acknowledged: true, event_id: eventId });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     logger.error('[Channel] Error processing webhook', { error: msg, eventType, eventId });
