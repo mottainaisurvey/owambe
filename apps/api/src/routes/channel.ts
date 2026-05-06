@@ -42,11 +42,16 @@ router.use(express.raw({
 // ─── HMAC Signature Verification Middleware ────────────────────────────────
 
 function verifyCoastalCorridorSignature(req: Request, res: Response, next: NextFunction): void {
-  const signature = req.headers['x-signature'] as string | undefined;
+  // CC sends x-owambe-signature and x-owambe-timestamp (same scheme as Owambe's outbound calls)
+  const signature = req.headers['x-owambe-signature'] as string | undefined;
+  const timestamp = req.headers['x-owambe-timestamp'] as string | undefined;
   const secret = process.env.COASTAL_CORRIDOR_WEBHOOK_SECRET ?? process.env.COASTAL_CORRIDOR_SHARED_SECRET ?? '';
 
-  if (!signature) {
-    res.status(401).json({ error: 'MISSING_SIGNATURE', message: 'X-Signature header is required' });
+  if (!signature || !timestamp) {
+    res.status(401).json({
+      error: 'MISSING_SIGNATURE',
+      message: 'x-owambe-signature and x-owambe-timestamp headers are required',
+    });
     return;
   }
 
@@ -62,7 +67,7 @@ function verifyCoastalCorridorSignature(req: Request, res: Response, next: NextF
     return;
   }
 
-  if (!verifyInboundSignature(rawBody, signature, secret)) {
+  if (!verifyInboundSignature(rawBody, signature, secret, timestamp)) {
     logger.warn('[Channel] Invalid HMAC signature on inbound request', {
       path: req.path,
       requestId: req.headers['x-request-id'],

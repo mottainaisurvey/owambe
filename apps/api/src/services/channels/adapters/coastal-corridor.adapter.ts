@@ -210,12 +210,30 @@ function signRequest(body: string, timestamp: string, secret: string): string {
   return hmac.digest('hex');
 }
 
-export function verifyInboundSignature(rawBody: string, signature: string, secret: string): boolean {
-  // Inbound webhooks from CC use the same signing strategy.
-  // We accept a 5-minute window; timestamp is extracted from the x-owambe-timestamp header
-  // by the caller before invoking this function.
-  const timestamp = String(Math.floor(Date.now() / 1000));
-  const expected = signRequest(rawBody, timestamp, secret);
+/**
+ * Verify an inbound HMAC signature from Coastal Corridor.
+ *
+ * CC signs outbound webhooks with the same strategy as Owambe's outbound calls:
+ *   HMAC-SHA256(timestamp + "." + body) as raw hex, no prefix.
+ *
+ * @param rawBody         - Raw request body string (UTF-8)
+ * @param signature       - Value of the x-owambe-signature header
+ * @param secret          - Shared secret (COASTAL_CORRIDOR_WEBHOOK_SECRET or COASTAL_CORRIDOR_SHARED_SECRET)
+ * @param inboundTimestamp - Value of the x-owambe-timestamp header (Unix epoch seconds as string)
+ */
+export function verifyInboundSignature(
+  rawBody: string,
+  signature: string,
+  secret: string,
+  inboundTimestamp: string,
+): boolean {
+  // Enforce a 5-minute replay window
+  const now = Math.floor(Date.now() / 1000);
+  const ts = parseInt(inboundTimestamp, 10);
+  if (isNaN(ts) || Math.abs(now - ts) > 300) {
+    return false;
+  }
+  const expected = signRequest(rawBody, inboundTimestamp, secret);
   try {
     return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
   } catch {
