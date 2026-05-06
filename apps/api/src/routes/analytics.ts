@@ -51,12 +51,12 @@ analyticsRouter.get('/planner/overview', requireRole('PLANNER'), async (req: Req
 
     // Registrations by day (last 30 days)
     const registrationsByDay = await prisma.$queryRaw<any[]>`
-      SELECT DATE(registered_at) as date, COUNT(*) as count
+      SELECT DATE(a."registeredAt") as date, COUNT(*) as count
       FROM attendees a
-      JOIN events e ON a.event_id = e.id
-      WHERE e.planner_id = ${planner.id}::uuid
-        AND a.registered_at >= ${thirtyDaysAgo}
-      GROUP BY DATE(registered_at)
+      JOIN events e ON a."eventId" = e.id
+      WHERE e."plannerId" = ${planner.id}::uuid
+        AND a."registeredAt" >= ${thirtyDaysAgo}
+      GROUP BY DATE(a."registeredAt")
       ORDER BY date ASC
     `;
 

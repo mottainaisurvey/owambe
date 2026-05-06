@@ -28,6 +28,10 @@ export default function EventsListPage() {
       toast.success('🚀 Event is now live!');
       queryClient.invalidateQueries({ queryKey: ['my-events'] });
     },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.error || 'Failed to publish event';
+      toast.error(msg);
+    },
   });
 
   const deleteMutation = useMutation({
@@ -143,10 +147,17 @@ export default function EventsListPage() {
                       <div className="flex items-center gap-1">
                         {event.status === 'DRAFT' && (
                           <button
-                            onClick={() => publishMutation.mutate(event.id)}
+                            onClick={() => {
+                              const ticketCount = event.ticketTypes?.length ?? 0;
+                              if (ticketCount === 0) {
+                                toast.error('Add at least one ticket type before publishing. Open the event to add tickets.');
+                                return;
+                              }
+                              publishMutation.mutate(event.id);
+                            }}
                             disabled={publishMutation.isPending}
                             className="p-1.5 rounded-md hover:bg-[var(--accent)] hover:text-white transition-colors text-[var(--muted)]"
-                            title="Publish">
+                            title={event.ticketTypes?.length ? 'Publish event' : 'Add ticket types first'}>
                             {publishMutation.isPending ? <Loader2 size={13} className="animate-spin" /> : <Rocket size={13} />}
                           </button>
                         )}

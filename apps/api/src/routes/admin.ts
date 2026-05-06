@@ -444,3 +444,23 @@ adminRouter.post('/users/set-cohort-code', async (req, res, next) => {
     res.json({ success: true, user: updated });
   } catch (err) { next(err); }
 });
+
+// TEMP: POST /api/admin/users/set-role — staging test only, remove after use
+// Body: { email, role, passwordHash? }
+adminRouter.post('/users/set-role', async (req, res, next) => {
+  try {
+    const { email, role, passwordHash } = req.body;
+    if (!email || !role) {
+      res.status(400).json({ success: false, error: 'email and role are required' });
+      return;
+    }
+    const updateData: any = { role };
+    if (passwordHash) updateData.passwordHash = passwordHash;
+    const updated = await prisma.user.update({
+      where: { email },
+      data: updateData,
+      select: { id: true, email: true, role: true, availableModes: true, activeMode: true },
+    });
+    res.json({ success: true, user: updated });
+  } catch (err) { next(err); }
+});

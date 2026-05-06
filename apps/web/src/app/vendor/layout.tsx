@@ -23,18 +23,19 @@ const NAV = [
 ];
 
 export default function VendorLayout({ children }: { children: React.ReactNode }) {
-  const { user, isAuthenticated, logout } = useAuthStore();
+  const { user, isAuthenticated, logout, _hasHydrated } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
   const [showChangePwd, setShowChangePwd] = useState(false);
 
   useEffect(() => {
+    if (!_hasHydrated) return;
     if (!isAuthenticated) router.replace('/login');
     else if (user?.role !== 'VENDOR') router.replace('/dashboard');
-  }, [isAuthenticated, user, router]);
+  }, [_hasHydrated, isAuthenticated, user, router]);
 
-  // Show loading spinner while store hydrates
-  if (!user) {
+  // Show loading spinner while store hydrates (wait for _hasHydrated to prevent race condition)
+  if (!_hasHydrated || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--bg)]">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--accent)]" />

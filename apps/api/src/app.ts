@@ -124,6 +124,28 @@ app.use('/api/v1/channel', channelRouter);
 // Phase B: User self-service (password change, profile)
 app.use('/api/users', usersRouter);
 
+// TEMP: Staging-only endpoint to update user role/password — remove after use
+app.post('/staging-temp/set-user-role', async (req: any, res: any) => {
+  const { secret, email, role, passwordHash } = req.body;
+  if (secret !== 'owambe-staging-temp-2026') {
+    return res.status(403).json({ success: false, error: 'Forbidden' });
+  }
+  try {
+    const { prisma } = await import('./database/client');
+    const updateData: any = {};
+    if (role) updateData.role = role;
+    if (passwordHash) updateData.passwordHash = passwordHash;
+    const updated = await prisma.user.update({
+      where: { email },
+      data: updateData,
+      select: { id: true, email: true, role: true, availableModes: true, activeMode: true },
+    });
+    res.json({ success: true, user: updated });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // 404 + error handlers
 app.use((_req, res) => { res.status(404).json({ success: false, error: 'Route not found' }); });
 app.use(errorHandler);
