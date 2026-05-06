@@ -19,10 +19,10 @@
  *   COASTAL_CORRIDOR_SHARED_SECRET — HMAC-SHA256 shared secret for request signing
  *   COASTAL_CORRIDOR_WEBHOOK_SECRET — Secret for verifying inbound webhooks from CC
  *
- * Auth:    HMAC-SHA256 signature of the request body.
- *          Header: X-Signature: hmac-sha256=<hex-digest>
- *          Header: Idempotency-Key: <uuid-v4>
- *          Header: X-Request-Id: <caller-generated-id>
+ * Auth:    HMAC-SHA256 signature of timestamp.body (CC's verifyChannelRequest guard).
+ *          Header: x-owambe-signature: HMAC-SHA256(timestamp + "." + body) as raw hex, no prefix
+ *          Header: x-owambe-timestamp: Unix epoch seconds (5-minute replay window)
+ *          Header: x-idempotency-key: caller-generated UUID
  */
 
 import axios, { AxiosInstance, AxiosError } from 'axios';
@@ -38,6 +38,7 @@ import { logger } from '../../../utils/logger';
 
 // ─── Type Definitions (from API contract) ─────────────────────────────────
 
+// CCAddress and CCLocation are kept for reference but CC's API uses flat top-level fields
 export interface CCAddress {
   line1: string;
   line2?: string | null;
@@ -59,12 +60,12 @@ export interface CCPhoto {
 }
 
 export interface CCRoom {
-  owambeRoomId: string;
+  owambe_room_id: string;
   name: string;
-  roomType: 'STANDARD' | 'DELUXE' | 'SUITE' | 'FAMILY' | 'ENTIRE_PROPERTY' | 'OTHER';
+  room_type: 'STANDARD' | 'DELUXE' | 'SUITE' | 'FAMILY' | 'ENTIRE_PROPERTY' | 'OTHER';
   capacity: number;
-  baseRate: number;
-  baseCurrency: 'NGN' | 'USD' | 'GBP';
+  base_rate: number;
+  base_currency: 'NGN' | 'USD' | 'GBP';
 }
 
 export interface CCPropertyPolicies {
@@ -77,16 +78,29 @@ export interface CCPropertyPolicies {
   damageDepositCurrency?: 'NGN' | 'USD' | 'GBP';
 }
 
+/**
+ * CCPropertyRegistration — uses CC's actual API shape:
+ * snake_case field names, flat address/location fields (not nested objects).
+ */
 export interface CCPropertyRegistration {
-  owambePropertyId: string;
-  hostOwambeUserId: string;
-  cohortMember?: boolean;
-  cohortType?: 'COASTAL_CORRIDOR_HOST' | 'COASTAL_CORRIDOR_OPERATOR' | 'BOTH' | null;
+  owambe_property_id: string;
+  host_owambe_user_id: string;
+  host_user_id: string;
+  cohort_member?: boolean;
+  cohort_type?: 'COASTAL_CORRIDOR_HOST' | 'COASTAL_CORRIDOR_OPERATOR' | 'BOTH' | null;
   name: string;
   description?: string;
-  propertyType: 'BEACH_HOUSE' | 'GUESTHOUSE' | 'HOTEL' | 'SERVICED_APARTMENT' | 'RESORT' | 'HERITAGE' | 'OTHER';
-  address: CCAddress;
-  location: CCLocation;
+  property_type: 'BEACH_HOUSE' | 'GUESTHOUSE' | 'HOTEL' | 'SERVICED_APARTMENT' | 'RESORT' | 'HERITAGE' | 'OTHER';
+  // Flat address fields
+  address_line1: string;
+  address_line2?: string | null;
+  city: string;
+  state: string;
+  country: string;
+  postal_code?: string | null;
+  // Flat location fields
+  latitude: number;
+  longitude: number;
   amenities?: string[];
   photos?: CCPhoto[];
   policies?: CCPropertyPolicies;
@@ -178,14 +192,24 @@ export interface CCTimeSlotsUpdate {
 
 // ─── HMAC Signing ──────────────────────────────────────────────────────────
 
-function signRequest(body: string, secret: string): string {
+/**
+ * Sign a request for Coastal Corridor.
+ * CC's verifyChannelRequest guard enforces:
+ *   x-owambe-signature = HMAC-SHA256(timestamp + "." + body) as raw hex (no prefix)
+ *   x-owambe-timestamp = Unix epoch seconds (5-minute replay window)
+ */
+function signRequest(body: string, timestamp: string, secret: string): string {
   const hmac = crypto.createHmac('sha256', secret);
-  hmac.update(body, 'utf8');
-  return `hmac-sha256=${hmac.digest('hex')}`;
+  hmac.update(`${timestamp}.${body}`, 'utf8');
+  return hmac.digest('hex');
 }
 
 export function verifyInboundSignature(rawBody: string, signature: string, secret: string): boolean {
-  const expected = signRequest(rawBody, secret);
+  // Inbound webhooks from CC use the same signing strategy.
+  // We accept a 5-minute window; timestamp is extracted from the x-owambe-timestamp header
+  // by the caller before invoking this function.
+  const timestamp = String(Math.floor(Date.now() / 1000));
+  const expected = signRequest(rawBody, timestamp, secret);
   try {
     return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
   } catch {
@@ -223,12 +247,17 @@ export class CoastalCorridorAdapter extends BaseChannelAdapter {
 
   /**
    * Build signed request headers for a Coastal Corridor API call.
+   * Uses CC's documented three-header scheme:
+   *   x-owambe-signature  — HMAC-SHA256(timestamp.body) as raw hex
+   *   x-owambe-timestamp  — Unix epoch seconds
+   *   x-idempotency-key   — caller-generated UUID
    */
   private buildHeaders(body: string): Record<string, string> {
+    const timestamp = String(Math.floor(Date.now() / 1000));
     return {
-      'X-Signature': signRequest(body, this.sharedSecret),
-      'Idempotency-Key': uuidv4(),
-      'X-Request-Id': uuidv4(),
+      'x-owambe-signature': signRequest(body, timestamp, this.sharedSecret),
+      'x-owambe-timestamp': timestamp,
+      'x-idempotency-key': uuidv4(),
     };
   }
 
@@ -264,7 +293,7 @@ export class CoastalCorridorAdapter extends BaseChannelAdapter {
     const headers = this.buildHeaders(body);
 
     logger.info(`[CoastalCorridor] registerProperty`, {
-      owambePropertyId: payload.owambePropertyId,
+      owambePropertyId: payload.owambe_property_id,
       endpoint: '/stays/properties',
     });
 

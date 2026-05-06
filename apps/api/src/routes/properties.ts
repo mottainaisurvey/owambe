@@ -36,8 +36,8 @@ const ccAdapter = new CoastalCorridorAdapter();
 /**
  * Map Owambe PropertyType to Coastal Corridor property type string.
  */
-function mapPropertyType(pt: string): CCPropertyRegistration['propertyType'] {
-  const map: Record<string, CCPropertyRegistration['propertyType']> = {
+function mapPropertyType(pt: string): CCPropertyRegistration['property_type'] {
+  const map: Record<string, CCPropertyRegistration['property_type']> = {
     HOTEL: 'HOTEL',
     GUESTHOUSE: 'GUESTHOUSE',
     VILLA: 'BEACH_HOUSE',
@@ -53,8 +53,8 @@ function mapPropertyType(pt: string): CCPropertyRegistration['propertyType'] {
 /**
  * Map Owambe RoomType to Coastal Corridor room type string.
  */
-function mapRoomType(rt: string): CCRoom['roomType'] {
-  const map: Record<string, CCRoom['roomType']> = {
+function mapRoomType(rt: string): CCRoom['room_type'] {
+  const map: Record<string, CCRoom['room_type']> = {
     STANDARD: 'STANDARD',
     DELUXE: 'DELUXE',
     SUITE: 'SUITE',
@@ -76,23 +76,26 @@ function buildCCPropertyPayload(
   rooms: any[],
 ): CCPropertyRegistration {
   return {
-    owambePropertyId: property.id,
-    hostOwambeUserId: host.userId,
-    cohortMember: host.user?.cohortMember ?? false,
-    cohortType: (host.user?.cohortType as CCPropertyRegistration['cohortType']) ?? null,
+    // Identity
+    owambe_property_id: property.id,
+    host_owambe_user_id: host.userId,
+    host_user_id: host.userId,
+    // Cohort
+    cohort_member: host.user?.cohortMember ?? false,
+    cohort_type: (host.user?.cohortType as CCPropertyRegistration['cohort_type']) ?? null,
+    // Property details
     name: property.name,
     description: property.description ?? undefined,
-    propertyType: mapPropertyType(property.propertyType),
-    address: {
-      line1: property.address ?? property.name,
-      city: property.city,
-      state: property.state ?? property.city,
-      country: property.country ?? 'NG',
-    },
-    location: {
-      latitude: property.latitude ? parseFloat(property.latitude.toString()) : 6.5244,
-      longitude: property.longitude ? parseFloat(property.longitude.toString()) : 3.3792,
-    },
+    property_type: mapPropertyType(property.propertyType),
+    // Flat address fields (CC's actual API shape)
+    address_line1: property.address ?? property.name,
+    city: property.city,
+    state: property.state ?? property.city,
+    country: property.country ?? 'NG',
+    // Flat location fields
+    latitude: property.latitude ? parseFloat(property.latitude.toString()) : 6.5244,
+    longitude: property.longitude ? parseFloat(property.longitude.toString()) : 3.3792,
+    // Extras
     amenities: property.amenities ?? [],
     photos: property.coverImageUrl
       ? [{ url: property.coverImageUrl, isPrimary: true }]
@@ -104,12 +107,12 @@ function buildCCPropertyPayload(
       houseRules: property.houseRules ? [property.houseRules] : [],
     },
     rooms: rooms.map(r => ({
-      owambeRoomId: r.id,
+      owambe_room_id: r.id,
       name: r.name,
-      roomType: mapRoomType(r.roomType),
+      room_type: mapRoomType(r.roomType),
       capacity: r.capacity ?? 2,
-      baseRate: parseFloat(r.pricePerNight.toString()),
-      baseCurrency: (r.currency ?? 'NGN') as CCRoom['baseCurrency'],
+      base_rate: parseFloat(r.pricePerNight.toString()),
+      base_currency: (r.currency ?? 'NGN') as CCRoom['base_currency'],
     })),
     status: property.isActive ? 'ACTIVE' : 'INACTIVE',
   };
