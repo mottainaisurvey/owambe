@@ -208,7 +208,7 @@ export class CoastalCorridorAdapter extends BaseChannelAdapter {
     this.sharedSecret = process.env.COASTAL_CORRIDOR_SHARED_SECRET ?? '';
 
     this.client = axios.create({
-      baseURL: this.baseUrl,
+      baseURL: `${this.baseUrl}/api/v1/channel`,
       timeout: 15000,
       headers: {
         'Content-Type': 'application/json',
