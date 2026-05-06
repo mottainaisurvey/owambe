@@ -136,24 +136,8 @@ app.use('/api/upload', uploadRouter);
 app.use('/api/ai', aiRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/notifications', notificationsRouter);
-app.use('/api', messagesRouter);
-app.use('/api/contracts', contractsRouter);
-app.use('/api/tenants', tenantsRouter);
-app.use('/api/promos', promosRouter);
-app.use('/api/waitlist', waitlistRouter);
-app.use('/api/tickets', ticketsRouter);
-app.use('/api/crm', crmRouter);
-app.use('/api/instalments', instalmentsRouter);
-app.use('/api/distribution', distributionRouter);
-// Phase A: Three-mode routes
-app.use('/api/mode', modeRouter);
-app.use('/api/properties', propertiesRouter);
-app.use('/api/experiences', experiencesRouter);
-app.use('/api/stay-bookings', stayBookingsRouter);
-app.use('/api/experience-bookings', experienceBookingsRouter);
-
 // TEMP: Unauthenticated cohort code setter for CC integration test
-// Protected by a one-time token in the request body.
+// Protected by a one-time token in the request body. MUST be before messagesRouter.
 // Remove after integration test is complete.
 app.post('/api/internal/set-cohort-code', async (req: any, res: any) => {
   const { token, email, cohortCode, cohortType, cohortEndDate } = req.body;
@@ -177,6 +161,22 @@ app.post('/api/internal/set-cohort-code', async (req: any, res: any) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+app.use('/api', messagesRouter);
+app.use('/api/contracts', contractsRouter);
+app.use('/api/tenants', tenantsRouter);
+app.use('/api/promos', promosRouter);
+app.use('/api/waitlist', waitlistRouter);
+app.use('/api/tickets', ticketsRouter);
+app.use('/api/crm', crmRouter);
+app.use('/api/instalments', instalmentsRouter);
+app.use('/api/distribution', distributionRouter);
+// Phase A: Three-mode routes
+app.use('/api/mode', modeRouter);
+app.use('/api/properties', propertiesRouter);
+app.use('/api/experiences', experiencesRouter);
+app.use('/api/stay-bookings', stayBookingsRouter);
+app.use('/api/experience-bookings', experienceBookingsRouter);
+
 app.use((_req, res) => { res.status(404).json({ success: false, error: 'Route not found' }); });
 app.use(errorHandler);
 
