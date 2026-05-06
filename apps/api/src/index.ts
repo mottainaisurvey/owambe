@@ -75,7 +75,12 @@ app.use(requestId);
 app.use(ipLogger);
 app.use(requestTimeout(30000));
 app.use('/api/payments/webhook/paystack', express.raw({ type: 'application/json' }));
-app.use(express.json({ limit: '10mb' }));
+// Skip express.json() for /api/v1/channel routes — those routes use express.raw() inside
+// the channel router to capture the raw body for HMAC verification.
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/v1/channel')) return next();
+  express.json({ limit: '10mb' })(req, res, next);
+});
 app.use(express.urlencoded({ extended: true }));
 app.use(requestLogger);
 app.use(auditLog);
