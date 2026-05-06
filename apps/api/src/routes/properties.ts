@@ -484,9 +484,17 @@ router.post('/:id/rooms',
       });
 
       // After adding a room, push the full property to CC (idempotent)
-      setImmediate(() => pushPropertyToCC(property.id));
+      // TEMP: synchronous for debugging — revert to setImmediate after test
+      let _ccDebug: string | null = null;
+      try {
+        await pushPropertyToCC(property.id);
+        const refreshed = await prisma.property.findUnique({ where: { id: property.id }, select: { coastalCorridorPropertyId: true } });
+        _ccDebug = refreshed?.coastalCorridorPropertyId ?? 'pushed_but_null';
+      } catch (ccErr) {
+        _ccDebug = `ERROR: ${ccErr instanceof Error ? ccErr.message : String(ccErr)}`;
+      }
 
-      res.status(201).json({ success: true, data: room });
+      res.status(201).json({ success: true, data: room, _ccDebug });
     } catch (err) {
       next(err);
     }
