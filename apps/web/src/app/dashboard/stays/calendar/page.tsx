@@ -290,7 +290,7 @@ export default function StaysCalendarPage() {
                   {isBooked && <div className="w-1 h-1 rounded-full bg-blue-500 mx-auto mt-0.5" />}
                   {isBlocked && !isBooked && <Lock size={8} className="mx-auto mt-0.5" />}
                   {entry?.overridePrice && !isBlocked && !isBooked && (
-                    <div className="text-[9px] leading-none">₦{(entry.overridePrice / 1000).toFixed(0)}k</div>
+                    <div className="text-[9px] leading-none">₦{(Number(entry.overridePrice) / 1000).toFixed(0)}k</div>
                   )}
                 </div>
               );

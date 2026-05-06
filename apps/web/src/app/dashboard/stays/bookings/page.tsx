@@ -130,7 +130,7 @@ export default function StaysBookingsPage() {
           { label: 'Checked In', value: stats.checkedIn, color: 'text-blue-700' },
           {
             label: 'Net Revenue',
-            value: `₦${stats.revenue.toLocaleString('en-NG')}`,
+            value: `₦${Number(stats.revenue).toLocaleString('en-NG')}`,
             color: 'text-[var(--accent)]',
           },
         ].map(s => (

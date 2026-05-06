@@ -123,7 +123,7 @@ export default function StaysDashboard() {
               <span className="text-xs text-[var(--mid)]">Net Revenue</span>
             </div>
             <div className="text-lg font-bold text-[var(--dark)]">
-              ₦{stats.totalNetRevenue.toLocaleString('en-NG')}
+              ₦{Number(stats.totalNetRevenue).toLocaleString('en-NG')}
             </div>
             <div className="text-xs text-[var(--mid)] mt-0.5">all time</div>
           </div>

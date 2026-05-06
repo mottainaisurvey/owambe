@@ -217,7 +217,7 @@ export default function StaysPropertiesPage() {
                           <span>·</span>
                           <span className="flex items-center gap-0.5">
                             <Star size={10} className="text-yellow-500 fill-yellow-500" />
-                            {property.rating.toFixed(1)}
+                            {Number(property.rating).toFixed(1)}
                           </span>
                         </>
                       )}
