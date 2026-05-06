@@ -152,6 +152,31 @@ app.use('/api/experiences', experiencesRouter);
 app.use('/api/stay-bookings', stayBookingsRouter);
 app.use('/api/experience-bookings', experienceBookingsRouter);
 
+// TEMP: Unauthenticated cohort code setter for CC integration test
+// Protected by a one-time token in the request body.
+// Remove after integration test is complete.
+app.post('/api/internal/set-cohort-code', async (req: any, res: any) => {
+  const { token, email, cohortCode, cohortType, cohortEndDate } = req.body;
+  if (token !== 'owambe-cc-integration-2026') {
+    return res.status(403).json({ success: false, error: 'Forbidden' });
+  }
+  try {
+    const updated = await prisma.user.update({
+      where: { email },
+      data: {
+        cohortCode,
+        cohortMember: true,
+        cohortType: (cohortType ?? 'COASTAL_CORRIDOR_HOST') as any,
+        cohortStartDate: new Date(),
+        cohortEndDate: cohortEndDate ? new Date(cohortEndDate) : new Date('2026-06-05T14:43:58Z'),
+      },
+      select: { id: true, email: true, cohortCode: true, cohortMember: true, cohortType: true },
+    });
+    res.json({ success: true, user: updated });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 app.use((_req, res) => { res.status(404).json({ success: false, error: 'Route not found' }); });
 app.use(errorHandler);
 
