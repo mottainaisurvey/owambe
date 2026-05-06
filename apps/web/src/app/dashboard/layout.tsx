@@ -169,12 +169,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const pathname = usePathname();
   const [showChangePwd, setShowChangePwd] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated) router.replace('/login');
-  }, [isAuthenticated, router]);
+    // Wait for Zustand persist to hydrate from localStorage before checking auth
+    // This prevents the race condition where isAuthenticated is false on first render
+    if (useAuthStore.persist.hasHydrated()) {
+      setHydrated(true);
+    } else {
+      const unsub = useAuthStore.persist.onFinishHydration(() => setHydrated(true));
+      return unsub;
+    }
+  }, []);
 
-  if (!user) return null;
+  useEffect(() => {
+    if (hydrated && !isAuthenticated) router.replace('/login');
+  }, [hydrated, isAuthenticated, router]);
+
+  if (!hydrated || !user) return null;
 
   const navSections = MODE_NAV[activeMode] ?? EVENTS_NAV;
 
