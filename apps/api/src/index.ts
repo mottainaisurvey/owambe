@@ -136,31 +136,6 @@ app.use('/api/upload', uploadRouter);
 app.use('/api/ai', aiRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/notifications', notificationsRouter);
-// TEMP: Unauthenticated cohort code setter for CC integration test
-// Protected by a one-time token in the request body. MUST be before messagesRouter.
-// Remove after integration test is complete.
-app.post('/api/internal/set-cohort-code', async (req: any, res: any) => {
-  const { token, email, cohortCode, cohortType, cohortEndDate } = req.body;
-  if (token !== 'owambe-cc-integration-2026') {
-    return res.status(403).json({ success: false, error: 'Forbidden' });
-  }
-  try {
-    const updated = await prisma.user.update({
-      where: { email },
-      data: {
-        cohortCode,
-        cohortMember: true,
-        cohortType: (cohortType ?? 'COASTAL_CORRIDOR_HOST') as any,
-        cohortStartDate: new Date(),
-        cohortEndDate: cohortEndDate ? new Date(cohortEndDate) : new Date('2026-06-05T14:43:58Z'),
-      },
-      select: { id: true, email: true, cohortCode: true, cohortMember: true, cohortType: true },
-    });
-    res.json({ success: true, user: updated });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
 app.use('/api', messagesRouter);
 app.use('/api/contracts', contractsRouter);
 app.use('/api/tenants', tenantsRouter);
