@@ -410,3 +410,37 @@ adminRouter.put('/templates/contract/:id', async (req, res, next) => {
     res.json({ success: true, template: t });
   } catch (err) { next(err); }
 });
+
+// ─── TEMP: Integration test cohort code setter ────────────────────────────────
+// POST /api/admin/users/set-cohort-code
+// Body: { email, cohortCode, cohortType?, cohortEndDate? }
+// Remove after integration test is complete.
+adminRouter.post('/users/set-cohort-code', async (req, res, next) => {
+  try {
+    const { email, cohortCode, cohortType, cohortEndDate } = req.body;
+    if (!email || !cohortCode) {
+      res.status(400).json({ success: false, error: 'email and cohortCode are required' });
+      return;
+    }
+    const updated = await prisma.user.update({
+      where: { email },
+      data: {
+        cohortCode,
+        cohortMember: true,
+        cohortType: (cohortType ?? 'COASTAL_CORRIDOR_HOST') as any,
+        cohortStartDate: new Date(),
+        cohortEndDate: cohortEndDate ? new Date(cohortEndDate) : new Date('2026-06-05T14:43:58Z'),
+      },
+      select: {
+        id: true,
+        email: true,
+        cohortCode: true,
+        cohortMember: true,
+        cohortType: true,
+        cohortStartDate: true,
+        cohortEndDate: true,
+      },
+    });
+    res.json({ success: true, user: updated });
+  } catch (err) { next(err); }
+});

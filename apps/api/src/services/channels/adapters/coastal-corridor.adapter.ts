@@ -88,6 +88,7 @@ export interface CCPropertyRegistration {
   host_user_id: string;
   cohort_member?: boolean;
   cohort_type?: 'COASTAL_CORRIDOR_HOST' | 'COASTAL_CORRIDOR_OPERATOR' | 'BOTH' | null;
+  cohort_code?: string;  // CC-issued code; include for host auto-creation on first push
   name: string;
   description?: string;
   property_type: 'BEACH_HOUSE' | 'GUESTHOUSE' | 'HOTEL' | 'SERVICED_APARTMENT' | 'RESORT' | 'HERITAGE' | 'OTHER';

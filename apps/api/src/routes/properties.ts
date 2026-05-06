@@ -83,6 +83,8 @@ function buildCCPropertyPayload(
     // Cohort
     cohort_member: host.user?.cohortMember ?? false,
     cohort_type: (host.user?.cohortType as CCPropertyRegistration['cohort_type']) ?? null,
+    // Include cohort_code only when present — CC uses it for host auto-creation
+    ...(host.user?.cohortCode ? { cohort_code: host.user.cohortCode } : {}),
     // Property details
     name: property.name,
     description: property.description ?? undefined,
