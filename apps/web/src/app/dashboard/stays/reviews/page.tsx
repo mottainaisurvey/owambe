@@ -19,7 +19,7 @@ export default function StaysReviewsPage() {
         </p>
         <div className="mt-6 flex items-center gap-2 text-xs text-[var(--muted)]">
           <MessageSquare size={14} />
-          <span>Reviews are automatically collected after each completed booking.</span>
+          <span>Reviews are automatically collected after each completed reservation.</span>
         </div>
       </div>
     </div>
