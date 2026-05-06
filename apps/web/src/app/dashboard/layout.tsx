@@ -165,28 +165,20 @@ const PAGE_TITLES: Record<string, string> = {
 
 // ─── Layout ───────────────────────────────────────────
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { user, isAuthenticated, logout, activeMode } = useAuthStore();
+  // _hasHydrated is set to true inside onRehydrateStorage in the persist config,
+  // which fires after localStorage data has been loaded into the store.
+  // This reliably prevents the race condition where isAuthenticated is false
+  // on first render before hydration has completed.
+  const { user, isAuthenticated, logout, activeMode, _hasHydrated } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
   const [showChangePwd, setShowChangePwd] = useState(false);
-  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    // Wait for Zustand persist to hydrate from localStorage before checking auth
-    // This prevents the race condition where isAuthenticated is false on first render
-    if (useAuthStore.persist.hasHydrated()) {
-      setHydrated(true);
-    } else {
-      const unsub = useAuthStore.persist.onFinishHydration(() => setHydrated(true));
-      return unsub;
-    }
-  }, []);
+    if (_hasHydrated && !isAuthenticated) router.replace('/login');
+  }, [_hasHydrated, isAuthenticated, router]);
 
-  useEffect(() => {
-    if (hydrated && !isAuthenticated) router.replace('/login');
-  }, [hydrated, isAuthenticated, router]);
-
-  if (!hydrated || !user) return null;
+  if (!_hasHydrated || !user) return null;
 
   const navSections = MODE_NAV[activeMode] ?? EVENTS_NAV;
 

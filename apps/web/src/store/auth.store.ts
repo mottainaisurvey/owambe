@@ -86,6 +86,8 @@ interface AuthState {
   // Mode state (Phase A)
   activeMode: PlatformMode;
   isSwitchingMode: boolean;
+  // Hydration tracking — set to true in onRehydrateStorage callback
+  _hasHydrated: boolean;
 
   setAuth: (user: User, token: string) => void;
   clearAuth: () => void;
@@ -96,6 +98,8 @@ interface AuthState {
   // Mode actions (Phase A)
   switchMode: (mode: PlatformMode) => Promise<void>;
   setActiveMode: (mode: PlatformMode) => void;
+  // Hydration setter
+  setHasHydrated: (value: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -107,6 +111,9 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       activeMode: 'EVENTS',
       isSwitchingMode: false,
+      _hasHydrated: false,
+
+      setHasHydrated: (value: boolean) => set({ _hasHydrated: value }),
 
       setAuth: (user, accessToken) => {
         const activeMode = user.activeMode ?? 'EVENTS';
@@ -188,10 +195,17 @@ export const useAuthStore = create<AuthState>()(
         accessToken: state.accessToken,
         isAuthenticated: state.isAuthenticated,
         activeMode: state.activeMode,
+        // _hasHydrated is NOT persisted — it resets to false on each page load
+        // and is set to true only after rehydration completes
       }),
       onRehydrateStorage: () => (state) => {
-        if (state?.accessToken) {
-          api.defaults.headers.common['Authorization'] = `Bearer ${state.accessToken}`;
+        // This callback fires after localStorage data has been loaded into the store.
+        // Setting _hasHydrated here ensures the layout sees the fully-hydrated state.
+        if (state) {
+          state._hasHydrated = true;
+          if (state.accessToken) {
+            api.defaults.headers.common['Authorization'] = `Bearer ${state.accessToken}`;
+          }
         }
       },
     }
