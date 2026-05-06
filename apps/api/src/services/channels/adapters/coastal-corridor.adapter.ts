@@ -110,11 +110,16 @@ export interface CCPropertyRegistration {
 }
 
 export interface CCPropertyRegistrationResponse {
-  coastalCorridorPropertyId: string;
-  owambePropertyId: string;
+  // CC returns 'id' as the property ID, not 'coastalCorridorPropertyId'
+  id: string;
+  owambe_property_id: string;
   status: string;
-  listingUrl: string;
-  createdAt: string;
+  // listingUrl and createdAt may not always be present
+  listingUrl?: string;
+  createdAt?: string;
+  // Legacy field names kept for backward compat (may be undefined)
+  coastalCorridorPropertyId?: string;
+  owambePropertyId?: string;
 }
 
 export interface CCAvailabilityEntry {

@@ -143,19 +143,21 @@ async function pushPropertyToCC(propertyId: string): Promise<void> {
 
     const payload = buildCCPropertyPayload(property, property.host, property.rooms);
     const result = await ccAdapter.registerProperty(payload);
+    // CC returns 'id' as the property identifier (not 'coastalCorridorPropertyId')
+    const ccPropertyId = result.id ?? result.coastalCorridorPropertyId;
 
     await prisma.property.update({
       where: { id: propertyId },
       data: {
-        coastalCorridorPropertyId: result.coastalCorridorPropertyId,
-        coastalCorridorListingUrl: result.listingUrl,
+        coastalCorridorPropertyId: ccPropertyId,
+        coastalCorridorListingUrl: result.listingUrl ?? null,
         coastalCorridorSyncedAt: new Date(),
       },
     });
 
     logger.info('[Properties] CC property push successful', {
       propertyId,
-      ccPropertyId: result.coastalCorridorPropertyId,
+      ccPropertyId,
       alreadyExisted: result.alreadyExisted,
     });
   } catch (err) {
