@@ -9,7 +9,8 @@
  * Mounted at: /api/v1/channel
  *
  * Auth: HMAC-SHA256 signature verification on all inbound requests.
- *       Header: X-Signature: hmac-sha256=<hex-digest>
+ *       CC → Owambe: x-cc-signature (HMAC-SHA256 of timestamp.body), x-cc-timestamp, x-idempotency-key
+ *       Owambe → CC: x-owambe-signature (HMAC-SHA256 of timestamp.body), x-owambe-timestamp, x-idempotency-key
  *
  * API Contract: coastal-corridor-owambe-api.yaml v1.0.0
  */
@@ -42,15 +43,15 @@ router.use(express.raw({
 // ─── HMAC Signature Verification Middleware ────────────────────────────────
 
 function verifyCoastalCorridorSignature(req: Request, res: Response, next: NextFunction): void {
-  // CC sends x-owambe-signature and x-owambe-timestamp (same scheme as Owambe's outbound calls)
-  const signature = req.headers['x-owambe-signature'] as string | undefined;
-  const timestamp = req.headers['x-owambe-timestamp'] as string | undefined;
+  // CC signs outbound webhooks with x-cc-signature and x-cc-timestamp (symmetric naming: signer's name in header)
+  const signature = req.headers['x-cc-signature'] as string | undefined;
+  const timestamp = req.headers['x-cc-timestamp'] as string | undefined;
   const secret = process.env.COASTAL_CORRIDOR_WEBHOOK_SECRET ?? process.env.COASTAL_CORRIDOR_SHARED_SECRET ?? '';
 
   if (!signature || !timestamp) {
     res.status(401).json({
       error: 'MISSING_SIGNATURE',
-      message: 'x-owambe-signature and x-owambe-timestamp headers are required',
+      message: 'x-cc-signature and x-cc-timestamp headers are required',
     });
     return;
   }
