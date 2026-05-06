@@ -298,7 +298,8 @@ export class CoastalCorridorAdapter extends BaseChannelAdapter {
       endpoint: '/stays/properties',
     });
 
-    const resp = await this.client.post<CCPropertyRegistrationResponse>('/stays/properties', payload, { headers });
+    // Pass the pre-serialised string so the signed body and the transmitted body are identical.
+    const resp = await this.client.post<CCPropertyRegistrationResponse>('/stays/properties', body, { headers: { ...headers, 'Content-Type': 'application/json' } });
     return { ...resp.data, alreadyExisted: resp.status === 200 };
   }
 
