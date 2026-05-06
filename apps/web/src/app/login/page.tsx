@@ -34,8 +34,13 @@ export default function LoginPage() {
       toast.success('Welcome back!');
       if (user?.role === 'ADMIN') router.replace('/admin');
       else if (user?.role === 'VENDOR') router.replace('/vendor');
-      else if (user?.role === 'PLANNER') router.replace('/dashboard');
-      else router.replace('/');
+      else if (user?.role === 'HOST') router.replace('/dashboard/stays');
+      else {
+        // PLANNER and other roles: route based on active mode
+        const activeMode = useAuthStore.getState().activeMode;
+        if (activeMode === 'STAYS') router.replace('/dashboard/stays');
+        else router.replace('/dashboard');
+      }
     } catch (err: any) {
       const message = err.response?.data?.error || err.message || 'Login failed. Please check your credentials.';
       setLoginError(message);

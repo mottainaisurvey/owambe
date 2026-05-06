@@ -132,6 +132,8 @@ export async function login(req: Request, res: Response, next: NextFunction) {
         role: user.role,
         avatarUrl: user.avatarUrl,
         isEmailVerified: user.isEmailVerified,
+        activeMode: user.activeMode,
+        availableModes: user.availableModes,
         profile,
       }
     });
@@ -252,6 +254,7 @@ export async function getMe(req: Request, res: Response, next: NextFunction) {
       select: {
         id: true, email: true, firstName: true, lastName: true,
         role: true, avatarUrl: true, isEmailVerified: true,
+        activeMode: true, availableModes: true,
         planner: true, vendor: true, consumer: true,
       }
     });
