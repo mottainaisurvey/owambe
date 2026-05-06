@@ -14,7 +14,7 @@
  * API Contract: coastal-corridor-owambe-api.yaml v1.0.0
  */
 
-import { Router, Request, Response, NextFunction } from 'express';
+import express, { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../database/client';
 import { logger } from '../utils/logger';
 import { verifyInboundSignature } from '../services/channels/adapters/coastal-corridor.adapter';
@@ -27,6 +27,18 @@ import {
 
 const router = Router();
 
+// ─── Raw Body Capture ─────────────────────────────────────────────────────
+// Capture the raw request body bytes BEFORE any JSON parsing so that the
+// HMAC verification middleware can compute the signature over the original
+// wire bytes. This MUST be the first middleware on the router.
+// Note: express.raw() leaves req.body as a Buffer; the body-parse middleware
+// below converts it back to a plain object for route handlers.
+router.use(express.raw({
+  type: 'application/json',
+  limit: '10mb',
+  verify: (req: any, _res, buf) => { req.rawBody = buf; },
+}));
+
 // ─── HMAC Signature Verification Middleware ────────────────────────────────
 
 function verifyCoastalCorridorSignature(req: Request, res: Response, next: NextFunction): void {
@@ -38,8 +50,17 @@ function verifyCoastalCorridorSignature(req: Request, res: Response, next: NextF
     return;
   }
 
-  // rawBody is set by the rawBodyParser middleware in security.ts for webhook paths
-  const rawBody = (req as Request & { rawBody?: Buffer }).rawBody?.toString('utf8') ?? JSON.stringify(req.body);
+  // rawBody is set by express.raw() above — always use it for HMAC computation
+  const rawBodyBuf = (req as Request & { rawBody?: Buffer }).rawBody;
+  const rawBody = rawBodyBuf ? rawBodyBuf.toString('utf8') : '';
+
+  if (!rawBody) {
+    logger.warn('[Channel] Empty rawBody on inbound request — cannot verify signature', {
+      path: req.path,
+    });
+    res.status(401).json({ error: 'INVALID_SIGNATURE', message: 'Request signature verification failed' });
+    return;
+  }
 
   if (!verifyInboundSignature(rawBody, signature, secret)) {
     logger.warn('[Channel] Invalid HMAC signature on inbound request', {
@@ -55,6 +76,22 @@ function verifyCoastalCorridorSignature(req: Request, res: Response, next: NextF
 
 // Apply signature verification to all channel routes
 router.use(verifyCoastalCorridorSignature);
+
+// ─── Body Parsing Middleware ───────────────────────────────────────────────
+// express.raw() above captures req.rawBody but leaves req.body as a Buffer.
+// This middleware re-parses rawBody back into req.body so route handlers can
+// destructure it normally.
+router.use((req: Request, _res: Response, next: NextFunction) => {
+  const raw = (req as Request & { rawBody?: Buffer }).rawBody;
+  if (raw && Buffer.isBuffer(raw)) {
+    try {
+      req.body = JSON.parse(raw.toString('utf8'));
+    } catch {
+      // leave req.body as-is if parsing fails
+    }
+  }
+  next();
+});
 
 // ─── FLOW 2: Stays Reservations ────────────────────────────────────────────
 
@@ -238,7 +275,8 @@ router.post('/coastal-corridor/reservations', async (req: Request, res: Response
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     logger.error('[Channel] Error creating stays reservation', { error: msg, coastalCorridorReservationId });
-    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to create reservation', requestId });
+    // DEBUG: Expose error detail temporarily for staging diagnosis
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to create reservation', requestId, debug: process.env.NODE_ENV !== 'production' ? msg : undefined });
   }
 });
 

@@ -84,6 +84,27 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), service: 'owambe-api', version: '1.0.0', environment: process.env.NODE_ENV || 'development' });
 });
 
+// Phase B: DB schema health check (staging diagnostics)
+app.get('/health/db', async (_req, res) => {
+  try {
+    // Check if Phase B tables exist by running a simple count query
+    const [stayBookingCount, calendarEntryCount] = await Promise.all([
+      prisma.stayBooking.count().catch((e: Error) => ({ error: e.message })),
+      prisma.calendarEntry.count().catch((e: Error) => ({ error: e.message })),
+    ]);
+    res.json({
+      status: 'ok',
+      tables: {
+        stay_bookings: typeof stayBookingCount === 'number' ? { exists: true, count: stayBookingCount } : { exists: false, error: stayBookingCount },
+        calendar_entries: typeof calendarEntryCount === 'number' ? { exists: true, count: calendarEntryCount } : { exists: false, error: calendarEntryCount },
+      },
+    });
+  } catch (e) {
+    res.status(500).json({ status: 'error', error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+
 app.use('/api/auth', rateLimiter({ windowMs: 60000, max: 15 }));
 app.use('/api/ai', rateLimiter({ windowMs: 60000, max: 20 }));
 app.use('/api/upload', rateLimiter({ windowMs: 60000, max: 30 }));
