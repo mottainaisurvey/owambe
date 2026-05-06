@@ -222,18 +222,19 @@ export class ViatorAdapter extends BaseChannelAdapter {
 // ─── Coastal Corridor Adapter (ACTIVE — Priority Channel) ────────────────────
 // The Coastal Corridor is the first live distribution channel for Stays and
 // Experiences modes. Phase A: stub with correct interface. Phase C: live API.
+// Auth: HMAC-SHA256 only — no API key or Bearer token required.
 export class CoastalCorridorAdapter extends BaseChannelAdapter {
   readonly channelName = 'COASTAL_CORRIDOR' as const;
 
   isConfigured(): boolean {
-    return !!(process.env.COASTAL_CORRIDOR_API_KEY && process.env.COASTAL_CORRIDOR_API_URL);
+    return !!(process.env.COASTAL_CORRIDOR_SHARED_SECRET);
   }
 
   async createListing(payload: ChannelListingPayload): Promise<ChannelListingResult> {
     if (!this.isConfigured()) return this.notConfiguredResult();
     // TODO Phase C: POST to Coastal Corridor partner API
-    // Endpoint: process.env.COASTAL_CORRIDOR_API_URL + '/listings'
-    // Auth: Bearer process.env.COASTAL_CORRIDOR_API_KEY
+    // Endpoint: process.env.COASTAL_CORRIDOR_BASE_URL + '/stays/properties'
+    // Auth: HMAC-SHA256 (X-Owambe-Signature, X-Owambe-Timestamp, X-Idempotency-Key headers)
     logger.info(`[CoastalCorridor] createListing stub for entity ${payload.entityId} (mode: ${payload.mode})`);
     return { success: true, externalId: `cc-stub-${payload.entityId}` };
   }
