@@ -464,3 +464,29 @@ adminRouter.post('/users/set-role', async (req, res, next) => {
     res.json({ success: true, user: updated });
   } catch (err) { next(err); }
 });
+
+
+// TEMP: POST /api/admin/data-fix/cc-undefined-reference — one-time fix, remove after use
+adminRouter.post('/data-fix/cc-undefined-reference', async (req, res, next) => {
+  try {
+    const bookings = await prisma.stayBooking.findMany({
+      where: { reference: 'CC-undefined' },
+    });
+    if (bookings.length === 0) {
+      res.json({ success: true, message: 'No CC-undefined bookings found', fixed: 0 });
+      return;
+    }
+    const results: any[] = [];
+    for (const booking of bookings) {
+      const shortId = booking.id.replace(/-/g, '').substring(0, 8).toUpperCase();
+      const newReference = 'CC-TEST-' + shortId;
+      await prisma.stayBooking.update({
+        where: { id: booking.id },
+        data: { reference: newReference },
+      });
+      results.push({ id: booking.id, oldReference: 'CC-undefined', newReference });
+    }
+    logger.info('[Admin] Fixed CC-undefined booking references', { count: results.length });
+    res.json({ success: true, fixed: results.length, results });
+  } catch (err) { next(err); }
+});

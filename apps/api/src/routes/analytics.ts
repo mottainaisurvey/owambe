@@ -20,7 +20,7 @@ analyticsRouter.get('/planner/overview', requireRole('PLANNER'), async (req: Req
 
     const [
       totalEvents, liveEvents, totalAttendees, totalRevenue,
-      recentAttendees, prevAttendees,
+      recentAttendees, prevAttendees, eventsWithCapacity,
     ] = await Promise.all([
       prisma.event.count({ where: { plannerId: planner.id } }),
       prisma.event.count({ where: { plannerId: planner.id, status: 'LIVE' } }),
@@ -43,20 +43,35 @@ analyticsRouter.get('/planner/overview', requireRole('PLANNER'), async (req: Req
           registeredAt: { gte: prevPeriodStart, lt: thirtyDaysAgo }
         }
       }),
+      prisma.event.findMany({
+        where: { plannerId: planner.id, maxCapacity: { not: null } },
+        select: { maxCapacity: true, _count: { select: { attendees: true } } },
+      }),
     ]);
 
     const registrationGrowth = prevAttendees > 0
       ? Math.round(((recentAttendees - prevAttendees) / prevAttendees) * 100)
       : 100;
 
+    // Average fill rate across events that have a maxCapacity set
+    const fillRate = eventsWithCapacity.length > 0
+      ? Math.round(
+          eventsWithCapacity.reduce((sum, e) => {
+            return sum + (e._count.attendees / (e.maxCapacity ?? 1)) * 100;
+          }, 0) / eventsWithCapacity.length
+        )
+      : 0;
+
     // Registrations by day (last 30 days)
+    // NOTE: Prisma maps camelCase fields to snake_case columns in PostgreSQL.
+    // eventId → event_id, plannerId → planner_id, registeredAt → registered_at
     const registrationsByDay = await prisma.$queryRaw<any[]>`
-      SELECT DATE(a."registeredAt") as date, COUNT(*) as count
+      SELECT DATE(a.registered_at) as date, COUNT(*) as count
       FROM attendees a
-      JOIN events e ON a."eventId" = e.id
-      WHERE e."plannerId" = ${planner.id}::uuid
-        AND a."registeredAt" >= ${thirtyDaysAgo}
-      GROUP BY DATE(a."registeredAt")
+      JOIN events e ON a.event_id = e.id
+      WHERE e.planner_id = ${planner.id}::uuid
+        AND a.registered_at >= ${thirtyDaysAgo}
+      GROUP BY DATE(a.registered_at)
       ORDER BY date ASC
     `;
 
@@ -69,6 +84,7 @@ analyticsRouter.get('/planner/overview', requireRole('PLANNER'), async (req: Req
         totalRevenue: Number(totalRevenue._sum.amountPaid || 0),
         recentAttendees,
         registrationGrowth,
+        fillRate,
       },
       registrationsByDay,
     });

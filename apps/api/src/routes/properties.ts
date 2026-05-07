@@ -283,6 +283,33 @@ router.get('/host',
   }
 );
 
+// ─── GET /api/properties/calendar-entries ────────────
+// HOST only: flat calendar entries query by roomId + date range
+// NOTE: Must be defined before /:slug to avoid route shadowing
+router.get('/calendar-entries',
+  authenticate,
+  requireRole('HOST', 'ADMIN'),
+  requireMode('STAYS'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { roomId, start, end } = req.query;
+      if (!roomId) throw new AppError('roomId is required', 400);
+      const entries = await prisma.calendarEntry.findMany({
+        where: {
+          roomId: roomId as string,
+          ...(start && end && {
+            date: { gte: new Date(start as string), lte: new Date(end as string) },
+          }),
+        },
+        orderBy: { date: 'asc' },
+      });
+      res.json({ success: true, data: entries });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 // ─── GET /api/properties/:slug ───────────────────────
 // Public: get property by slug
 router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => {

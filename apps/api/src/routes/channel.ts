@@ -157,6 +157,15 @@ router.post('/coastal-corridor/reservations', async (req: Request, res: Response
   const guestEmail: string = guest_email ?? guest?.email ?? '';
   const guestPhone: string | null = guest_phone ?? guest?.phone ?? null;
 
+  // Validate required fields — reject early to prevent CC-undefined references
+  if (!coastalCorridorReservationId || !owambeRoomId || !checkInDate || !checkOutDate) {
+    res.status(400).json({
+      error: 'MISSING_REQUIRED_FIELDS',
+      message: 'cc_reservation_id, owambe_room_id, check_in_date, and check_out_date are required',
+    });
+    return;
+  }
+
   logger.info('[Channel] Inbound stays reservation', {
     coastalCorridorReservationId,
     owambeRoomId,
@@ -439,11 +448,20 @@ router.post('/experiences/bookings', async (req: Request, res: Response): Promis
     paystack_reference: paystackReference,
   } = req.body;
 
-  // Normalise lead participant fields — support both flat and nested forms
+   // Normalise lead participant fields — support both flat and nested forms
   const leadFirstName: string = lead_participant_first_name ?? lead_participant?.first_name ?? lead_participant?.firstName ?? '';
   const leadLastName: string = lead_participant_last_name ?? lead_participant?.last_name ?? lead_participant?.lastName ?? '';
   const leadEmail: string = lead_participant_email ?? lead_participant?.email ?? '';
   const leadPhone: string | null = lead_participant_phone ?? lead_participant?.phone ?? null;
+
+  // Validate required fields — reject early to prevent CC-undefined references
+  if (!coastalCorridorBookingId || !owambeTimeSlotId || !numberOfParticipants) {
+    res.status(400).json({
+      error: 'MISSING_REQUIRED_FIELDS',
+      message: 'cc_booking_id, owambe_time_slot_id, and number_of_participants are required',
+    });
+    return;
+  }
 
   logger.info('[Channel] Inbound experience booking', {
     coastalCorridorBookingId,

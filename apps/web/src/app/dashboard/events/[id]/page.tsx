@@ -152,11 +152,21 @@ export default function EventDetailPage() {
             </Link>
           )}
           {event.status === 'DRAFT' && (
-            <button onClick={() => publishMutation.mutate()} disabled={publishMutation.isPending}
-              className="btn-primary text-xs flex items-center gap-1.5">
-              {publishMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
-              Publish
-            </button>
+            <div title={!tickets.length ? 'Add at least one ticket type before publishing' : undefined}>
+              <button
+                onClick={() => {
+                  if (!tickets.length) {
+                    toast.error('Add at least one ticket type before publishing.');
+                    return;
+                  }
+                  publishMutation.mutate();
+                }}
+                disabled={publishMutation.isPending}
+                className="btn-primary text-xs flex items-center gap-1.5">
+                {publishMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                Publish
+              </button>
+            </div>
           )}
           {['PUBLISHED', 'LIVE'].includes(event.status) && (
             <Link href={`/dashboard/checkin?eventId=${id}`}
