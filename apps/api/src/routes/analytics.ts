@@ -63,15 +63,16 @@ analyticsRouter.get('/planner/overview', requireRole('PLANNER'), async (req: Req
       : 0;
 
     // Registrations by day (last 30 days)
-    // NOTE: Prisma maps camelCase fields to snake_case columns in PostgreSQL.
-    // eventId → event_id, plannerId → planner_id, registeredAt → registered_at
+    // NOTE: Prisma does NOT auto-snake_case columns unless @map is set on each field.
+    // The actual PostgreSQL columns use camelCase (as defined in schema.prisma without @map).
+    // Must use double-quoted identifiers for camelCase column names in raw SQL.
     const registrationsByDay = await prisma.$queryRaw<any[]>`
-      SELECT DATE(a.registered_at) as date, COUNT(*) as count
+      SELECT DATE(a."registeredAt") as date, COUNT(*) as count
       FROM attendees a
-      JOIN events e ON a.event_id = e.id
-      WHERE e.planner_id = ${planner.id}::uuid
-        AND a.registered_at >= ${thirtyDaysAgo}
-      GROUP BY DATE(a.registered_at)
+      JOIN events e ON a."eventId" = e.id
+      WHERE e."plannerId" = ${planner.id}::uuid
+        AND a."registeredAt" >= ${thirtyDaysAgo}
+      GROUP BY DATE(a."registeredAt")
       ORDER BY date ASC
     `;
 
