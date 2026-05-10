@@ -466,6 +466,104 @@ adminRouter.post('/users/set-role', async (req, res, next) => {
 });
 
 
+// POST /api/admin/data-fix/phase-c-commission-migration — OWB-C-08 one-time migration
+// Creates commission_audit_logs table and backfills existing COASTAL_CORRIDOR reservations.
+// Safe to re-run: all SQL statements are idempotent.
+adminRouter.post('/data-fix/phase-c-commission-migration', async (req, res, next) => {
+  try {
+    // Step 1: Create the commission_audit_logs table
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "commission_audit_logs" (
+        "id"                          UUID        NOT NULL DEFAULT gen_random_uuid(),
+        "stayBookingId"               UUID        NOT NULL,
+        "reservationReference"        TEXT        NOT NULL,
+        "channelOrigin"               TEXT        NOT NULL,
+        "totalAmount"                 DECIMAL(12,2) NOT NULL,
+        "currency"                    TEXT        NOT NULL DEFAULT 'NGN',
+        "cohortMember"                BOOLEAN     NOT NULL DEFAULT false,
+        "cohortType"                  TEXT,
+        "appliedCommissionRate"       DECIMAL(5,2) NOT NULL,
+        "rateSource"                  TEXT        NOT NULL,
+        "channelCommissionAmount"     DECIMAL(12,2) NOT NULL,
+        "channelCommissionPercent"    DECIMAL(5,2) NOT NULL,
+        "netToHost"                   DECIMAL(12,2) NOT NULL,
+        "ccProvidedCommissionAmount"  DECIMAL(12,2),
+        "ccProvidedCommissionPercent" DECIMAL(5,2),
+        "ccProvidedNetToHost"         DECIMAL(12,2),
+        "hasDiscrepancy"              BOOLEAN     NOT NULL DEFAULT false,
+        "discrepancyNote"             TEXT,
+        "createdAt"                   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "commission_audit_logs_pkey" PRIMARY KEY ("id")
+      )
+    `);
+
+    // Step 2: Add FK if not exists
+    await prisma.$executeRawUnsafe(`
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint WHERE conname = 'commission_audit_logs_stayBookingId_fkey'
+        ) THEN
+          ALTER TABLE "commission_audit_logs"
+            ADD CONSTRAINT "commission_audit_logs_stayBookingId_fkey"
+            FOREIGN KEY ("stayBookingId") REFERENCES "stay_bookings"("id") ON DELETE CASCADE;
+        END IF;
+      END $$
+    `);
+
+    // Step 3: Create indexes
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "commission_audit_logs_stayBookingId_idx" ON "commission_audit_logs"("stayBookingId")`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "commission_audit_logs_reservationReference_idx" ON "commission_audit_logs"("reservationReference")`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "commission_audit_logs_channelOrigin_idx" ON "commission_audit_logs"("channelOrigin")`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "commission_audit_logs_createdAt_idx" ON "commission_audit_logs"("createdAt")`);
+
+    // Step 4: Backfill stay_bookings with null commission fields
+    const backfillUpdate = await prisma.$executeRaw`
+      UPDATE "stay_bookings"
+      SET
+        "channelCommissionPercent" = 15.00,
+        "channelCommissionAmount"  = ROUND("totalAmount" * 0.15, 2),
+        "netToHost"                = ROUND("totalAmount" * 0.85, 2)
+      WHERE
+        "channelOrigin" = 'COASTAL_CORRIDOR'
+        AND "channelCommissionAmount" IS NULL
+        AND "totalAmount" IS NOT NULL
+    `;
+
+    // Step 5: Insert audit log entries for all COASTAL_CORRIDOR bookings without one
+    const backfillInsert = await prisma.$executeRaw`
+      INSERT INTO "commission_audit_logs" (
+        "stayBookingId", "reservationReference", "channelOrigin", "totalAmount", "currency",
+        "cohortMember", "cohortType", "appliedCommissionRate", "rateSource",
+        "channelCommissionAmount", "channelCommissionPercent", "netToHost",
+        "ccProvidedCommissionAmount", "ccProvidedCommissionPercent", "ccProvidedNetToHost",
+        "hasDiscrepancy", "discrepancyNote"
+      )
+      SELECT
+        sb."id", sb."reference", sb."channelOrigin", sb."totalAmount", sb."currency",
+        false, NULL, 15.00, 'BACKFILL_STANDARD',
+        ROUND(sb."totalAmount" * 0.15, 2), 15.00, ROUND(sb."totalAmount" * 0.85, 2),
+        NULL, NULL, NULL, false,
+        'Backfilled by OWB-C-08 migration; cohort status not available retroactively'
+      FROM "stay_bookings" sb
+      WHERE
+        sb."channelOrigin" = 'COASTAL_CORRIDOR'
+        AND sb."totalAmount" IS NOT NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM "commission_audit_logs" cal WHERE cal."stayBookingId" = sb."id"
+        )
+    `;
+
+    logger.info('[Admin] Phase C commission migration completed', { backfillUpdate, backfillInsert });
+    res.json({
+      success: true,
+      message: 'Phase C OWB-C-08 migration completed',
+      tableCreated: true,
+      bookingsBackfilled: Number(backfillUpdate),
+      auditLogsInserted: Number(backfillInsert),
+    });
+  } catch (err) { next(err); }
+});
+
 // TEMP: POST /api/admin/data-fix/cc-undefined-reference — one-time fix, remove after use
 adminRouter.post('/data-fix/cc-undefined-reference', async (req, res, next) => {
   try {
