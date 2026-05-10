@@ -132,11 +132,25 @@ export interface CCAvailabilityEntry {
   closedReason?: string;
 }
 
+/**
+ * CCAvailabilityRoomUpdate — per-room payload within the CC rooms array.
+ * CC contract: { owambe_room_id, dates: [{ date, available, rate? }] }
+ */
+export interface CCAvailabilityRoomUpdate {
+  owambe_room_id: string;
+  dates: CCAvailabilityEntry[];
+}
+
+/**
+ * CCAvailabilityUpdate — the full payload sent to CC.
+ * OWB-C-01: CC contract requires rooms array (not flat entries).
+ * Idempotency key is derived from owambeRoomId + startDate + endDate per room.
+ */
 export interface CCAvailabilityUpdate {
-  owambeRoomId: string;
-  startDate: string;
-  endDate: string;
-  entries: CCAvailabilityEntry[];
+  owambeRoomId: string;  // kept for idempotency key derivation; not sent to CC
+  startDate: string;     // kept for idempotency key derivation; not sent to CC
+  endDate: string;       // kept for idempotency key derivation; not sent to CC
+  entries: CCAvailabilityEntry[]; // kept for internal use; not sent to CC
 }
 
 export interface CCExperiencePricing {
@@ -372,7 +386,6 @@ export class CoastalCorridorAdapter extends BaseChannelAdapter {
     coastalCorridorPropertyId: string,
     update: CCAvailabilityUpdate,
   ): Promise<{ updatedDates: number; effectiveAt: string }> {
-    const body = JSON.stringify(update);
     // OWB-C-01: Derive a deterministic idempotency key from the semantic triple
     // (owambeRoomId + startDate + endDate) so that re-sending the same payload
     // with the same semantic content produces the same key (idempotent re-send),
@@ -384,6 +397,19 @@ export class CoastalCorridorAdapter extends BaseChannelAdapter {
       .digest('hex')
       .substring(0, 32)
       .replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5'); // format as UUID-like
+
+    // OWB-C-01 payload fix: CC contract requires { rooms: [{ owambe_room_id, dates: [...] }] }
+    // not a flat entries array. Wrap the entries in the canonical rooms array format.
+    const ccPayload: { rooms: CCAvailabilityRoomUpdate[] } = {
+      rooms: [
+        {
+          owambe_room_id: update.owambeRoomId,
+          dates: update.entries,
+        },
+      ],
+    };
+
+    const body = JSON.stringify(ccPayload);
     const headers = this.buildHeaders(body, deterministicIdempotencyKey);
 
     logger.info(`[CoastalCorridor] updateAvailability`, {
@@ -391,11 +417,12 @@ export class CoastalCorridorAdapter extends BaseChannelAdapter {
       owambeRoomId: update.owambeRoomId,
       dateRange: `${update.startDate}/${update.endDate}`,
       entryCount: update.entries.length,
+      payloadFormat: 'rooms_array',
     });
 
     const resp = await this.client.put<{ updatedDates: number; effectiveAt: string }>(
       `/stays/properties/${coastalCorridorPropertyId}/availability`,
-      update,
+      ccPayload,
       { headers },
     );
     return resp.data;
