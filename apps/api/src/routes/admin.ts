@@ -588,3 +588,54 @@ adminRouter.post('/data-fix/cc-undefined-reference', async (req, res, next) => {
     res.json({ success: true, fixed: results.length, results });
   } catch (err) { next(err); }
 });
+
+// ─── OWB-C-08: Commission Audit Log Query ─────────────────────────────────────
+// GET /api/admin/commission-audit-logs
+// Query params: stayBookingId?, reservationReference?, limit? (default 20), offset? (default 0)
+adminRouter.get('/commission-audit-logs', async (req, res, next) => {
+  try {
+    const { stayBookingId, reservationReference, limit = '20', offset = '0' } = req.query as Record<string, string>;
+    const limitN = Math.min(parseInt(limit, 10) || 20, 100);
+    const offsetN = parseInt(offset, 10) || 0;
+
+    // Build WHERE clause
+    const conditions: string[] = [];
+    const params: any[] = [];
+    let paramIdx = 1;
+
+    if (stayBookingId) {
+      conditions.push(`"stayBookingId" = $${paramIdx++}::uuid`);
+      params.push(stayBookingId);
+    }
+    if (reservationReference) {
+      conditions.push(`"reservationReference" = $${paramIdx++}`);
+      params.push(reservationReference);
+    }
+
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    // Count total
+    const countResult = await prisma.$queryRawUnsafe<[{ count: bigint }]>(
+      `SELECT COUNT(*) as count FROM "commission_audit_logs" ${where}`,
+      ...params
+    );
+    const total = Number(countResult[0]?.count ?? 0);
+
+    // Fetch rows
+    const rows = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT * FROM "commission_audit_logs" ${where} ORDER BY "createdAt" DESC LIMIT $${paramIdx++} OFFSET $${paramIdx++}`,
+      ...params, limitN, offsetN
+    );
+
+    // Serialise BigInt / Decimal fields to strings for JSON
+    const serialised = rows.map(r => {
+      const out: Record<string, any> = {};
+      for (const [k, v] of Object.entries(r)) {
+        out[k] = typeof v === 'bigint' ? v.toString() : v;
+      }
+      return out;
+    });
+
+    res.json({ success: true, data: { total, logs: serialised } });
+  } catch (err) { next(err); }
+});
