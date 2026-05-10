@@ -881,40 +881,70 @@ router.put('/:propertyId/calendar',
             }
 
             for (const [roomId, roomEntries] of byRoom) {
-              const room = await prisma.room.findUnique({ where: { id: roomId } });
-              if (!room) continue;
+              // OWB-C-01: Per-room try/catch so a failure on one room does not
+              // mark other rooms' calendar entries as FAILED.
+              try {
+                const room = await prisma.room.findUnique({ where: { id: roomId } });
+                if (!room) {
+                  logger.warn('[Properties] Room not found during CC sync, skipping', { roomId });
+                  continue;
+                }
 
-              const dates = roomEntries.map(e => new Date(e.date)).sort((a, b) => a.getTime() - b.getTime());
-              const startDate = dates[0].toISOString().split('T')[0];
-              const endDate = dates[dates.length - 1].toISOString().split('T')[0];
+                const dates = roomEntries.map(e => new Date(e.date)).sort((a, b) => a.getTime() - b.getTime());
+                const startDate = dates[0].toISOString().split('T')[0];
+                const endDate = dates[dates.length - 1].toISOString().split('T')[0];
 
-              const ccEntries: CCAvailabilityEntry[] = roomEntries.map(e => ({
-                date: new Date(e.date).toISOString().split('T')[0],
-                available: !e.status || e.status === 'AVAILABLE',
-                rate: e.rateOverride ?? parseFloat(room.pricePerNight.toString()),
-                currency: (e.currency ?? room.currency ?? 'NGN') as CCAvailabilityEntry['currency'],
-                minimumStay: e.minimumStay ?? undefined,
-                maximumStay: e.maximumStay ?? undefined,
-                closedReason: e.closedReason ?? undefined,
-              }));
+                const ccEntries: CCAvailabilityEntry[] = roomEntries.map(e => ({
+                  date: new Date(e.date).toISOString().split('T')[0],
+                  available: !e.status || e.status === 'AVAILABLE',
+                  rate: e.rateOverride ?? parseFloat(room.pricePerNight.toString()),
+                  currency: (e.currency ?? room.currency ?? 'NGN') as CCAvailabilityEntry['currency'],
+                  minimumStay: e.minimumStay ?? undefined,
+                  maximumStay: e.maximumStay ?? undefined,
+                  closedReason: e.closedReason ?? undefined,
+                }));
 
-              const update: CCAvailabilityUpdate = {
-                owambeRoomId: roomId,
-                startDate,
-                endDate,
-                entries: ccEntries,
-              };
+                const update: CCAvailabilityUpdate = {
+                  owambeRoomId: roomId,
+                  startDate,
+                  endDate,
+                  entries: ccEntries,
+                };
 
-              await ccAdapter.updateAvailability(property.coastalCorridorPropertyId!, update);
+                await ccAdapter.updateAvailability(property.coastalCorridorPropertyId!, update);
 
-              // Mark entries as synced
-              await prisma.calendarEntry.updateMany({
-                where: {
+                // Mark this room's entries as synced
+                await prisma.calendarEntry.updateMany({
+                  where: {
+                    roomId,
+                    date: { gte: dates[0], lte: dates[dates.length - 1] },
+                  },
+                  data: { ccSyncStatus: 'SYNCED', ccSyncedAt: new Date() },
+                });
+
+                logger.info('[Properties] CC availability push succeeded for room', {
+                  propertyId: req.params.propertyId,
                   roomId,
-                  date: { gte: dates[0], lte: dates[dates.length - 1] },
-                },
-                data: { ccSyncStatus: 'SYNCED', ccSyncedAt: new Date() },
-              });
+                  entryCount: roomEntries.length,
+                  startDate,
+                  endDate,
+                });
+              } catch (roomErr) {
+                // Only mark this room's PENDING entries as FAILED
+                const roomMsg = roomErr instanceof Error ? roomErr.message : String(roomErr);
+                logger.error('[Properties] CC availability push failed for room', {
+                  propertyId: req.params.propertyId,
+                  roomId,
+                  error: roomMsg,
+                });
+                await prisma.calendarEntry.updateMany({
+                  where: {
+                    roomId,
+                    ccSyncStatus: 'PENDING',
+                  },
+                  data: { ccSyncStatus: 'FAILED' },
+                });
+              }
             }
 
             logger.info('[Properties] CC availability push complete', {
@@ -922,18 +952,11 @@ router.put('/:propertyId/calendar',
               entryCount: entries.length,
             });
           } catch (err) {
+            // Outer catch handles unexpected errors (e.g. byRoom grouping failure)
             const msg = err instanceof Error ? err.message : String(err);
-            logger.error('[Properties] CC availability push failed', {
+            logger.error('[Properties] CC availability push outer error', {
               propertyId: req.params.propertyId,
               error: msg,
-            });
-            // Mark entries as failed
-            await prisma.calendarEntry.updateMany({
-              where: {
-                propertyId: req.params.propertyId,
-                ccSyncStatus: 'PENDING',
-              },
-              data: { ccSyncStatus: 'FAILED' },
             });
           }
         });

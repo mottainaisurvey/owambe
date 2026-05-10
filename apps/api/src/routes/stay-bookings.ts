@@ -173,24 +173,63 @@ router.get('/host',
         ...(status && { status: status as any })
       };
 
-      const [bookings, total] = await Promise.all([
+      // OWB-C-08 (AC3): Include commission fields and aggregate revenue summary
+      const [bookings, total, revenueSummary] = await Promise.all([
         prisma.stayBooking.findMany({
           where,
-          include: {
+          select: {
+            id: true,
+            reference: true,
+            checkInDate: true,
+            checkOutDate: true,
+            nights: true,
+            guestName: true,
+            guestEmail: true,
+            guestPhone: true,
+            status: true,
+            paymentStatus: true,
+            totalAmount: true,
+            currency: true,
+            channelOrigin: true,
+            channelCommissionAmount: true,
+            channelCommissionPercent: true,
+            netToHost: true,
+            externalRef: true,
+            specialRequests: true,
+            createdAt: true,
             room: { select: { name: true, roomType: true } },
             property: { select: { name: true, city: true } },
-            guest: { select: { firstName: true, lastName: true, email: true } }
+            guest: { select: { firstName: true, lastName: true, email: true } },
           },
           orderBy: { checkInDate: 'asc' },
           skip,
           take: limitNum,
         }),
-        prisma.stayBooking.count({ where })
+        prisma.stayBooking.count({ where }),
+        // Aggregate revenue summary across ALL matching bookings (not just this page)
+        prisma.stayBooking.aggregate({
+          where,
+          _sum: {
+            totalAmount: true,
+            channelCommissionAmount: true,
+            netToHost: true,
+          },
+          _count: { id: true },
+        }),
       ]);
+
+      const revenueSummaryData = {
+        totalBookings: revenueSummary._count.id,
+        totalGrossRevenue: revenueSummary._sum.totalAmount?.toFixed(2) ?? '0.00',
+        totalChannelCommission: revenueSummary._sum.channelCommissionAmount?.toFixed(2) ?? '0.00',
+        totalNetToHost: revenueSummary._sum.netToHost?.toFixed(2) ?? '0.00',
+        currency: 'NGN',
+      };
 
       res.json({
         success: true,
         data: bookings,
+        revenueSummary: revenueSummaryData,
         pagination: { page: pageNum, limit: limitNum, total, pages: Math.ceil(total / limitNum) }
       });
     } catch (err) {

@@ -237,6 +237,53 @@ router.post('/coastal-corridor/reservations', async (req: Request, res: Response
     // Compute nights between check-in and check-out
     const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
 
+    // ─── OWB-C-08: Commission validation and computation ─────────────────────
+    // Determine the host's cohort status to apply the correct commission rate.
+    // Cohort hosts (COASTAL_CORRIDOR_HOST): 12% commission.
+    // Standard hosts: 15% commission.
+    // CC-provided values are accepted as the source of truth but cross-checked
+    // against the computed values; discrepancies are flagged in the audit log.
+    const hostUser = await prisma.user.findUnique({ where: { id: room.property.host.userId } }).catch(() => null);
+    const isCohortHost = hostUser?.cohortMember === true &&
+      (hostUser?.cohortType === 'COASTAL_CORRIDOR_HOST' || hostUser?.cohortType === 'BOTH');
+    const expectedCommissionRate = isCohortHost ? 12 : 15;
+    const parsedTotalAmount = parseFloat(totalAmount?.toString() ?? '0');
+    const computedCommissionAmount = Math.round(parsedTotalAmount * expectedCommissionRate) / 100;
+    const computedNetToHost = Math.round((parsedTotalAmount - computedCommissionAmount) * 100) / 100;
+
+    // Use CC-provided values if present; fall back to computed values.
+    const finalCommissionAmount = channelCommissionAmount != null
+      ? parseFloat(channelCommissionAmount.toString())
+      : computedCommissionAmount;
+    const finalCommissionPercent = channelCommissionPercent != null
+      ? parseFloat(channelCommissionPercent.toString())
+      : expectedCommissionRate;
+    const finalNetToHost = netToHost != null
+      ? parseFloat(netToHost.toString())
+      : computedNetToHost;
+
+    // Detect discrepancy: CC-provided rate differs from expected by more than 0.5%
+    const ccRate = channelCommissionPercent != null ? parseFloat(channelCommissionPercent.toString()) : null;
+    const hasDiscrepancy = ccRate !== null && Math.abs(ccRate - expectedCommissionRate) > 0.5;
+    const discrepancyNote = hasDiscrepancy
+      ? `CC provided ${ccRate}% commission; expected ${expectedCommissionRate}% for ${isCohortHost ? 'cohort' : 'standard'} host`
+      : null;
+
+    const rateSource = channelCommissionPercent != null ? 'CC_PROVIDED' :
+      (isCohortHost ? 'COHORT_COMPUTED' : 'STANDARD_COMPUTED');
+
+    logger.info('[Channel] Commission computed', {
+      coastalCorridorReservationId,
+      isCohortHost,
+      expectedCommissionRate,
+      finalCommissionPercent,
+      finalCommissionAmount,
+      finalNetToHost,
+      hasDiscrepancy,
+      rateSource,
+    });
+    // ─────────────────────────────────────────────────────────────────────────
+
     // Create the reservation in Owambe
     const reservation = await prisma.stayBooking.create({
       data: {
@@ -253,9 +300,9 @@ router.post('/coastal-corridor/reservations', async (req: Request, res: Response
         numberOfGuests: numberOfGuests ?? null,
         totalAmount,
         currency,
-        channelCommissionAmount: channelCommissionAmount ?? null,
-        channelCommissionPercent: channelCommissionPercent ?? null,
-        netToHost: netToHost ?? null,
+        channelCommissionAmount: finalCommissionAmount,
+        channelCommissionPercent: finalCommissionPercent,
+        netToHost: finalNetToHost,
         specialRequests: specialRequests ?? null,
         paymentStatus,
         paystackReference: paystackReference ?? null,
@@ -267,6 +314,30 @@ router.post('/coastal-corridor/reservations', async (req: Request, res: Response
       },
     });
 
+    // ─── OWB-C-08: Create commission audit log entry ──────────────────────────
+    await prisma.commissionAuditLog.create({
+      data: {
+        stayBookingId: reservation.id,
+        reservationReference: reservation.reference,
+        channelOrigin: 'COASTAL_CORRIDOR',
+        totalAmount: parsedTotalAmount,
+        currency: currency ?? 'NGN',
+        cohortMember: isCohortHost,
+        cohortType: hostUser?.cohortType ?? null,
+        appliedCommissionRate: finalCommissionPercent,
+        rateSource,
+        channelCommissionAmount: finalCommissionAmount,
+        channelCommissionPercent: finalCommissionPercent,
+        netToHost: finalNetToHost,
+        ccProvidedCommissionAmount: channelCommissionAmount != null ? parseFloat(channelCommissionAmount.toString()) : null,
+        ccProvidedCommissionPercent: ccRate,
+        ccProvidedNetToHost: netToHost != null ? parseFloat(netToHost.toString()) : null,
+        hasDiscrepancy,
+        discrepancyNote,
+      },
+    });
+    // ─────────────────────────────────────────────────────────────────────────
+
     logger.info('[Channel] Stays reservation created', {
       owambeReservationId: reservation.id,
       coastalCorridorReservationId,
@@ -274,8 +345,7 @@ router.post('/coastal-corridor/reservations', async (req: Request, res: Response
     });
 
     // Phase B: Trigger host notification (fire-and-forget)
-    const host = room.property.host;
-    const hostUser = await prisma.user.findUnique({ where: { id: host.userId } }).catch(() => null);
+    // hostUser was already fetched above for commission computation
     if (hostUser?.email) {
       setImmediate(() =>
         notifyHostNewReservation({

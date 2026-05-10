@@ -274,14 +274,17 @@ export class CoastalCorridorAdapter extends BaseChannelAdapter {
    * Uses CC's documented three-header scheme:
    *   x-owambe-signature  — HMAC-SHA256(timestamp.body) as raw hex
    *   x-owambe-timestamp  — Unix epoch seconds
-   *   x-idempotency-key   — caller-generated UUID
+   *   x-idempotency-key   — deterministic UUID (v5 from semantic key) or random UUID
+   *
+   * @param body             - JSON-serialised request body (already stringified)
+   * @param idempotencyKey   - Optional deterministic key; if omitted a random UUIDv4 is used
    */
-  private buildHeaders(body: string): Record<string, string> {
+  private buildHeaders(body: string, idempotencyKey?: string): Record<string, string> {
     const timestamp = String(Math.floor(Date.now() / 1000));
     return {
       'x-owambe-signature': signRequest(body, timestamp, this.sharedSecret),
       'x-owambe-timestamp': timestamp,
-      'x-idempotency-key': uuidv4(),
+      'x-idempotency-key': idempotencyKey ?? uuidv4(),
     };
   }
 
@@ -370,7 +373,18 @@ export class CoastalCorridorAdapter extends BaseChannelAdapter {
     update: CCAvailabilityUpdate,
   ): Promise<{ updatedDates: number; effectiveAt: string }> {
     const body = JSON.stringify(update);
-    const headers = this.buildHeaders(body);
+    // OWB-C-01: Derive a deterministic idempotency key from the semantic triple
+    // (owambeRoomId + startDate + endDate) so that re-sending the same payload
+    // with the same semantic content produces the same key (idempotent re-send),
+    // while a legitimate edit (different date range) produces a different key.
+    const semanticKey = `${update.owambeRoomId}:${update.startDate}:${update.endDate}`;
+    const deterministicIdempotencyKey = crypto
+      .createHash('sha256')
+      .update(semanticKey, 'utf8')
+      .digest('hex')
+      .substring(0, 32)
+      .replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5'); // format as UUID-like
+    const headers = this.buildHeaders(body, deterministicIdempotencyKey);
 
     logger.info(`[CoastalCorridor] updateAvailability`, {
       coastalCorridorPropertyId,
