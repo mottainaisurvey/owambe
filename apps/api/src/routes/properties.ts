@@ -911,7 +911,9 @@ router.put('/:propertyId/calendar',
                   entries: ccEntries,
                 };
 
-                await ccAdapter.updateAvailability(property.coastalCorridorPropertyId!, update);
+                // OWB-C-01 path-param fix (REG-BUG-03): CC availability endpoint routes on
+                // owambePropertyId (UUID), not the CC internal CUID stored in coastalCorridorPropertyId.
+                await ccAdapter.updateAvailability(property.id, update);
 
                 // Mark this room's entries as synced
                 await prisma.calendarEntry.updateMany({
@@ -1229,7 +1231,9 @@ router.post('/calendar-entries',
                 closedReason: blockReason ?? undefined,
               }],
             };
-            await ccAdapter.updateAvailability(room.property.coastalCorridorPropertyId!, update);
+            // OWB-C-01 path-param fix (REG-BUG-03): CC availability endpoint routes on
+            // owambePropertyId (UUID), not the CC internal CUID.
+            await ccAdapter.updateAvailability(room.property.id, update);
             await prisma.calendarEntry.update({
               where: { id: entry.id },
               data: { ccSyncStatus: 'SYNCED', ccSyncedAt: new Date() },
