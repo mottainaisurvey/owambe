@@ -61,17 +61,15 @@ function verifyCoastalCorridorSignature(req: Request, res: Response, next: NextF
     return;
   }
 
-  // rawBody is set by express.raw() above — always use it for HMAC computation
+  // rawBody is set by express.raw() above — always use it for HMAC computation.
+  // For empty-body requests (e.g. GET), rawBody is an empty string; the signed
+  // message is {timestamp}.{empty-string} = "{timestamp}." which matches the
+  // CC-side signing convention. Do NOT reject empty bodies before verification.
   const rawBodyBuf = (req as Request & { rawBody?: Buffer }).rawBody;
   const rawBody = rawBodyBuf ? rawBodyBuf.toString('utf8') : '';
 
-  if (!rawBody) {
-    logger.warn('[Channel] Empty rawBody on inbound request — cannot verify signature', {
-      path: req.path,
-    });
-    res.status(401).json({ error: 'INVALID_SIGNATURE', message: 'Request signature verification failed' });
-    return;
-  }
+  // OWB-FIX-02: removed empty-body early-return guard (was lines 68-74).
+  // The HMAC verifier handles empty strings correctly.
 
   if (!verifyInboundSignature(rawBody, signature, secret, timestamp)) {
     logger.warn('[Channel] Invalid HMAC signature on inbound request', {
