@@ -419,6 +419,7 @@ router.patch('/coastal-corridor/reservations/:cc_reservation_id', async (req: Re
   try {
     const reservation = await prisma.stayBooking.findFirst({
       where: { externalRef: coastalCorridorReservationId },
+      include: { room: { include: { property: { include: { host: true } } } } },
     });
 
     if (!reservation) {
@@ -427,17 +428,41 @@ router.patch('/coastal-corridor/reservations/:cc_reservation_id', async (req: Re
     }
 
     // Map Coastal Corridor status to Owambe status
-    const statusMap: Record<string, string> = {
-      CONFIRMED: 'CONFIRMED',
-      CHECKED_IN: 'CHECKED_IN',
-      CHECKED_OUT: 'CHECKED_OUT',
-      CANCELLED: 'CANCELLED',
-      NO_SHOW: 'NO_SHOW',
+    const statusMap: Record<string, StayBookingStatus> = {
+      CONFIRMED: StayBookingStatus.CONFIRMED,
+      CHECKED_IN: StayBookingStatus.CHECKED_IN,
+      CHECKED_OUT: StayBookingStatus.CHECKED_OUT,
+      CANCELLED: StayBookingStatus.CANCELLED,
+      NO_SHOW: StayBookingStatus.NO_SHOW,
     };
 
-    const owambeStatus = statusMap[status] as StayBookingStatus | undefined;
+    const owambeStatus = statusMap[status];
     if (!owambeStatus) {
-      res.status(409).json({ error: 'INVALID_STATUS_TRANSITION', message: `Unknown status: ${status}` });
+      res.status(422).json({ error: 'UNKNOWN_STATUS', message: `Unknown status: ${status}` });
+      return;
+    }
+
+    // OWB-C-04: Invalid transition guard.
+    // Terminal states (CANCELLED, NO_SHOW, CHECKED_OUT) cannot be re-entered
+    // or reversed. CHECKED_IN can only follow CONFIRMED.
+    const validTransitions: Record<StayBookingStatus, StayBookingStatus[]> = {
+      [StayBookingStatus.PENDING]:     [StayBookingStatus.CONFIRMED, StayBookingStatus.CANCELLED],
+      [StayBookingStatus.CONFIRMED]:   [StayBookingStatus.CHECKED_IN, StayBookingStatus.CANCELLED, StayBookingStatus.NO_SHOW],
+      [StayBookingStatus.CHECKED_IN]:  [StayBookingStatus.CHECKED_OUT, StayBookingStatus.CANCELLED],
+      [StayBookingStatus.CHECKED_OUT]: [],
+      [StayBookingStatus.CANCELLED]:   [],
+      [StayBookingStatus.NO_SHOW]:     [],
+    };
+
+    const allowed = validTransitions[reservation.status] ?? [];
+    if (!allowed.includes(owambeStatus)) {
+      res.status(409).json({
+        error: 'INVALID_STATUS_TRANSITION',
+        message: `Cannot transition from ${reservation.status} to ${owambeStatus}`,
+        current_status: reservation.status,
+        requested_status: owambeStatus,
+        allowed_transitions: allowed,
+      });
       return;
     }
 
@@ -449,18 +474,123 @@ router.patch('/coastal-corridor/reservations/:cc_reservation_id', async (req: Re
         cancelledBy: cancellationInitiatedBy ?? null,
         refundAmount: refundAmount ?? null,
         refundCurrency: refundCurrency ?? null,
-        ...(owambeStatus === 'CANCELLED' ? { cancelledAt: new Date() } : {}),
-        ...(owambeStatus === 'CHECKED_IN' ? { checkedInAt: new Date() } : {}),
-        ...(owambeStatus === 'CHECKED_OUT' ? { checkedOutAt: new Date() } : {}),
+        ...(owambeStatus === StayBookingStatus.CANCELLED ? { cancelledAt: new Date() } : {}),
+        ...(owambeStatus === StayBookingStatus.CHECKED_IN ? { checkedInAt: new Date() } : {}),
+        ...(owambeStatus === StayBookingStatus.CHECKED_OUT ? { checkedOutAt: new Date() } : {}),
       },
+    });
+
+    // OWB-C-04: Side effects per status transition.
+    let hostNotified = false;
+    const hostUser = reservation.room?.property?.host
+      ? await prisma.user.findUnique({ where: { id: reservation.room.property.host.userId } }).catch(() => null)
+      : null;
+
+    // CHECKED_IN: mark calendar entries as BOOKED for the reservation's date range
+    if (owambeStatus === StayBookingStatus.CHECKED_IN && reservation.roomId) {
+      setImmediate(async () => {
+        try {
+          await prisma.calendarEntry.updateMany({
+            where: {
+              roomId: reservation.roomId!,
+              date: { gte: reservation.checkInDate, lt: reservation.checkOutDate },
+            },
+            data: { status: 'BOOKED' },
+          });
+          logger.info('[Channel] Calendar entries marked BOOKED on CHECKED_IN', {
+            reservationId: reservation.id,
+            roomId: reservation.roomId,
+          });
+        } catch (calErr) {
+          logger.error('[Channel] Failed to mark calendar entries BOOKED', {
+            reservationId: reservation.id,
+            error: calErr instanceof Error ? calErr.message : String(calErr),
+          });
+        }
+      });
+    }
+
+    // CHECKED_OUT: release calendar entries back to AVAILABLE
+    if (owambeStatus === StayBookingStatus.CHECKED_OUT && reservation.roomId) {
+      setImmediate(async () => {
+        try {
+          await prisma.calendarEntry.updateMany({
+            where: {
+              roomId: reservation.roomId!,
+              date: { gte: reservation.checkInDate, lt: reservation.checkOutDate },
+              status: 'BOOKED',
+            },
+            data: { status: 'AVAILABLE' },
+          });
+          logger.info('[Channel] Calendar entries released to AVAILABLE on CHECKED_OUT', {
+            reservationId: reservation.id,
+            roomId: reservation.roomId,
+          });
+        } catch (calErr) {
+          logger.error('[Channel] Failed to release calendar entries', {
+            reservationId: reservation.id,
+            error: calErr instanceof Error ? calErr.message : String(calErr),
+          });
+        }
+      });
+    }
+
+    // CANCELLED: notify host and release calendar entries
+    if (owambeStatus === StayBookingStatus.CANCELLED) {
+      // Release calendar entries
+      if (reservation.roomId) {
+        setImmediate(async () => {
+          try {
+            await prisma.calendarEntry.updateMany({
+              where: {
+                roomId: reservation.roomId!,
+                date: { gte: reservation.checkInDate, lt: reservation.checkOutDate },
+                status: { in: ['BOOKED', 'BLOCKED'] },
+              },
+              data: { status: 'AVAILABLE' },
+            });
+            logger.info('[Channel] Calendar entries released on CANCELLED', { reservationId: reservation.id });
+          } catch (calErr) {
+            logger.error('[Channel] Failed to release calendar entries on CANCELLED', {
+              reservationId: reservation.id,
+              error: calErr instanceof Error ? calErr.message : String(calErr),
+            });
+          }
+        });
+      }
+
+      // Notify host
+      if (hostUser?.email) {
+        hostNotified = true;
+        setImmediate(() =>
+          notifyHostReservationCancelled(
+            hostUser.email!,
+            hostUser.firstName ?? 'Host',
+            reservation.room?.property?.name ?? 'your property',
+            reservation.guestName,
+            reservation.reference,
+            reservation.id,
+            cancellationReason ?? null,
+            cancellationInitiatedBy ?? null,
+          )
+        );
+      }
+    }
+
+    logger.info('[Channel] Reservation status updated', {
+      reservationId: updated.id,
+      from: reservation.status,
+      to: updated.status,
+      coastalCorridorReservationId,
     });
 
     res.status(200).json({
       owambe_reservation_id: updated.id,
       cc_reservation_id: coastalCorridorReservationId,
       status: updated.status,
+      previous_status: reservation.status,
       created_at: updated.createdAt.toISOString(),
-      host_notified: false,
+      host_notified: hostNotified,
       contract_generation_status: 'PENDING',
     });
   } catch (error) {

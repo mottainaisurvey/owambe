@@ -8,6 +8,8 @@ export function errorHandler(err: any, _req: Request, res: Response, _next: Next
     return res.status(err.statusCode).json({
       success: false,
       error: err.message,
+      // OWB-REM-01: include machine-readable errorCode when set
+      ...(err.errorCode && { errorCode: err.errorCode }),
       ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
     });
   }

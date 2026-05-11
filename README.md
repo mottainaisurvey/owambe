@@ -162,6 +162,25 @@ owambe/
 | POST | /api/payments/webhook/paystack | Paystack webhook (deposit/balance) |
 | POST | /api/payments/balance/:bookingId | Initialize balance payment |
 
+### Mode
+| Method | Route | Description |
+|---|---|---|
+| GET | /api/mode | Get current user's active mode and available modes |
+| POST | /api/mode/switch | Switch active mode (must be in availableModes) |
+| POST | /api/mode/unlock | Unlock modes using a cohort code |
+
+**POST /api/mode/unlock — error responses**
+
+All error responses carry `{ success: false, error: "<human-readable message>", errorCode: "<machine-readable code>" }`.
+
+| HTTP Status | `errorCode` | Meaning |
+|---|---|---|
+| 400 | — | `code` field missing or not a string |
+| 404 | `COHORT_CODE_INVALID` | Code does not exist in the database |
+| 409 | `COHORT_CODE_EXHAUSTED` | Code has reached its maximum redemption count (already used) |
+| 410 | `COHORT_CODE_INACTIVE` | Code was administratively deactivated |
+| 410 | `COHORT_CODE_EXPIRED` | Code has passed its expiry date |
+
 ### AI
 | Method | Route | Description |
 |---|---|---|
