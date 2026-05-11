@@ -122,6 +122,7 @@ enum PaymentStatus {
   PENDING
   DEPOSIT_PAID
   FULLY_PAID
+  PAID              // CC-canonical: maps to FULLY_PAID semantics at the CC boundary
   REFUNDED
   PARTIALLY_REFUNDED
   FAILED
