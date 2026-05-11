@@ -639,3 +639,36 @@ adminRouter.get('/commission-audit-logs', async (req, res, next) => {
     res.json({ success: true, data: { total, logs: serialised } });
   } catch (err) { next(err); }
 });
+
+// ─── TEMP: Cohort code management for integration testing ────────────────────
+// POST /api/admin/cohort-codes
+// Body: { code, name?, maxRedemptions?, isActive?, expiresAt?, modes? }
+adminRouter.post('/cohort-codes', async (req, res, next) => {
+  try {
+    const { code, name, maxRedemptions, isActive, expiresAt, modes } = req.body;
+    if (!code) {
+      res.status(400).json({ success: false, error: 'code is required' });
+      return;
+    }
+    const created = await prisma.cohortCode.create({
+      data: {
+        code,
+        name: name ?? `Test code ${code}`,
+        maxRedemptions: maxRedemptions ?? null,
+        isActive: isActive !== undefined ? isActive : true,
+        expiresAt: expiresAt ? new Date(expiresAt) : null,
+        modes: modes ?? ['STAYS'],
+      },
+    });
+    res.status(201).json({ success: true, data: created });
+  } catch (err) { next(err); }
+});
+
+// GET /api/admin/cohort-codes/:code
+adminRouter.get('/cohort-codes/:code', async (req, res, next) => {
+  try {
+    const cohort = await prisma.cohortCode.findUnique({ where: { code: req.params.code } });
+    if (!cohort) { res.status(404).json({ success: false, error: 'Not found' }); return; }
+    res.json({ success: true, data: cohort });
+  } catch (err) { next(err); }
+});
