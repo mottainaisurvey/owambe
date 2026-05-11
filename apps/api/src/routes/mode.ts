@@ -138,10 +138,11 @@ router.post('/unlock', async (req: Request, res: Response, next: NextFunction) =
 
     try {
       updatedUser = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-        // Atomic conditional increment: only increments if the cap has not been reached.
-        // Returns the updated row; throws P2025 (record not found) if the WHERE clause
-        // eliminates the row — i.e., if a concurrent request already consumed the last slot.
-        await tx.$executeRaw`
+        // OWB-REM-02: Atomic conditional increment.
+        // The UPDATE only fires when redemptionCount < maxRedemptions (or cap is null).
+        // We capture the number of rows affected: 0 means a concurrent request already
+        // consumed the last slot, so we must roll back with COHORT_CODE_EXHAUSTED.
+        const affected = await tx.$executeRaw`
           UPDATE cohort_codes
           SET    "redemptionCount" = "redemptionCount" + 1,
                  "updatedAt"       = NOW()
@@ -149,18 +150,8 @@ router.post('/unlock', async (req: Request, res: Response, next: NextFunction) =
             AND  ("maxRedemptions" IS NULL OR "redemptionCount" < "maxRedemptions")
         `;
 
-        // Verify the increment actually happened (rowsAffected = 0 means the slot was
-        // taken by a concurrent request between our earlier read and this transaction).
-        const fresh = await tx.cohortCode.findUnique({
-          where: { id: cohort.id },
-          select: { redemptionCount: true, maxRedemptions: true }
-        });
-        if (
-          fresh &&
-          fresh.maxRedemptions !== null &&
-          fresh.redemptionCount > fresh.maxRedemptions
-        ) {
-          // Rollback by throwing — Prisma will abort the transaction.
+        // If 0 rows were updated, the cap was already reached by a concurrent request.
+        if (affected === 0) {
           throw new AppError(
             'This cohort code has already been used the maximum number of times',
             409,
