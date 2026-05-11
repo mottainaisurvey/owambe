@@ -143,10 +143,10 @@ router.post('/unlock', async (req: Request, res: Response, next: NextFunction) =
         // eliminates the row — i.e., if a concurrent request already consumed the last slot.
         await tx.$executeRaw`
           UPDATE cohort_codes
-          SET    redemption_count = redemption_count + 1,
-                 updated_at       = NOW()
-          WHERE  id               = ${cohort.id}::uuid
-            AND  (max_redemptions IS NULL OR redemption_count < max_redemptions)
+          SET    "redemptionCount" = "redemptionCount" + 1,
+                 "updatedAt"       = NOW()
+          WHERE  id                = ${cohort.id}::uuid
+            AND  ("maxRedemptions" IS NULL OR "redemptionCount" < "maxRedemptions")
         `;
 
         // Verify the increment actually happened (rowsAffected = 0 means the slot was
