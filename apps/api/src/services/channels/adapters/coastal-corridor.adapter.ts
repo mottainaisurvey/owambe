@@ -346,21 +346,24 @@ export class CoastalCorridorAdapter extends BaseChannelAdapter {
   /**
    * Update property metadata on Coastal Corridor.
    *
-   * PATCH /stays/properties/{coastalCorridorPropertyId}
+   * PATCH /stays/properties/{owambePropertyId}
+   * OWB-C-02: path param is the Owambe UUID (REG-BUG-03 lesson from OWB-C-01).
+   * Body is serialised once and the same string is both signed and transmitted
+   * so the HMAC covers exactly the bytes CC receives.
    */
   async updateProperty(
-    coastalCorridorPropertyId: string,
-    update: Partial<Pick<CCPropertyRegistration, 'name' | 'description' | 'amenities' | 'photos' | 'policies' | 'status'>>,
+    owambePropertyId: string,
+    update: Partial<Pick<CCPropertyRegistration, 'name' | 'description' | 'property_type' | 'address_line1' | 'address_line2' | 'city' | 'state' | 'country' | 'latitude' | 'longitude' | 'amenities' | 'policies' | 'status'>>,
   ): Promise<CCPropertyRegistrationResponse> {
     const body = JSON.stringify(update);
     const headers = this.buildHeaders(body);
 
-    logger.info(`[CoastalCorridor] updateProperty`, { coastalCorridorPropertyId, endpoint: `/stays/properties/${coastalCorridorPropertyId}` });
+    logger.info(`[CoastalCorridor] updateProperty`, { owambePropertyId, endpoint: `/stays/properties/${owambePropertyId}` });
 
     const resp = await this.client.patch<CCPropertyRegistrationResponse>(
-      `/stays/properties/${coastalCorridorPropertyId}`,
-      update,
-      { headers },
+      `/stays/properties/${owambePropertyId}`,
+      body,
+      { headers: { ...headers, 'Content-Type': 'application/json' } },
     );
     return resp.data;
   }
@@ -368,12 +371,19 @@ export class CoastalCorridorAdapter extends BaseChannelAdapter {
   /**
    * Deactivate a property listing on Coastal Corridor (soft-delete).
    *
-   * DELETE /stays/properties/{coastalCorridorPropertyId}
+   * DELETE /stays/properties/{owambePropertyId}
+   * OWB-C-03: path param is the Owambe UUID (REG-BUG-03 lesson from OWB-C-01).
+   * HMAC is signed over empty string for DELETE (no body).
+   * Returns the CC response body for sync status tracking.
    */
-  async deactivateProperty(coastalCorridorPropertyId: string): Promise<void> {
+  async deactivateProperty(owambePropertyId: string): Promise<{ deleted: boolean; owambe_property_id: string }> {
     const headers = this.buildHeaders('');
-    logger.info(`[CoastalCorridor] deactivateProperty`, { coastalCorridorPropertyId });
-    await this.client.delete(`/stays/properties/${coastalCorridorPropertyId}`, { headers });
+    logger.info(`[CoastalCorridor] deactivateProperty`, { owambePropertyId, endpoint: `/stays/properties/${owambePropertyId}` });
+    const resp = await this.client.delete<{ deleted: boolean; owambe_property_id: string }>(
+      `/stays/properties/${owambePropertyId}`,
+      { headers },
+    );
+    return resp.data;
   }
 
   /**

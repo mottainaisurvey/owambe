@@ -439,14 +439,28 @@ router.put('/:id',
         data
       });
 
-      // If property has a CC ID, push update asynchronously
+      // OWB-C-02: push metadata update to CC asynchronously.
+      // Path param is the Owambe UUID (REG-BUG-03 lesson from OWB-C-01).
+      // All CC-contract fields are mapped from the Owambe property record.
       if (updated.coastalCorridorPropertyId && ccAdapter.isConfigured()) {
         setImmediate(async () => {
           try {
-            await ccAdapter.updateProperty(updated.coastalCorridorPropertyId!, {
+            await ccAdapter.updateProperty(updated.id, {
               name: updated.name,
               description: updated.description ?? undefined,
-              amenities: updated.amenities,
+              city: updated.city ?? undefined,
+              state: updated.state ?? undefined,
+              country: updated.country ?? undefined,
+              address_line1: (updated as any).address ?? undefined,
+              latitude: updated.latitude ? parseFloat(updated.latitude.toString()) : undefined,
+              longitude: updated.longitude ? parseFloat(updated.longitude.toString()) : undefined,
+              amenities: updated.amenities ?? undefined,
+              policies: {
+                checkInTime: updated.checkInTime ?? undefined,
+                checkOutTime: updated.checkOutTime ?? undefined,
+                cancellationPolicy: (updated.cancellationPolicy as any) ?? undefined,
+                houseRules: updated.houseRules ? [updated.houseRules] : undefined,
+              },
               status: updated.isActive ? 'ACTIVE' : 'INACTIVE',
             });
             await prisma.property.update({
@@ -632,12 +646,19 @@ router.delete('/:id',
         data: { isActive: false }
       });
 
-      // Deactivate on CC if registered
+      // OWB-C-03: deactivate on CC asynchronously.
+      // Path param is the Owambe UUID (REG-BUG-03 lesson from OWB-C-01).
+      // HMAC is signed over empty string (no body for DELETE).
+      // coastalCorridorSyncedAt is updated on success for sync status tracking.
       if (updated.coastalCorridorPropertyId && ccAdapter.isConfigured()) {
         setImmediate(async () => {
           try {
-            await ccAdapter.deactivateProperty(updated.coastalCorridorPropertyId!);
-            logger.info('[Properties] CC property deactivated', { propertyId: updated.id });
+            const ccResp = await ccAdapter.deactivateProperty(updated.id);
+            await prisma.property.update({
+              where: { id: updated.id },
+              data: { coastalCorridorSyncedAt: new Date() },
+            });
+            logger.info('[Properties] CC property deactivated', { propertyId: updated.id, ccResponse: ccResp });
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             logger.error('[Properties] CC deactivate failed', { propertyId: updated.id, error: msg });
