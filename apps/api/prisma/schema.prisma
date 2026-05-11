@@ -230,6 +230,7 @@ enum StayBookingStatus {
   CHECKED_OUT
   CANCELLED
   NO_SHOW
+  REFUNDED    // CC-canonical: aligns with CC ReservationStatus.REFUNDED
 }
 
 // Phase A: Experience booking status
@@ -239,6 +240,7 @@ enum ExperienceBookingStatus {
   COMPLETED
   CANCELLED
   NO_SHOW
+  REFUNDED    // CC-canonical: aligns with CC ExperienceBookingStatus.REFUNDED
 }
 
 // ─── USERS ───────────────────────────────────────────
