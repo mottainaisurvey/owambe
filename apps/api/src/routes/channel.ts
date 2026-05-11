@@ -29,6 +29,7 @@ import {
   notifyHostReservationCancelled,
   notifyOperatorNewBooking,
 } from '../services/notification.service';
+import { cacheGet, cacheSet } from '../services/cache.service';
 
 const router = Router();
 
@@ -406,6 +407,7 @@ router.post('/coastal-corridor/reservations', async (req: Request, res: Response
  */
 router.patch('/coastal-corridor/reservations/:cc_reservation_id', async (req: Request, res: Response): Promise<void> => {
   const { cc_reservation_id: coastalCorridorReservationId } = req.params;
+  const idempotencyKey = req.headers['x-idempotency-key'] as string | undefined;
   const {
     status,
     cancellation_reason: cancellationReason,
@@ -414,9 +416,19 @@ router.patch('/coastal-corridor/reservations/:cc_reservation_id', async (req: Re
     refund_currency: refundCurrency,
   } = req.body;
 
-  logger.info('[Channel] Reservation status update', { coastalCorridorReservationId, status });
+  logger.info('[Channel] Reservation status update', { coastalCorridorReservationId, status, idempotencyKey });
 
   try {
+    // OWB-C-04 AC-6: Idempotency — return cached response if this key was already processed
+    if (idempotencyKey) {
+      const cached = await cacheGet<object>(`idempotency:patch:${idempotencyKey}`);
+      if (cached) {
+        logger.info('[Channel] Idempotent PATCH re-call — returning cached response', { idempotencyKey, coastalCorridorReservationId });
+        res.status(200).json(cached);
+        return;
+      }
+    }
+
     const reservation = await prisma.stayBooking.findFirst({
       where: { externalRef: coastalCorridorReservationId },
       include: { room: { include: { property: { include: { host: true } } } } },
@@ -584,7 +596,7 @@ router.patch('/coastal-corridor/reservations/:cc_reservation_id', async (req: Re
       coastalCorridorReservationId,
     });
 
-    res.status(200).json({
+    const responseBody = {
       owambe_reservation_id: updated.id,
       cc_reservation_id: coastalCorridorReservationId,
       status: updated.status,
@@ -592,7 +604,14 @@ router.patch('/coastal-corridor/reservations/:cc_reservation_id', async (req: Re
       created_at: updated.createdAt.toISOString(),
       host_notified: hostNotified,
       contract_generation_status: 'PENDING',
-    });
+    };
+
+    // Cache the response under the idempotency key (24h TTL)
+    if (idempotencyKey) {
+      await cacheSet(`idempotency:patch:${idempotencyKey}`, responseBody, 86400);
+    }
+
+    res.status(200).json(responseBody);
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     logger.error('[Channel] Error updating reservation status', { error: msg, coastalCorridorReservationId });
