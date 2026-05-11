@@ -672,3 +672,16 @@ adminRouter.get('/cohort-codes/:code', async (req, res, next) => {
     res.json({ success: true, data: cohort });
   } catch (err) { next(err); }
 });
+
+// ─── TEST HELPER: Force-verify a user's email (bypasses email flow for staging) ─
+// POST /api/admin/users/:id/verify-email
+adminRouter.post('/users/:id/verify-email', async (req, res, next) => {
+  try {
+    const updated = await prisma.user.update({
+      where: { id: req.params.id },
+      data: { isEmailVerified: true },
+      select: { id: true, email: true, isEmailVerified: true },
+    });
+    res.json({ success: true, data: updated });
+  } catch (err) { next(err); }
+});
