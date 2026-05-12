@@ -30,6 +30,7 @@ import {
   notifyOperatorNewBooking,
 } from '../services/notification.service';
 import { cacheGet, cacheSet } from '../services/cache.service';
+import { validatePaymentStatusTransition } from '../utils/paymentStatusTransitions';
 
 const router = Router();
 
@@ -408,6 +409,7 @@ router.patch('/coastal-corridor/reservations/:cc_reservation_id', async (req: Re
   const idempotencyKey = req.headers['x-idempotency-key'] as string | undefined;
   const {
     status,
+    payment_status: incomingPaymentStatus,
     cancellation_reason: cancellationReason,
     cancellation_initiated_by: cancellationInitiatedBy,
     refund_amount: refundAmount,
@@ -476,10 +478,26 @@ router.patch('/coastal-corridor/reservations/:cc_reservation_id', async (req: Re
       return;
     }
 
+    // PAY-CANONICAL-01-OWB AC-3: PaymentStatus transition guard
+    // If the PATCH includes a payment_status field, validate the transition
+    // against the canonical fourteen-transition graph before any DB write.
+    let newPaymentStatus: string | undefined = incomingPaymentStatus;
+    if (newPaymentStatus) {
+      const paymentTransitionError = validatePaymentStatusTransition(
+        reservation.paymentStatus as string,
+        newPaymentStatus,
+      );
+      if (paymentTransitionError) {
+        res.status(422).json(paymentTransitionError);
+        return;
+      }
+    }
+
     const updated = await prisma.stayBooking.update({
       where: { id: reservation.id },
       data: {
         status: owambeStatus,
+        ...(newPaymentStatus ? { paymentStatus: newPaymentStatus as any } : {}),
         cancellationReason: cancellationReason ?? null,
         cancelledBy: cancellationInitiatedBy ?? null,
         refundAmount: refundAmount ?? null,

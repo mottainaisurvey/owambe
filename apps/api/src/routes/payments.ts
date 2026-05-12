@@ -132,7 +132,7 @@ async function handleChargeSuccess(data: any) {
     await prisma.booking.update({
       where: { id: booking.id },
       data: {
-        paymentStatus: 'FULLY_PAID',
+        paymentStatus: 'PAID',
         paystackBalanceRef: reference,
         balancePaidAt: new Date(),
       }

@@ -588,7 +588,7 @@ async function updatePlanAfterPayment(planId: string, amountPaid: number, extraD
   if (isComplete) {
     await prisma.booking.update({
       where: { id: plan.bookingId },
-      data: { paymentStatus: 'FULLY_PAID', balancePaidAt: new Date() },
+      data: { paymentStatus: 'PAID', balancePaidAt: new Date() },
     });
   }
 }
