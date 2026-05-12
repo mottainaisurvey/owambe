@@ -123,7 +123,9 @@ router.use((req: Request, _res: Response, next: NextFunction) => {
  *   channel_commission_percent, net_to_host, special_requests,
  *   payment_status, paystack_reference
  */
-router.post('/coastal-corridor/reservations', async (req: Request, res: Response): Promise<void> => {
+// PAY-CANONICAL-01-OWB-FIX-FIELDS-PATH: register both legacy path and canonical /stays/ path.
+// Contract v1.0/v1.1/v1.2 uses /coastal-corridor/stays/reservations; legacy path preserved for backward compat.
+router.post(['/coastal-corridor/reservations', '/coastal-corridor/stays/reservations'], async (req: Request, res: Response): Promise<void> => {
   const requestId = req.headers['x-request-id'] as string ?? 'unknown';
 
   // Destructure snake_case fields from CC's payload and alias to camelCase internal variables
@@ -404,7 +406,8 @@ router.post('/coastal-corridor/reservations', async (req: Request, res: Response
  *   status, cancellation_reason, cancellation_initiated_by,
  *   refund_amount, refund_currency, updated_at
  */
-router.patch('/coastal-corridor/reservations/:cc_reservation_id', async (req: Request, res: Response): Promise<void> => {
+// PAY-CANONICAL-01-OWB-FIX-FIELDS-PATH: register both legacy path and canonical /stays/ path.
+router.patch(['/coastal-corridor/reservations/:cc_reservation_id', '/coastal-corridor/stays/reservations/:cc_reservation_id'], async (req: Request, res: Response): Promise<void> => {
   const { cc_reservation_id: coastalCorridorReservationId } = req.params;
   const idempotencyKey = req.headers['x-idempotency-key'] as string | undefined;
   const {
