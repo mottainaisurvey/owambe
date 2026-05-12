@@ -123,9 +123,10 @@ router.use((req: Request, _res: Response, next: NextFunction) => {
  *   channel_commission_percent, net_to_host, special_requests,
  *   payment_status, paystack_reference
  */
-// PAY-CANONICAL-01-OWB-FIX-FIELDS-PATH: register both legacy path and canonical /stays/ path.
-// Contract v1.0/v1.1/v1.2 uses /coastal-corridor/stays/reservations; legacy path preserved for backward compat.
-router.post(['/coastal-corridor/reservations', '/coastal-corridor/stays/reservations'], async (req: Request, res: Response): Promise<void> => {
+// PAY-CANONICAL-01-OWB-FIX-PATHS-MIGRATION Phase A: add contract-canonical /stays/reservations path.
+// Three paths active simultaneously (legacy, Phase-1-misfire, canonical) until Phase B cleanup.
+// Amendment 007 (12 May 2026) establishes /stays/reservations as the authoritative path.
+router.post(['/coastal-corridor/reservations', '/coastal-corridor/stays/reservations', '/stays/reservations'], async (req: Request, res: Response): Promise<void> => {
   const requestId = req.headers['x-request-id'] as string ?? 'unknown';
 
   // Destructure snake_case fields from CC's payload and alias to camelCase internal variables
@@ -406,8 +407,9 @@ router.post(['/coastal-corridor/reservations', '/coastal-corridor/stays/reservat
  *   status, cancellation_reason, cancellation_initiated_by,
  *   refund_amount, refund_currency, updated_at
  */
-// PAY-CANONICAL-01-OWB-FIX-FIELDS-PATH: register both legacy path and canonical /stays/ path.
-router.patch(['/coastal-corridor/reservations/:cc_reservation_id', '/coastal-corridor/stays/reservations/:cc_reservation_id'], async (req: Request, res: Response): Promise<void> => {
+// PAY-CANONICAL-01-OWB-FIX-PATHS-MIGRATION Phase A: add contract-canonical /stays/reservations/:cc_reservation_id path.
+// Three paths active simultaneously (legacy, Phase-1-misfire, canonical) until Phase B cleanup.
+router.patch(['/coastal-corridor/reservations/:cc_reservation_id', '/coastal-corridor/stays/reservations/:cc_reservation_id', '/stays/reservations/:cc_reservation_id'], async (req: Request, res: Response): Promise<void> => {
   const { cc_reservation_id: coastalCorridorReservationId } = req.params;
   const idempotencyKey = req.headers['x-idempotency-key'] as string | undefined;
   const {
