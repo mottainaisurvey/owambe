@@ -30,7 +30,7 @@ import {
   notifyOperatorNewBooking,
 } from '../services/notification.service';
 import { cacheGet, cacheSet } from '../services/cache.service';
-import { validatePaymentStatusTransition } from '../utils/paymentStatusTransitions';
+import { validatePaymentStatusTransition, CanonicalPaymentStatus, PAYMENT_STATUS_TRANSITIONS } from '../utils/paymentStatusTransitions';
 
 const router = Router();
 
@@ -478,11 +478,25 @@ router.patch('/coastal-corridor/reservations/:cc_reservation_id', async (req: Re
       return;
     }
 
-    // PAY-CANONICAL-01-OWB AC-3: PaymentStatus transition guard
-    // If the PATCH includes a payment_status field, validate the transition
-    // against the canonical fourteen-transition graph before any DB write.
+    // PAY-CANONICAL-01-OWB-FIX-FIELDS AC-1b: Explicit PaymentStatus enum validation.
+    // If payment_status is present, validate it is a canonical value BEFORE
+    // attempting the transition guard. An unrecognised value returns 400 (schema
+    // validation error), not 422 (transition error).
     let newPaymentStatus: string | undefined = incomingPaymentStatus;
     if (newPaymentStatus) {
+      const canonicalValues = Object.keys(PAYMENT_STATUS_TRANSITIONS) as CanonicalPaymentStatus[];
+      if (!canonicalValues.includes(newPaymentStatus as CanonicalPaymentStatus)) {
+        res.status(400).json({
+          error: 'invalid_payment_status_value',
+          field: 'payment_status',
+          received: newPaymentStatus,
+          allowed: canonicalValues,
+          message: `payment_status must be one of: ${canonicalValues.join(', ')}`,
+        });
+        return;
+      }
+
+      // PAY-CANONICAL-01-OWB AC-3: PaymentStatus transition guard
       const paymentTransitionError = validatePaymentStatusTransition(
         reservation.paymentStatus as string,
         newPaymentStatus,
