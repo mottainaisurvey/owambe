@@ -145,6 +145,7 @@ router.post('/stays/reservations', async (req: Request, res: Response): Promise<
     check_out_date: checkOutDate,
     number_of_guests: numberOfGuests,
     total_amount: totalAmount,
+    deposit_amount: depositAmount,
     currency,
     channel_commission_amount: channelCommissionAmount,
     channel_commission_percent: channelCommissionPercent,
@@ -313,7 +314,7 @@ router.post('/stays/reservations', async (req: Request, res: Response): Promise<
         channelOrigin: 'COASTAL_CORRIDOR',
         externalRef: coastalCorridorReservationId,
         externalPropertyId: coastalCorridorPropertyId,
-        depositAmount: 0,
+        depositAmount: depositAmount != null ? parseFloat(depositAmount.toString()) : 0,
       },
     });
 
