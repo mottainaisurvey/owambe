@@ -582,6 +582,33 @@ router.patch('/stays/reservations/:cc_reservation_id', async (req: Request, res:
       });
     }
 
+    // NO_SHOW: mark calendar entries as BLOCKED for the reservation's date range
+    // Amendment 003: pre-checkin NO_SHOW must block dates to prevent double-booking.
+    // Without this block, dates remain in their prior state (typically AVAILABLE),
+    // creating a double-booking window. OWB-FIX-CALENDAR.
+    if (owambeStatus === StayBookingStatus.NO_SHOW && reservation.roomId) {
+      setImmediate(async () => {
+        try {
+          await prisma.calendarEntry.updateMany({
+            where: {
+              roomId: reservation.roomId!,
+              date: { gte: reservation.checkInDate, lt: reservation.checkOutDate },
+            },
+            data: { status: 'BLOCKED' },
+          });
+          logger.info('[Channel] Calendar entries marked BLOCKED on NO_SHOW', {
+            reservationId: reservation.id,
+            roomId: reservation.roomId,
+          });
+        } catch (calErr) {
+          logger.error('[Channel] Failed to mark calendar entries BLOCKED on NO_SHOW', {
+            reservationId: reservation.id,
+            error: calErr instanceof Error ? calErr.message : String(calErr),
+          });
+        }
+      });
+    }
+
     // CANCELLED: notify host and release calendar entries
     if (owambeStatus === StayBookingStatus.CANCELLED) {
       // Release calendar entries
