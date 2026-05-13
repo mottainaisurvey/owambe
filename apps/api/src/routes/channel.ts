@@ -512,6 +512,40 @@ router.patch('/stays/reservations/:cc_reservation_id', async (req: Request, res:
       }
     }
 
+    // PAY-CANONICAL-01-OWB-FIX-REFUND-VALIDATION: Reject refund_amount that exceeds
+    // the amount implied by the prior paymentStatus. Without this guard, an operator
+    // or fraud vector could persist refund_amount=999999 on an 80,000 NGN reservation,
+    // causing reconciliation chaos or downstream Paystack over-refund attempts.
+    if (
+      owambeStatus === StayBookingStatus.CANCELLED &&
+      refundAmount !== undefined &&
+      refundAmount !== null
+    ) {
+      const priorPaymentStatus = reservation.paymentStatus as string;
+      let paidAmount: number;
+      if (priorPaymentStatus === 'PENDING') {
+        paidAmount = 0;
+      } else if (priorPaymentStatus === 'DEPOSIT_PAID') {
+        paidAmount = Number(reservation.depositAmount);
+      } else if (priorPaymentStatus === 'PAID') {
+        paidAmount = Number(reservation.totalAmount);
+      } else {
+        // PARTIALLY_PAID or other — cap at totalAmount (conservative upper bound)
+        paidAmount = Number(reservation.totalAmount);
+      }
+      const requestedRefund = Number(refundAmount);
+      if (requestedRefund > paidAmount) {
+        res.status(422).json({
+          error: 'INVALID_REFUND_AMOUNT',
+          message: `refund_amount (${requestedRefund}) exceeds the amount paid (${paidAmount}) for payment_status ${priorPaymentStatus}`,
+          refund_amount_received: requestedRefund,
+          paid_amount: paidAmount,
+          prior_payment_status: priorPaymentStatus,
+        });
+        return;
+      }
+    }
+
     const updated = await prisma.stayBooking.update({
       where: { id: reservation.id },
       data: {
