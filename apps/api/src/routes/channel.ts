@@ -30,6 +30,7 @@ import {
   notifyOperatorNewBooking,
 } from '../services/notification.service';
 import { cacheGet, cacheSet } from '../services/cache.service';
+import { channelRateLimiter } from '../middleware/channelRateLimiter';
 import { validatePaymentStatusTransition, CanonicalPaymentStatus, PAYMENT_STATUS_TRANSITIONS } from '../utils/paymentStatusTransitions';
 
 const router = Router();
@@ -102,6 +103,12 @@ router.use((req: Request, _res: Response, next: NextFunction) => {
   }
   next();
 });
+
+// ─── OWB-WAVE-4-04: Per-channel-partner rate limiting ────────────────────────
+// Applied after HMAC verification (partner identity derived from x-cc-signature)
+// and after body parsing. Limits: RESERVATION 60/min, AVAILABILITY 100/min,
+// WEBHOOK 120/min, RECONCILIATION 10/hr — each per channel partner.
+router.use(channelRateLimiter());
 
 // ─── FLOW 2: Stays Reservations ────────────────────────────────────────────
 
