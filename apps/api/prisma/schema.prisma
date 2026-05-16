@@ -557,7 +557,8 @@ model StayBooking {
   // Channel integration fields (Phase A.5: Coastal Corridor)
   channelOrigin   ChannelOrigin     @default(DIRECT)
   externalRef     String?           // Coastal Corridor reservation ID
-  externalPropertyId String?        // Coastal Corridor property ID
+  externalPropertyId String?        // Owambe property ID echoed back by CC (owambe_property_id)
+  ccPropertyId    String?           // CC's native property ID (OWB-PHASE-E-02)
   channelCommissionAmount Decimal?  @db.Decimal(12, 2)
   channelCommissionPercent Decimal? @db.Decimal(5, 2)
   netToHost       Decimal?          @db.Decimal(12, 2)

@@ -140,6 +140,7 @@ router.post('/stays/reservations', async (req: Request, res: Response): Promise<
   const {
     cc_reservation_id: coastalCorridorReservationId,
     owambe_property_id: coastalCorridorPropertyId,
+    cc_property_id: ccPropertyId,
     owambe_room_id: owambeRoomId,
     // Guest fields — CC sends flat snake_case (guest_first_name etc.) or nested guest object
     // Support both forms for forward compatibility
@@ -321,6 +322,7 @@ router.post('/stays/reservations', async (req: Request, res: Response): Promise<
         channelOrigin: 'COASTAL_CORRIDOR',
         externalRef: coastalCorridorReservationId,
         externalPropertyId: coastalCorridorPropertyId,
+        ccPropertyId: ccPropertyId ?? null,
         depositAmount: depositAmount != null ? parseFloat(depositAmount.toString()) : 0,
       },
     });
