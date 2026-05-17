@@ -31,6 +31,7 @@ import {
 } from '../services/notification.service';
 import { cacheGet, cacheSet } from '../services/cache.service';
 import { channelRateLimiter } from '../middleware/channelRateLimiter';
+import { dispatchWebhookEvent } from '../services/webhookDispatcher.service';
 import { validatePaymentStatusTransition, CanonicalPaymentStatus, PAYMENT_STATUS_TRANSITIONS } from '../utils/paymentStatusTransitions';
 
 const router = Router();
@@ -716,6 +717,54 @@ router.patch('/stays/reservations/:cc_reservation_id', async (req: Request, res:
     if (idempotencyKey) {
       await cacheSet(`idempotency:patch:${idempotencyKey}`, responseBody, 86400);
     }
+
+    // OWB-WAVE-4-01: Dispatch outbound webhook event to CC for status transitions.
+    // Fired asynchronously so the response is not delayed by delivery latency.
+    setImmediate(async () => {
+      try {
+        // Map Owambe status to the appropriate CC event type
+        const eventTypeMap: Partial<Record<string, string>> = {
+          CHECKED_IN:  'reservation.checked_in',
+          CHECKED_OUT: 'reservation.checked_out',
+          CANCELLED:   'reservation.cancelled',
+          NO_SHOW:     'reservation.no_show',
+        };
+        const webhookEventType = eventTypeMap[updated.status];
+        if (webhookEventType) {
+          await dispatchWebhookEvent({
+            eventType: webhookEventType as any,
+            data: {
+              reservation_id: coastalCorridorReservationId,
+              owambe_reservation_id: updated.id,
+              previous_status: reservation.status,
+              new_status: updated.status,
+              payment_status: updated.paymentStatus,
+              cancellation_reason: cancellationReason ?? null,
+              cancelled_by: cancellationInitiatedBy ?? null,
+              refund_amount: refundAmount ?? null,
+              refund_currency: refundCurrency ?? null,
+            },
+          });
+        } else {
+          // CONFIRMED / other transitions: emit generic status_changed
+          await dispatchWebhookEvent({
+            eventType: 'reservation.status_changed',
+            data: {
+              reservation_id: coastalCorridorReservationId,
+              owambe_reservation_id: updated.id,
+              previous_status: reservation.status,
+              new_status: updated.status,
+              payment_status: updated.paymentStatus,
+            },
+          });
+        }
+      } catch (dispatchErr) {
+        logger.error('[Channel] Webhook dispatch error (non-fatal)', {
+          reservationId: updated.id,
+          error: dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr),
+        });
+      }
+    });
 
     res.status(200).json(responseBody);
   } catch (error) {

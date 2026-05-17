@@ -1569,3 +1569,28 @@ model PortfolioItem {
   @@index([vendorId])
   @@map("portfolio_items")
 }
+
+// ─── WEBHOOK DELIVERY LOG (OWB-WAVE-4-01) ────────────────────────────────────
+// Persists outbound webhook delivery attempts from Owambe→CC.
+// One row per unique eventId; updated on each retry attempt.
+model WebhookDeliveryLog {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventId         String   @unique                    // owb-evt-{hex} — idempotency anchor
+  eventType       String                              // e.g. reservation.status_changed
+  targetUrl       String
+  requestBody     String   @db.Text                  // first 5000 chars of outbound JSON
+  httpStatus      Int?                               // last HTTP response status
+  responseBody    String?  @db.Text                  // last HTTP response body (truncated)
+  deliveryStatus  String   @default("PENDING")       // PENDING | DELIVERED | FAILED
+  errorMessage    String?  @db.Text
+  attemptCount    Int      @default(0)
+  durationMs      Int?                               // last attempt duration in ms
+  lastAttemptAt   DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([deliveryStatus])
+  @@index([eventType])
+  @@index([createdAt])
+  @@map("webhook_delivery_logs")
+}
