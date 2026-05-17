@@ -478,9 +478,10 @@ router.patch('/stays/reservations/:cc_reservation_id', async (req: Request, res:
       [StayBookingStatus.PENDING]:     [StayBookingStatus.CONFIRMED, StayBookingStatus.CANCELLED],
       [StayBookingStatus.CONFIRMED]:   [StayBookingStatus.CHECKED_IN, StayBookingStatus.CANCELLED, StayBookingStatus.NO_SHOW],
       [StayBookingStatus.CHECKED_IN]:  [StayBookingStatus.CHECKED_OUT, StayBookingStatus.CANCELLED],
-      [StayBookingStatus.CHECKED_OUT]: [],
-      [StayBookingStatus.CANCELLED]:   [],
+      [StayBookingStatus.CHECKED_OUT]: [StayBookingStatus.REFUNDED],
+      [StayBookingStatus.CANCELLED]:   [StayBookingStatus.REFUNDED],
       [StayBookingStatus.NO_SHOW]:     [],
+      [StayBookingStatus.REFUNDED]:    [],
     };
 
     const allowed = validTransitions[reservation.status] ?? [];
