@@ -1003,55 +1003,422 @@ router.post('/webhooks/inbound', async (req: Request, res: Response): Promise<vo
 
   try {
     switch (eventType) {
-      case 'reservation.cancelled':
-        // TODO Phase B: Handle reservation cancellation initiated by Coastal Corridor
-        logger.info('[Channel] Webhook: reservation.cancelled', { data });
-        break;
+      // ─── OWB-WAVE-4-02: Reservation lifecycle webhooks ─────────────────────
 
-      case 'reservation.no_show':
-        // TODO Phase B: Handle no-show recording
-        logger.info('[Channel] Webhook: reservation.no_show', { data });
+      case 'reservation.cancelled': {
+        // CC-initiated cancellation: transition to CANCELLED, release calendar, notify host.
+        const ccResIdCancel: string | undefined = data?.reservation_id ?? data?.cc_reservation_id;
+        if (!ccResIdCancel) {
+          logger.warn('[Channel] Webhook reservation.cancelled: missing reservation_id', { eventId });
+          break;
+        }
+        const resCancel = await prisma.stayBooking.findFirst({
+          where: { externalRef: ccResIdCancel },
+          include: { room: { include: { property: { include: { host: true } } } } },
+        });
+        if (!resCancel) {
+          logger.warn('[Channel] Webhook reservation.cancelled: not found', { ccResIdCancel, eventId });
+          break;
+        }
+        if (resCancel.status === StayBookingStatus.CANCELLED) {
+          logger.info('[Channel] Webhook reservation.cancelled: idempotent (already CANCELLED)', { ccResIdCancel });
+          break;
+        }
+        await prisma.stayBooking.update({
+          where: { id: resCancel.id },
+          data: {
+            status: StayBookingStatus.CANCELLED,
+            cancelledAt: new Date(),
+            cancelledBy: 'COASTAL_CORRIDOR',
+            cancellationReason: (data?.cancellation_reason as string | undefined) ?? 'Cancelled by Coastal Corridor',
+          },
+        });
+        if (resCancel.roomId) {
+          setImmediate(async () => {
+            try {
+              await prisma.calendarEntry.updateMany({
+                where: {
+                  roomId: resCancel.roomId!,
+                  date: { gte: resCancel.checkInDate, lt: resCancel.checkOutDate },
+                  status: { in: ['BOOKED', 'BLOCKED'] },
+                },
+                data: { status: 'AVAILABLE' },
+              });
+            } catch (calErr) {
+              logger.error('[Channel] Webhook reservation.cancelled: calendar release failed', { reservationId: resCancel.id, error: calErr instanceof Error ? calErr.message : String(calErr) });
+            }
+          });
+        }
+        const hostCancelUser = resCancel.room?.property?.host
+          ? await prisma.user.findUnique({ where: { id: resCancel.room.property.host.userId } }).catch(() => null)
+          : null;
+        if (hostCancelUser?.email) {
+          setImmediate(() =>
+            notifyHostReservationCancelled(
+              hostCancelUser.email!,
+              hostCancelUser.firstName ?? 'Host',
+              resCancel.room?.property?.name ?? 'your property',
+              resCancel.guestName,
+              resCancel.reference,
+              resCancel.id,
+              (data?.cancellation_reason as string | undefined) ?? null,
+              'COASTAL_CORRIDOR',
+            )
+          );
+        }
+        logger.info('[Channel] Webhook reservation.cancelled: processed', { reservationId: resCancel.id, ccResIdCancel });
         break;
+      }
 
-      case 'reservation.guest_checked_in':
-        // TODO Phase B: Handle check-in confirmation
-        logger.info('[Channel] Webhook: reservation.guest_checked_in', { data });
+      case 'reservation.no_show': {
+        // Guest did not check in: transition to NO_SHOW, mark calendar BLOCKED
+        // (per OWB-FIX-CALENDAR commit 5bfb533 — NO_SHOW blocks dates to prevent double-booking).
+        const ccResIdNoShow: string | undefined = data?.reservation_id ?? data?.cc_reservation_id;
+        if (!ccResIdNoShow) {
+          logger.warn('[Channel] Webhook reservation.no_show: missing reservation_id', { eventId });
+          break;
+        }
+        const resNoShow = await prisma.stayBooking.findFirst({
+          where: { externalRef: ccResIdNoShow },
+        });
+        if (!resNoShow) {
+          logger.warn('[Channel] Webhook reservation.no_show: not found', { ccResIdNoShow, eventId });
+          break;
+        }
+        if (resNoShow.status === StayBookingStatus.NO_SHOW) {
+          logger.info('[Channel] Webhook reservation.no_show: idempotent', { ccResIdNoShow });
+          break;
+        }
+        await prisma.stayBooking.update({
+          where: { id: resNoShow.id },
+          data: { status: StayBookingStatus.NO_SHOW },
+        });
+        if (resNoShow.roomId) {
+          setImmediate(async () => {
+            try {
+              await prisma.calendarEntry.updateMany({
+                where: {
+                  roomId: resNoShow.roomId!,
+                  date: { gte: resNoShow.checkInDate, lt: resNoShow.checkOutDate },
+                },
+                data: { status: 'BLOCKED' },
+              });
+            } catch (calErr) {
+              logger.error('[Channel] Webhook reservation.no_show: calendar BLOCKED failed', { reservationId: resNoShow.id, error: calErr instanceof Error ? calErr.message : String(calErr) });
+            }
+          });
+        }
+        logger.info('[Channel] Webhook reservation.no_show: processed', { reservationId: resNoShow.id, ccResIdNoShow });
         break;
+      }
 
-      case 'reservation.guest_checked_out':
-        // TODO Phase B: Handle check-out confirmation and trigger payout
-        logger.info('[Channel] Webhook: reservation.guest_checked_out', { data });
+      case 'reservation.guest_checked_in': {
+        // CC confirms guest checked in: transition to CHECKED_IN, mark calendar BOOKED.
+        const ccResIdCheckIn: string | undefined = data?.reservation_id ?? data?.cc_reservation_id;
+        if (!ccResIdCheckIn) {
+          logger.warn('[Channel] Webhook reservation.guest_checked_in: missing reservation_id', { eventId });
+          break;
+        }
+        const resCheckIn = await prisma.stayBooking.findFirst({
+          where: { externalRef: ccResIdCheckIn },
+        });
+        if (!resCheckIn) {
+          logger.warn('[Channel] Webhook reservation.guest_checked_in: not found', { ccResIdCheckIn, eventId });
+          break;
+        }
+        if (resCheckIn.status === StayBookingStatus.CHECKED_IN) {
+          logger.info('[Channel] Webhook reservation.guest_checked_in: idempotent', { ccResIdCheckIn });
+          break;
+        }
+        await prisma.stayBooking.update({
+          where: { id: resCheckIn.id },
+          data: { status: StayBookingStatus.CHECKED_IN, checkedInAt: new Date() },
+        });
+        if (resCheckIn.roomId) {
+          setImmediate(async () => {
+            try {
+              await prisma.calendarEntry.updateMany({
+                where: {
+                  roomId: resCheckIn.roomId!,
+                  date: { gte: resCheckIn.checkInDate, lt: resCheckIn.checkOutDate },
+                },
+                data: { status: 'BOOKED' },
+              });
+            } catch (calErr) {
+              logger.error('[Channel] Webhook reservation.guest_checked_in: calendar BOOKED failed', { reservationId: resCheckIn.id, error: calErr instanceof Error ? calErr.message : String(calErr) });
+            }
+          });
+        }
+        logger.info('[Channel] Webhook reservation.guest_checked_in: processed', { reservationId: resCheckIn.id, ccResIdCheckIn });
         break;
+      }
 
-      case 'reservation.refunded':
-        // TODO Phase B: Handle refund confirmation
-        logger.info('[Channel] Webhook: reservation.refunded', { data });
+      case 'reservation.guest_checked_out': {
+        // CC confirms guest checked out: transition to CHECKED_OUT, release calendar to AVAILABLE.
+        const ccResIdCheckOut: string | undefined = data?.reservation_id ?? data?.cc_reservation_id;
+        if (!ccResIdCheckOut) {
+          logger.warn('[Channel] Webhook reservation.guest_checked_out: missing reservation_id', { eventId });
+          break;
+        }
+        const resCheckOut = await prisma.stayBooking.findFirst({
+          where: { externalRef: ccResIdCheckOut },
+        });
+        if (!resCheckOut) {
+          logger.warn('[Channel] Webhook reservation.guest_checked_out: not found', { ccResIdCheckOut, eventId });
+          break;
+        }
+        if (resCheckOut.status === StayBookingStatus.CHECKED_OUT) {
+          logger.info('[Channel] Webhook reservation.guest_checked_out: idempotent', { ccResIdCheckOut });
+          break;
+        }
+        await prisma.stayBooking.update({
+          where: { id: resCheckOut.id },
+          data: { status: StayBookingStatus.CHECKED_OUT, checkedOutAt: new Date() },
+        });
+        if (resCheckOut.roomId) {
+          setImmediate(async () => {
+            try {
+              await prisma.calendarEntry.updateMany({
+                where: {
+                  roomId: resCheckOut.roomId!,
+                  date: { gte: resCheckOut.checkInDate, lt: resCheckOut.checkOutDate },
+                  status: { in: ['BOOKED', 'BLOCKED'] },
+                },
+                data: { status: 'AVAILABLE' },
+              });
+            } catch (calErr) {
+              logger.error('[Channel] Webhook reservation.guest_checked_out: calendar release failed', { reservationId: resCheckOut.id, error: calErr instanceof Error ? calErr.message : String(calErr) });
+            }
+          });
+        }
+        logger.info('[Channel] Webhook reservation.guest_checked_out: processed', { reservationId: resCheckOut.id, ccResIdCheckOut });
         break;
+      }
 
-      case 'booking.cancelled':
-        // TODO Phase B: Handle experience booking cancellation
-        logger.info('[Channel] Webhook: booking.cancelled', { data });
+      case 'reservation.refunded': {
+        // CC confirms refund issued: transition to REFUNDED, capture refund_amount,
+        // update CommissionAuditLog with CC-provided refund details.
+        const ccResIdRefund: string | undefined = data?.reservation_id ?? data?.cc_reservation_id;
+        if (!ccResIdRefund) {
+          logger.warn('[Channel] Webhook reservation.refunded: missing reservation_id', { eventId });
+          break;
+        }
+        const resRefund = await prisma.stayBooking.findFirst({
+          where: { externalRef: ccResIdRefund },
+          include: { commissionAuditLogs: { orderBy: { createdAt: 'desc' }, take: 1 } },
+        });
+        if (!resRefund) {
+          logger.warn('[Channel] Webhook reservation.refunded: not found', { ccResIdRefund, eventId });
+          break;
+        }
+        if (resRefund.status === StayBookingStatus.REFUNDED) {
+          logger.info('[Channel] Webhook reservation.refunded: idempotent', { ccResIdRefund });
+          break;
+        }
+        const refundAmt: number | undefined = data?.refund_amount != null ? Number(data.refund_amount) : undefined;
+        const refundCurr: string | undefined = data?.refund_currency ?? resRefund.currency;
+        await prisma.stayBooking.update({
+          where: { id: resRefund.id },
+          data: {
+            status: StayBookingStatus.REFUNDED,
+            paymentStatus: 'REFUNDED' as any,
+            refundAmount: refundAmt ?? null,
+            refundCurrency: refundCurr ?? null,
+          },
+        });
+        // Update the most recent CommissionAuditLog with CC-provided refund figures
+        const latestAuditLog = resRefund.commissionAuditLogs[0];
+        if (latestAuditLog && refundAmt != null) {
+          const ccRefundCommission: number | undefined = data?.cc_commission_amount != null ? Number(data.cc_commission_amount) : undefined;
+          const ccRefundNet: number | undefined = data?.cc_net_to_host != null ? Number(data.cc_net_to_host) : undefined;
+          const hasDiscrepancy = ccRefundCommission != null &&
+            Math.abs(ccRefundCommission - Number(latestAuditLog.channelCommissionAmount)) > 0.01;
+          await prisma.commissionAuditLog.update({
+            where: { id: latestAuditLog.id },
+            data: {
+              ccProvidedCommissionAmount: ccRefundCommission ?? null,
+              ccProvidedNetToHost: ccRefundNet ?? null,
+              hasDiscrepancy: hasDiscrepancy,
+              discrepancyNote: hasDiscrepancy
+                ? `Refund commission mismatch: Owambe=${latestAuditLog.channelCommissionAmount}, CC=${ccRefundCommission}`
+                : null,
+            },
+          });
+        }
+        logger.info('[Channel] Webhook reservation.refunded: processed', { reservationId: resRefund.id, ccResIdRefund, refundAmt });
         break;
+      }
 
-      case 'booking.completed':
-        // TODO Phase B: Handle experience booking completion and trigger payout
-        logger.info('[Channel] Webhook: booking.completed', { data });
-        break;
+      // ─── OWB-WAVE-4-02: Experience booking lifecycle webhooks ───────────────
 
-      case 'booking.refunded':
-        // TODO Phase B: Handle experience booking refund
-        logger.info('[Channel] Webhook: booking.refunded', { data });
+      case 'booking.cancelled': {
+        // CC-initiated experience booking cancellation: transition to CANCELLED,
+        // decrement slot bookedCount to release capacity.
+        const ccBookingIdCancel: string | undefined = data?.booking_id ?? data?.cc_booking_id;
+        if (!ccBookingIdCancel) {
+          logger.warn('[Channel] Webhook booking.cancelled: missing booking_id', { eventId });
+          break;
+        }
+        const bookingCancel = await prisma.experienceBooking.findFirst({
+          where: { externalRef: ccBookingIdCancel },
+        });
+        if (!bookingCancel) {
+          logger.warn('[Channel] Webhook booking.cancelled: not found', { ccBookingIdCancel, eventId });
+          break;
+        }
+        if (bookingCancel.status === ExperienceBookingStatus.CANCELLED) {
+          logger.info('[Channel] Webhook booking.cancelled: idempotent', { ccBookingIdCancel });
+          break;
+        }
+        await prisma.experienceBooking.update({
+          where: { id: bookingCancel.id },
+          data: {
+            status: ExperienceBookingStatus.CANCELLED,
+            cancelledAt: new Date(),
+            cancellationReason: (data?.cancellation_reason as string | undefined) ?? 'Cancelled by Coastal Corridor',
+          },
+        });
+        // Release slot capacity
+        setImmediate(async () => {
+          try {
+            await prisma.experienceSlot.update({
+              where: { id: bookingCancel.slotId },
+              data: { bookedCount: { decrement: bookingCancel.numberOfParticipants ?? 1 } },
+            });
+          } catch (slotErr) {
+            logger.error('[Channel] Webhook booking.cancelled: slot capacity release failed', { bookingId: bookingCancel.id, error: slotErr instanceof Error ? slotErr.message : String(slotErr) });
+          }
+        });
+        logger.info('[Channel] Webhook booking.cancelled: processed', { bookingId: bookingCancel.id, ccBookingIdCancel });
         break;
+      }
 
-      case 'property.deactivated':
-        // TODO Phase B: Handle property deactivation notification from CC
-        logger.info('[Channel] Webhook: property.deactivated', { data });
+      case 'booking.completed': {
+        // CC confirms experience booking completed: transition to COMPLETED.
+        const ccBookingIdComplete: string | undefined = data?.booking_id ?? data?.cc_booking_id;
+        if (!ccBookingIdComplete) {
+          logger.warn('[Channel] Webhook booking.completed: missing booking_id', { eventId });
+          break;
+        }
+        const bookingComplete = await prisma.experienceBooking.findFirst({
+          where: { externalRef: ccBookingIdComplete },
+        });
+        if (!bookingComplete) {
+          logger.warn('[Channel] Webhook booking.completed: not found', { ccBookingIdComplete, eventId });
+          break;
+        }
+        if (bookingComplete.status === ExperienceBookingStatus.COMPLETED) {
+          logger.info('[Channel] Webhook booking.completed: idempotent', { ccBookingIdComplete });
+          break;
+        }
+        await prisma.experienceBooking.update({
+          where: { id: bookingComplete.id },
+          data: { status: ExperienceBookingStatus.COMPLETED, completedAt: new Date() },
+        });
+        logger.info('[Channel] Webhook booking.completed: processed', { bookingId: bookingComplete.id, ccBookingIdComplete });
         break;
+      }
 
-      case 'experience.deactivated':
-        // TODO Phase B: Handle experience deactivation notification from CC
-        logger.info('[Channel] Webhook: experience.deactivated', { data });
+      case 'booking.refunded': {
+        // CC confirms experience booking refund: transition to REFUNDED.
+        const ccBookingIdRefund: string | undefined = data?.booking_id ?? data?.cc_booking_id;
+        if (!ccBookingIdRefund) {
+          logger.warn('[Channel] Webhook booking.refunded: missing booking_id', { eventId });
+          break;
+        }
+        const bookingRefund = await prisma.experienceBooking.findFirst({
+          where: { externalRef: ccBookingIdRefund },
+        });
+        if (!bookingRefund) {
+          logger.warn('[Channel] Webhook booking.refunded: not found', { ccBookingIdRefund, eventId });
+          break;
+        }
+        if (bookingRefund.status === ExperienceBookingStatus.REFUNDED) {
+          logger.info('[Channel] Webhook booking.refunded: idempotent', { ccBookingIdRefund });
+          break;
+        }
+        await prisma.experienceBooking.update({
+          where: { id: bookingRefund.id },
+          data: {
+            status: ExperienceBookingStatus.REFUNDED,
+            paymentStatus: 'REFUNDED' as any,
+          },
+        });
+        logger.info('[Channel] Webhook booking.refunded: processed', { bookingId: bookingRefund.id, ccBookingIdRefund });
         break;
+      }
+
+      // ─── OWB-WAVE-4-02: Property / Experience deactivation webhooks ─────────
+
+      case 'property.deactivated': {
+        // CC notifies that a property has been deactivated on CC side.
+        // Set isActive=false on Owambe. Existing reservations are preserved (do NOT cascade-cancel).
+        const ccPropertyIdDeact: string | undefined = data?.owambe_property_id ?? data?.property_id;
+        if (!ccPropertyIdDeact) {
+          logger.warn('[Channel] Webhook property.deactivated: missing property_id', { eventId });
+          break;
+        }
+        const propDeact = await prisma.property.findFirst({
+          where: {
+            OR: [
+              { id: ccPropertyIdDeact },
+              { coastalCorridorPropertyId: ccPropertyIdDeact },
+            ],
+          },
+        });
+        if (!propDeact) {
+          logger.warn('[Channel] Webhook property.deactivated: property not found', { ccPropertyIdDeact, eventId });
+          break;
+        }
+        if (!propDeact.isActive) {
+          logger.info('[Channel] Webhook property.deactivated: idempotent (already inactive)', { ccPropertyIdDeact });
+          break;
+        }
+        await prisma.property.update({
+          where: { id: propDeact.id },
+          data: { isActive: false },
+        });
+        logger.info('[Channel] Webhook property.deactivated: property hidden from search', {
+          propertyId: propDeact.id,
+          ccPropertyIdDeact,
+          note: 'Existing reservations preserved — no cascade-cancel',
+        });
+        break;
+      }
+
+      case 'experience.deactivated': {
+        // CC notifies that an experience has been deactivated on CC side.
+        // Set isActive=false on Owambe. Existing bookings are preserved.
+        const ccExperienceIdDeact: string | undefined = data?.owambe_experience_id ?? data?.experience_id;
+        if (!ccExperienceIdDeact) {
+          logger.warn('[Channel] Webhook experience.deactivated: missing experience_id', { eventId });
+          break;
+        }
+        // Experience model has no CC-side ID field; CC must send the Owambe experience UUID.
+        // ExperienceBooking.externalExperienceId stores the CC experience ID, but the
+        // Experience table itself is looked up by Owambe UUID (owambe_experience_id from CC).
+        const expDeact = await prisma.experience.findFirst({
+          where: { id: ccExperienceIdDeact },
+        });
+        if (!expDeact) {
+          logger.warn('[Channel] Webhook experience.deactivated: experience not found', { ccExperienceIdDeact, eventId });
+          break;
+        }
+        if (!expDeact.isActive) {
+          logger.info('[Channel] Webhook experience.deactivated: idempotent (already inactive)', { ccExperienceIdDeact });
+          break;
+        }
+        await prisma.experience.update({
+          where: { id: expDeact.id },
+          data: { isActive: false },
+        });
+        logger.info('[Channel] Webhook experience.deactivated: experience hidden from search', {
+          experienceId: expDeact.id,
+          ccExperienceIdDeact,
+          note: 'Existing bookings preserved — no cascade-cancel',
+        });
+        break;
+      }
 
       case 'reconciliation.requested':
         logger.info('[Channel] Webhook: reconciliation.requested — triggering immediate run', { data });
