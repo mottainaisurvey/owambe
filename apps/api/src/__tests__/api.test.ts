@@ -13,7 +13,7 @@ let testBookingId: string;
 
 beforeAll(async () => {
   // Clear test data
-  await prisma.booking.deleteMany({});
+  await prisma.stayBooking.deleteMany({});
   await prisma.event.deleteMany({});
   await prisma.vendor.deleteMany({});
   await prisma.planner.deleteMany({});
