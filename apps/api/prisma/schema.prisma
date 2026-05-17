@@ -102,14 +102,50 @@ enum BookingType {
   RFQ
 }
 enum VendorCategory {
+  // ── Events ──────────────────────────────────────────
   VENUE
   CATERING
+  WEDDING_CAKES
+  BAR_BEVERAGE
   AV_PRODUCTION
+  CONFERENCE_AV
   PHOTOGRAPHY_VIDEO
+  PRE_WEDDING
   DECOR_FLORALS
   ENTERTAINMENT
+  MC_EMCEE
   MAKEUP_ARTIST
   SPEAKER
+  ASO_EBI
+  BRIDAL_JEWELLERY
+  USHERS_HOSTESSES
+  EVENT_SECURITY
+  EVENT_COORDINATION
+  BRANDING_SIGNAGE
+  SOUVENIR_SOURCING
+  SET_DESIGN
+  CHILDRENS_PARTY
+  // ── Stays ───────────────────────────────────────────
+  CLEANING_HOUSEKEEPING
+  PROPERTY_MAINTENANCE
+  LAUNDRY
+  PROPERTY_SECURITY
+  INTERIOR_DESIGN
+  LISTING_PHOTOGRAPHY
+  LOCAL_TRANSPORT
+  AIRPORT_PICKUP
+  IN_PROPERTY_CATERING
+  CONCIERGE
+  // ── Experiences ─────────────────────────────────────
+  TOUR_GUIDES
+  BOAT_CHARTER
+  EQUIPMENT_RENTAL
+  TOURISM_TRANSPORT
+  WELLNESS_SPA
+  CULTURAL_WORKSHOPS
+  ADVENTURE_ACTIVITIES
+  SUB_GUIDES
+  TRAVEL_DOCUMENTATION
 }
 enum VendorStatus {
   PENDING
@@ -377,6 +413,10 @@ model Vendor {
   isInstantBook       Boolean        @default(false)
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
+  // VENDOR-MARKETPLACE-EXPANSION-01: Layer 2 tag system
+  vendorCategoryId String?  @db.Uuid  // FK to VendorCategoryLookup (nullable for migration safety)
+  vendorCategory   VendorCategoryLookup? @relation(fields: [vendorCategoryId], references: [id])
+  tags             VendorTag[]  @relation("VendorToVendorTag")
   user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   packages      VendorPackage[]
   availability  VendorAvailability[]
@@ -386,6 +426,7 @@ model Vendor {
   contracts     Contract[]
   portfolioItems PortfolioItem[]
   @@index([category])
+  @@index([vendorCategoryId])
   @@index([city])
   @@index([status])
   @@index([latitude, longitude])
@@ -741,20 +782,52 @@ model CohortCode {
   @@map("cohort_codes")
 }
 
+// ─── VENDOR TAG SYSTEM (VENDOR-MARKETPLACE-EXPANSION-01) ──────────────────
+model VendorTag {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  label        String             // vendor-supplied free-form label
+  normalised   String             // lowercase trimmed canonical form
+  usageCount   Int      @default(0)
+  isRetired    Boolean  @default(false)  // set true when merged into canonical
+  canonicalId  String?  @db.Uuid         // points to canonical tag after merge
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  vendors      Vendor[] @relation("VendorToVendorTag")
+  @@unique([normalised])
+  @@index([isRetired])
+  @@index([usageCount])
+  @@map("vendor_tags")
+}
+
+model TagMergeAuditLog {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  retiredTagId    String   @db.Uuid
+  retiredLabel    String
+  canonicalTagId  String   @db.Uuid
+  canonicalLabel  String
+  vendorsMigrated Int      @default(0)
+  performedBy     String   @db.Uuid  // admin userId
+  createdAt       DateTime @default(now())
+  @@index([canonicalTagId])
+  @@map("tag_merge_audit_log")
+}
+
 // ─── LOOKUP TABLES (Phase A: Admin-managed categories) ──
-
-model VendorCategoryLookup {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  key         String   @unique  // e.g. "VENUE", "CATERING"
-  label       String            // e.g. "Venue", "Catering"
-  description String?
-  iconName    String?
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
+model VendorCategoryLookup { {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key             String   @unique  // e.g. "VENUE", "CATERING"
+  label           String            // e.g. "Venue", "Catering"
+  description     String?
+  iconName        String?
+  isActive        Boolean  @default(true)
+  isPublicVisible Boolean  @default(true)  // admin visibility toggle
+  modeAffinities  String[] @default([])    // ["EVENTS", "STAYS", "EXPERIENCES"]
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  vendors         Vendor[]
   @@index([isActive])
+  @@index([isPublicVisible])
   @@map("vendor_category_lookup")
 }
 

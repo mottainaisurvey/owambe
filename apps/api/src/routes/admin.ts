@@ -685,3 +685,88 @@ adminRouter.post('/users/:id/verify-email', async (req, res, next) => {
     res.json({ success: true, data: updated });
   } catch (err) { next(err); }
 });
+
+// ─── VENDOR-MARKETPLACE-EXPANSION-01: Tag management (admin) ─────────────────
+import { mergeTag, toggleCategoryVisibility } from '../services/vendorTags.service';
+
+/**
+ * GET /api/admin/tags
+ * List all tags (including retired), ordered by usageCount desc.
+ * AC-8
+ */
+adminRouter.get('/tags', async (req, res, next) => {
+  try {
+    const { includeRetired = 'false', limit = 50, page = 1 } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+    const where: any = {};
+    if (includeRetired !== 'true') where.isRetired = false;
+    const [tags, total] = await Promise.all([
+      prisma.vendorTag.findMany({
+        where,
+        orderBy: { usageCount: 'desc' },
+        skip,
+        take: Number(limit),
+        select: {
+          id: true, label: true, normalised: true,
+          usageCount: true, isRetired: true, canonicalId: true, createdAt: true,
+        },
+      }),
+      prisma.vendorTag.count({ where }),
+    ]);
+    res.json({ success: true, tags, total, page: Number(page), limit: Number(limit) });
+  } catch (err) { next(err); }
+});
+
+/**
+ * POST /api/admin/tags/merge
+ * Merge retiredTagId into canonicalTagId.
+ * AC-5
+ */
+adminRouter.post('/tags/merge', async (req, res, next) => {
+  try {
+    const { retiredTagId, canonicalTagId } = req.body;
+    if (!retiredTagId || !canonicalTagId) {
+      return res.status(400).json({ success: false, error: 'retiredTagId and canonicalTagId are required' });
+    }
+    const adminUserId = (req as any).userId;
+    const result = await mergeTag(retiredTagId, canonicalTagId, adminUserId);
+    res.json({ success: true, ...result });
+  } catch (err) { next(err); }
+});
+
+/**
+ * GET /api/admin/tags/merge-audit
+ * List tag merge audit log entries.
+ * AC-5
+ */
+adminRouter.get('/tags/merge-audit', async (req, res, next) => {
+  try {
+    const { limit = 50, page = 1 } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+    const [entries, total] = await Promise.all([
+      prisma.tagMergeAuditLog.findMany({
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: Number(limit),
+      }),
+      prisma.tagMergeAuditLog.count(),
+    ]);
+    res.json({ success: true, entries, total });
+  } catch (err) { next(err); }
+});
+
+/**
+ * PATCH /api/admin/categories/vendor/:id/visibility
+ * Toggle isPublicVisible on a vendor category.
+ * AC-10
+ */
+adminRouter.patch('/categories/vendor/:id/visibility', async (req, res, next) => {
+  try {
+    const { isPublicVisible } = req.body;
+    if (typeof isPublicVisible !== 'boolean') {
+      return res.status(400).json({ success: false, error: 'isPublicVisible must be a boolean' });
+    }
+    const category = await toggleCategoryVisibility(req.params.id, isPublicVisible);
+    res.json({ success: true, category });
+  } catch (err) { next(err); }
+});
