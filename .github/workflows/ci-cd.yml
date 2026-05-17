@@ -98,6 +98,9 @@ jobs:
           REDIS_URL: redis://localhost:6379
           JWT_SECRET: test-jwt-secret-minimum-32-characters-long
           NODE_ENV: test
+          OPENAI_API_KEY: sk-test-placeholder-not-used-in-tests
+          COASTAL_CORRIDOR_SHARED_SECRET: test-cc-shared-secret-placeholder
+          COASTAL_CORRIDOR_WEBHOOK_SECRET: test-cc-webhook-secret-placeholder
 
   # ─── BUILD ───────────────────────────────────────────
   build:
