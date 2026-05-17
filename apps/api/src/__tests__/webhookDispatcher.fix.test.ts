@@ -274,6 +274,41 @@ describe('OWB-WAVE-4-01 Fix: Timestamp Staleness — Core Fix Verification', () 
     // The fix ensures freshSig (not staleSig) is what gets sent
   });
 
+  it('staleness scenario: enqueue at T-6min, dispatch now — freshTimestamp passes CC 300s tolerance', () => {
+    // Simulate the exact failure mode the fix is designed to prevent:
+    //   - Job enqueued at T-6 minutes (360 seconds ago)
+    //   - Job sits in BullMQ queue under load
+    //   - Worker picks it up now
+    //
+    // BEFORE fix: timestamp = T-360s would be sent → CC rejects (> 300s tolerance)
+    // AFTER fix:  freshTimestamp = now → CC accepts (within tolerance)
+    const job = makeJobData();
+    const enqueueUnixTs = Math.floor(Date.now() / 1000) - 360; // 6 minutes ago
+
+    // Simulate what the old code would have done: carry enqueue timestamp to dispatch
+    const staleTimestamp = String(enqueueUnixTs);
+    const bodyString = buildBodyString(job.eventType, job.eventId, job.eventTimestamp, job.data);
+    const staleSig = signPayload(TEST_SECRET, staleTimestamp, bodyString);
+
+    // CC's tolerance window: reject if |now - timestamp| > 300 seconds
+    const nowUnix = Math.floor(Date.now() / 1000);
+    const staleAge = nowUnix - parseInt(staleTimestamp);
+    expect(staleAge).toBeGreaterThan(300); // stale timestamp would be rejected by CC
+
+    // Simulate what the fixed code does: generate freshTimestamp at dispatch time
+    const { freshTimestamp, signature: freshSig } = simulateDispatch(job, TEST_SECRET);
+    const freshAge = nowUnix - parseInt(freshTimestamp);
+    expect(freshAge).toBeLessThanOrEqual(5); // fresh timestamp passes CC's 300s tolerance
+
+    // Confirm the two signatures differ (different timestamps → different HMACs)
+    expect(freshSig).not.toBe(staleSig);
+
+    // Confirm: only the fresh signature would pass CC's tolerance check
+    // (staleAge > 300 → CC rejects; freshAge <= 5 → CC accepts)
+    expect(staleAge).toBeGreaterThan(300);
+    expect(freshAge).toBeLessThanOrEqual(300);
+  });
+
   it('scope boundary: job.data does NOT contain timestamp or signature fields', () => {
     const job = makeJobData();
 
