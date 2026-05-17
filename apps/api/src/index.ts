@@ -88,7 +88,7 @@ app.use(requestLogger);
 app.use(auditLog);
 
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString(), service: 'owambe-api', version: '1.0.0', environment: process.env.NODE_ENV || 'development' });
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), service: 'owambe-api', version: "1.0.0", environment: process.env.NODE_ENV || "development", build: (process.env.RAILWAY_GIT_COMMIT_SHA || "local").slice(0, 8) });
 });
 
 // Phase B: DB schema health check (staging diagnostics)
