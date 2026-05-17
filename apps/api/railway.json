@@ -2,7 +2,7 @@
   "$schema": "https://railway.com/railway.schema.json",
   "build": {
     "builder": "NIXPACKS",
-    "buildCommand": "npm install --legacy-peer-deps && npm run db:generate && npm run build"
+    "buildCommand": "npm install --legacy-peer-deps && DATABASE_URL=postgresql://placeholder:placeholder@localhost:5432/placeholder npm run db:generate && npm run build"
   },
   "deploy": {
     "startCommand": "npx prisma db push --accept-data-loss && node dist/index.js",
