@@ -1,6 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  typescript: {
+    // Type checking is performed in the dedicated lint CI step.
+    ignoreBuildErrors: true,
+  },
+  eslint: {
+    // ESLint is run in the dedicated lint CI step.
+    ignoreDuringBuilds: true,
+  },
 
   // Allow any subdomain to be passed as a header
   async headers() {

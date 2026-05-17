@@ -114,6 +114,10 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
       - run: npm ci --legacy-peer-deps
+      - name: Generate Prisma client (for API build)
+        run: cd apps/api && npx prisma generate
+        env:
+          DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
       - name: Build all packages
         run: npm run build
         env:
