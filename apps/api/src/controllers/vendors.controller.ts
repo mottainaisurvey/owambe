@@ -84,7 +84,7 @@ export async function getVendorProfile(req: Request, res: Response, next: NextFu
   try {
     const { slug } = req.params;
     const vendor = await prisma.vendor.findFirst({
-      where: { OR: [{ id: slug }, { slug }], status: 'VERIFIED' },
+      where: { slug, status: 'VERIFIED' },
       include: {
         portfolioItems: { orderBy: [{ isMain: 'desc' }, { sortOrder: 'asc' }] },
         packages: { where: { isActive: true }, orderBy: { price: 'asc' } },
