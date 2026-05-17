@@ -87,7 +87,7 @@ let _reconciliationQueue: Queue | null = null;
 let _reconciliationWorker: Worker | null = null;
 let _redisAvailable = false;
 
-const QUEUE_NAME = 'owambe:reconciliation';
+const QUEUE_NAME = 'owambe-reconciliation';
 const NIGHTLY_CRON = '0 2 * * *'; // 02:00 UTC daily
 
 // ─── Core Reconciliation Logic ────────────────────────────────────────────────

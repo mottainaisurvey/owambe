@@ -314,7 +314,11 @@ async function bootstrap() {
     await initQueues();
     await startWorkers();
     await initWebhookDispatcher();
-    await initReconciliationCron();
+    try {
+      await initReconciliationCron();
+    } catch (err: any) {
+      logger.error('[Bootstrap] initReconciliationCron failed, skipping:', err.message);
+    }
     httpServer.listen(PORT, '0.0.0.0', () => {
       logger.info(`Owambe API running on port ${PORT}`);
     });
