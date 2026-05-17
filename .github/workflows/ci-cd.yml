@@ -21,7 +21,12 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
       - run: npm ci
-      - run: npm run lint
+      - name: Lint Web
+        run: cd apps/web && npx next lint
+      - name: Lint Whitelabel
+        run: cd apps/whitelabel && npx next lint
+      - name: Lint Mobile
+        run: cd apps/mobile && npx eslint src --ext .ts,.tsx
       - name: Type check API
         run: cd apps/api && npx tsc --noEmit
       - name: Type check Web
