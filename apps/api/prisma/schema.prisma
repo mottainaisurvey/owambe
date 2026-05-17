@@ -1594,3 +1594,47 @@ model WebhookDeliveryLog {
   @@index([createdAt])
   @@map("webhook_delivery_logs")
 }
+
+// ─── RECONCILIATION (OWB-WAVE-4-03) ──────────────────────────────────────────
+
+model ReconciliationRun {
+  id                        String    @id                        // recon-{timestamp}-{hex}
+  startedAt                 DateTime
+  completedAt               DateTime?
+  durationMs                Int?
+  status                    String    @default("RUNNING")        // RUNNING | SUCCESS | PARTIAL | FAILED
+  staysChecked              Int       @default(0)
+  experiencesChecked        Int       @default(0)
+  driftsDetected            Int       @default(0)
+  autoCorrectionsApplied    Int       @default(0)
+  manualReviewItemsFlagged  Int       @default(0)
+  createdAt                 DateTime  @default(now())
+  manualReviewItems         ReconciliationManualReview[]
+
+  @@index([status])
+  @@index([startedAt])
+  @@map("reconciliation_runs")
+}
+
+model ReconciliationManualReview {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reconciliationRunId   String
+  scope                 String                                   // STAYS | EXPERIENCES
+  externalRef           String?                                  // CC-side ID
+  owambeId              String?                                  // Owambe-side ID
+  driftType             String                                   // STATUS_MISMATCH | MISSING_ON_OWAMBE | AMOUNT_DRIFT | etc.
+  ccValue               String?  @db.Text
+  owambeValue           String?  @db.Text
+  note                  String   @db.Text
+  resolvedAt            DateTime?
+  resolvedBy            String?
+  resolutionNote        String?  @db.Text
+  createdAt             DateTime @default(now())
+  reconciliationRun     ReconciliationRun @relation(fields: [reconciliationRunId], references: [id], onDelete: Cascade)
+
+  @@index([reconciliationRunId])
+  @@index([scope])
+  @@index([driftType])
+  @@index([createdAt])
+  @@map("reconciliation_manual_reviews")
+}

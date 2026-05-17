@@ -32,6 +32,7 @@ import {
 import { cacheGet, cacheSet } from '../services/cache.service';
 import { channelRateLimiter } from '../middleware/channelRateLimiter';
 import { dispatchWebhookEvent } from '../services/webhookDispatcher.service';
+import { dispatchReconciliationNow } from '../services/reconciliation.service';
 import { validatePaymentStatusTransition, CanonicalPaymentStatus, PAYMENT_STATUS_TRANSITIONS } from '../utils/paymentStatusTransitions';
 
 const router = Router();
@@ -1053,8 +1054,8 @@ router.post('/webhooks/inbound', async (req: Request, res: Response): Promise<vo
         break;
 
       case 'reconciliation.requested':
-        // TODO Phase B: Trigger reconciliation snapshot generation
-        logger.info('[Channel] Webhook: reconciliation.requested', { data });
+        logger.info('[Channel] Webhook: reconciliation.requested — triggering immediate run', { data });
+        setImmediate(() => dispatchReconciliationNow().catch((e: Error) => logger.error('[Channel] reconciliation.requested dispatch failed', { error: e.message })));
         break;
 
       default:

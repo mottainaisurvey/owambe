@@ -44,6 +44,7 @@ import stayBookingsRouter from './routes/stay-bookings';
 import experienceBookingsRouter from './routes/experience-bookings';
 import { initQueues, startWorkers, closeQueues } from './services/queue.service';
 import { initWebhookDispatcher, closeWebhookDispatcher } from './services/webhookDispatcher.service';
+import { initReconciliationCron, closeReconciliationCron } from './services/reconciliation.service';
 
 import { initSocket } from './socket';
 import { logger } from './utils/logger';
@@ -313,11 +314,12 @@ async function bootstrap() {
     await initQueues();
     await startWorkers();
     await initWebhookDispatcher();
+    await initReconciliationCron();
     httpServer.listen(PORT, '0.0.0.0', () => {
       logger.info(`Owambe API running on port ${PORT}`);
     });
-    process.on('SIGTERM', async () => { httpServer.close(); await closeQueues(); await closeWebhookDispatcher(); await prisma.$disconnect(); process.exit(0); });
-    process.on('SIGINT', async () => { await closeQueues(); await closeWebhookDispatcher(); await prisma.$disconnect(); process.exit(0); });
+    process.on('SIGTERM', async () => { httpServer.close(); await closeQueues(); await closeWebhookDispatcher(); await closeReconciliationCron(); await prisma.$disconnect(); process.exit(0); });
+    process.on('SIGINT', async () => { await closeQueues(); await closeWebhookDispatcher(); await closeReconciliationCron(); await prisma.$disconnect(); process.exit(0); });
   } catch (err) {
     logger.error('Failed to start server', err);
     process.exit(1);
