@@ -63,13 +63,22 @@ function classifyPath(path: string): EndpointCategory | null {
 
 /**
  * Derive a stable partner identity key from the request.
- * Uses the first 16 hex chars of x-cc-signature (HMAC prefix) as the
- * per-partner discriminator. Falls back to IP address if header absent.
+ *
+ * Currently Owambe has a single channel partner (Coastal Corridor). The
+ * shared-secret architecture means all authenticated CC requests carry the
+ * same secret, so the stable discriminator is the constant string
+ * 'coastal-corridor'. A future multi-partner architecture would introduce
+ * a stable x-channel-partner-id header or a secret-hash lookup table.
+ *
+ * Falls back to the request IP for unauthenticated requests (should not
+ * reach this middleware in production since HMAC verification runs first).
  */
 function partnerKey(req: Request): string {
+  // All requests that pass HMAC verification are from Coastal Corridor.
+  // Use a constant key so the rate limit counter accumulates correctly.
   const sig = req.headers['x-cc-signature'] as string | undefined;
-  if (sig && sig.length >= 16) {
-    return `cc:${sig.substring(0, 16)}`;
+  if (sig) {
+    return 'cc:coastal-corridor';
   }
   return `ip:${req.ip ?? 'unknown'}`;
 }
