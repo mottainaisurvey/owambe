@@ -20,7 +20,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-      - run: npm ci
+      - run: npm ci --legacy-peer-deps
       - name: Lint Web
         run: cd apps/web && npx next lint
       - name: Lint Whitelabel
