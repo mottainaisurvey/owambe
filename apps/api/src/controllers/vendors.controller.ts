@@ -93,6 +93,7 @@ export async function getVendorProfile(req: Request, res: Response, next: NextFu
           take: 10,
           include: { booking: { select: { eventDate: true } } }
         },
+        tags: { select: { id: true, name: true, slug: true } },
       }
     });
     if (!vendor) throw new AppError('Vendor not found', 404);
@@ -177,6 +178,7 @@ export async function getMyVendorProfile(req: Request, res: Response, next: Next
       include: {
         portfolioItems: { orderBy: [{ isMain: 'desc' }, { sortOrder: 'asc' }] },
         packages: { orderBy: { price: 'asc' } },
+        tags: { select: { id: true, name: true, slug: true } },
       }
     });
     if (!vendor) throw new AppError('Vendor profile not found', 404);
