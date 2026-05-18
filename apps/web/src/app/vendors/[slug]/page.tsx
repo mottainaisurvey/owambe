@@ -6,6 +6,7 @@ import { vendorsApi, bookingsApi } from '@/lib/api';
 import { formatNGN, VENDOR_CATEGORY_LABELS, VENDOR_CATEGORY_EMOJIS, formatDate } from '@/lib/utils';
 import { useState } from 'react';
 import Link from 'next/link';
+import { useAuthStore } from '@/store/auth.store';
 import toast from 'react-hot-toast';
 import { Star, MapPin, Zap, CheckCircle, MessageSquare, Calendar, Shield } from 'lucide-react';
 
@@ -13,6 +14,7 @@ export default function VendorProfilePage() {
   const params = useParams();
   const slug = params.slug as string;
   const [selectedDate, setSelectedDate] = useState('');
+  const { user } = useAuthStore();
   const [showBookModal, setShowBookModal] = useState(false);
 
   const { data, isLoading } = useQuery({
@@ -106,6 +108,31 @@ export default function VendorProfilePage() {
               {vendor.description || vendor.shortBio || 'Professional event vendor based in Lagos, Nigeria.'}
             </p>
           </div>
+
+          {/* Tags (AC-2) */}
+          {vendor.tags?.length > 0 && (
+            <div className="card p-5 mb-4">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-bold text-base">Service Tags</h2>
+                {/* AC-2: Edit affordance for vendor's own view */}
+                {user?.role === 'VENDOR' && (
+                  <Link href="/vendor/settings?tab=tags" className="text-xs text-[var(--accent)] hover:underline">Edit tags →</Link>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {vendor.tags.map((tag: any) => (
+                  /* AC-2: Tag chips clickable; navigates to /vendors?tags=<tag> */
+                  <Link
+                    key={tag.id}
+                    href={`/vendors?tags=${encodeURIComponent(tag.label)}`}
+                    className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 transition-colors cursor-pointer"
+                  >
+                    🏷 {tag.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Packages */}
           {vendor.packages?.length > 0 && (
