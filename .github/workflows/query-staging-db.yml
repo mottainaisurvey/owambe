@@ -17,10 +17,13 @@ jobs:
         id: get-db-url
         run: |
           npm install -g @railway/cli
-          DB_URL=$(railway variable get DATABASE_URL \
+          DB_URL=$(railway variable list \
             --service 3cc8cf6c-4fd0-4021-9473-5a4e569965be \
             --environment 388aaa3b-46e5-464f-be07-2b2501c6a4c9 \
-            --project c57d784c-0f16-4855-8adf-dfa37eaf3738 2>&1)
+            --project c57d784c-0f16-4855-8adf-dfa37eaf3738 \
+            --json | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('DATABASE_URL',''))")
+          if [ -z "$DB_URL" ]; then echo 'ERROR: DATABASE_URL empty'; exit 1; fi
+          echo "::add-mask::$DB_URL"
           echo "DATABASE_URL=$DB_URL" >> $GITHUB_OUTPUT
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
