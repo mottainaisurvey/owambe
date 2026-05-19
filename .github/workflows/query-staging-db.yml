@@ -1,0 +1,31 @@
+name: Query Staging DB for Room IDs (one-shot)
+on:
+  workflow_dispatch:
+
+jobs:
+  query-db:
+    name: Query Staging DB
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Query staging DB for rooms and properties
+        run: |
+          railway run \
+            --service 3cc8cf6c-4fd0-4021-9473-5a4e569965be \
+            --environment 388aaa3b-46e5-464f-be07-2b2501c6a4c9 \
+            --project c57d784c-0f16-4855-8adf-dfa37eaf3738 \
+            node -e "
+          const { PrismaClient } = require('@prisma/client');
+          const prisma = new PrismaClient();
+          async function main() {
+            const rooms = await prisma.room.findMany({ take: 5, include: { property: true } });
+            console.log('ROOMS:', JSON.stringify(rooms.map(r => ({ id: r.id, name: r.name, propertyId: r.propertyId, propertyName: r.property?.name })), null, 2));
+            const users = await prisma.user.findMany({ take: 3, where: { role: 'HOST' }, select: { id: true, email: true, role: true } });
+            console.log('HOST_USERS:', JSON.stringify(users, null, 2));
+          }
+          main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
+          " 2>&1
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
