@@ -1,0 +1,32 @@
+name: Read Railway Staging Variables (one-shot)
+on:
+  workflow_dispatch:
+
+jobs:
+  read-variables:
+    name: Read Railway Variables
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: List variables on Railway staging
+        run: |
+          railway variable list \
+            --service 3cc8cf6c-4fd0-4021-9473-5a4e569965be \
+            --environment 388aaa3b-46e5-464f-be07-2b2501c6a4c9 \
+            --project c57d784c-0f16-4855-8adf-dfa37eaf3738 \
+            --json | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          print('Variable count:', len(data))
+          print('Keys:', sorted(data.keys()))
+          for key in ['COASTAL_CORRIDOR_SHARED_SECRET', 'COASTAL_CORRIDOR_WEBHOOK_SECRET', 'OWAMBE_WEBHOOK_OUTBOUND_SECRET', 'OWAMBE_API_KEY']:
+              if key in data:
+                  val = data[key]
+                  print(f'{key}={val}')
+              else:
+                  print(f'{key}=NOT_SET')
+          "
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
