@@ -8,9 +8,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install Railway CLI
-        run: |
-          curl -fsSL https://railway.app/install.sh | sh
-          echo "${HOME}/.railway/bin" >> "${GITHUB_PATH}"
+        run: curl -fsSL https://railway.app/install.sh | sh
+
+      - name: Add Railway to PATH
+        run: echo "$HOME/.railway/bin" >> $GITHUB_PATH
 
       - name: Fetch recent Railway logs
         env:
