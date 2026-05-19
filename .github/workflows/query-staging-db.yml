@@ -7,25 +7,41 @@ jobs:
     name: Query Staging DB
     runs-on: ubuntu-latest
     steps:
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
+      - uses: actions/checkout@v4
 
-      - name: Query staging DB for rooms and properties
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Get DATABASE_URL from Railway
+        id: get-db-url
         run: |
-          railway run \
+          npm install -g @railway/cli
+          DB_URL=$(railway variable get DATABASE_URL \
             --service 3cc8cf6c-4fd0-4021-9473-5a4e569965be \
             --environment 388aaa3b-46e5-464f-be07-2b2501c6a4c9 \
-            --project c57d784c-0f16-4855-8adf-dfa37eaf3738 \
-            node -e "
+            --project c57d784c-0f16-4855-8adf-dfa37eaf3738 2>&1)
+          echo "DATABASE_URL=$DB_URL" >> $GITHUB_OUTPUT
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
+
+      - name: Install Prisma and query DB
+        run: |
+          cd apps/api
+          npm install --legacy-peer-deps 2>/dev/null | tail -3
+          npx prisma generate 2>/dev/null | tail -3
+          node -e "
           const { PrismaClient } = require('@prisma/client');
           const prisma = new PrismaClient();
           async function main() {
-            const rooms = await prisma.room.findMany({ take: 5, include: { property: true } });
-            console.log('ROOMS:', JSON.stringify(rooms.map(r => ({ id: r.id, name: r.name, propertyId: r.propertyId, propertyName: r.property?.name })), null, 2));
+            const rooms = await prisma.room.findMany({ take: 5, include: { property: { include: { host: true } } } });
+            console.log('ROOMS_JSON:', JSON.stringify(rooms.map(r => ({ id: r.id, name: r.name, propertyId: r.propertyId, propertyName: r.property?.name, hostId: r.property?.hostId })), null, 2));
+            const props = await prisma.property.findMany({ take: 5, select: { id: true, name: true, hostId: true, isActive: true } });
+            console.log('PROPERTIES_JSON:', JSON.stringify(props, null, 2));
             const users = await prisma.user.findMany({ take: 3, where: { role: 'HOST' }, select: { id: true, email: true, role: true } });
-            console.log('HOST_USERS:', JSON.stringify(users, null, 2));
+            console.log('HOST_USERS_JSON:', JSON.stringify(users, null, 2));
           }
-          main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
-          " 2>&1
+          main().then(() => process.exit(0)).catch(e => { console.error('ERROR:', e.message); process.exit(1); });
+          "
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
+          DATABASE_URL: ${{ steps.get-db-url.outputs.DATABASE_URL }}
