@@ -44,11 +44,17 @@ jobs:
           "
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
-      - name: List deployments and get logs for 47af5bc
+      - name: Get logs from 75ec72ed deployment (active at PATCH time)
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
         run: |
-          echo "=== DEPLOYMENT LIST ==="
-          railway deployment list \
+          echo "=== LOGS FROM 75ec72ed (deployment before 47af5bc wave4-seed) ==="
+          railway logs 75ec72ed-45b5-4623-a3e3-3f48f94aa889 \
             --service 3cc8cf6c-4fd0-4021-9473-5a4e569965be \
-            --environment 388aaa3b-46e5-464f-be07-2b2501c6a4c9 2>&1
+            --environment 388aaa3b-46e5-464f-be07-2b2501c6a4c9 \
+            -n 200 2>&1 || echo "75ec72ed logs failed"
+          echo "=== LOGS FROM 62dbb6e4 (deployment at 02:12) ==="
+          railway logs 62dbb6e4-367b-4d49-ac22-db93a48e4c3c \
+            --service 3cc8cf6c-4fd0-4021-9473-5a4e569965be \
+            --environment 388aaa3b-46e5-464f-be07-2b2501c6a4c9 \
+            -n 200 2>&1 || echo "62dbb6e4 logs failed"
