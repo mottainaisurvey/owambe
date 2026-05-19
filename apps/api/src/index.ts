@@ -112,6 +112,34 @@ app.get('/health/db', async (_req, res) => {
 });
 
 
+// OWB-WAVE-4-01: Temporary one-shot seed endpoint — REMOVE after wave4 test window
+app.post('/internal/wave4-seed', async (req: any, res: any) => {
+  const secret = req.headers['x-seed-secret'];
+  if (secret !== 'owb-wave4-seed-2026-05-19') return res.status(403).json({ error: 'forbidden' });
+  try {
+    const bcrypt = require('bcryptjs');
+    let user = await prisma.user.findUnique({ where: { email: 'testhost@owb-wave4-test.com' } });
+    if (!user) {
+      const passwordHash = await bcrypt.hash('TestHost123!', 12);
+      user = await prisma.user.create({ data: { email: 'testhost@owb-wave4-test.com', passwordHash, firstName: 'Test', lastName: 'Host', role: 'HOST', isEmailVerified: true } });
+    }
+    let host = await (prisma as any).host.findUnique({ where: { userId: user.id } });
+    if (!host) {
+      host = await (prisma as any).host.create({ data: { userId: user.id, businessName: 'OWB Wave4 Test Host' } });
+    }
+    let prop = await (prisma as any).property.findFirst({ where: { hostId: host.id } });
+    if (!prop) {
+      const slug = 'owb-wave4-test-property-' + Date.now();
+      prop = await (prisma as any).property.create({ data: { hostId: host.id, name: 'OWB Wave4 Test Property', slug, propertyType: 'APARTMENT', city: 'Lagos', state: 'Lagos', country: 'NG', address: '1 Test Street, Lagos', isActive: true } });
+    }
+    let room = await (prisma as any).room.findFirst({ where: { propertyId: prop.id } });
+    if (!room) {
+      room = await (prisma as any).room.create({ data: { propertyId: prop.id, name: 'Standard Room', roomType: 'STANDARD', pricePerNight: 50000, capacity: 2, isActive: true } });
+    }
+    res.json({ success: true, userId: user.id, hostId: host.id, propertyId: prop.id, roomId: room.id });
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
 app.use('/api/auth', rateLimiter({ windowMs: 60000, max: 15 }));
 app.use('/api/ai', rateLimiter({ windowMs: 60000, max: 20 }));
 app.use('/api/upload', rateLimiter({ windowMs: 60000, max: 30 }));
