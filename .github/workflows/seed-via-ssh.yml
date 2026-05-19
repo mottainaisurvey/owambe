@@ -1,0 +1,72 @@
+name: Seed via Railway SSH (one-shot)
+on:
+  workflow_dispatch:
+
+jobs:
+  seed:
+    name: Seed via SSH
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Generate SSH key and add to Railway
+        run: |
+          ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N "" -q
+          PUB_KEY=$(cat ~/.ssh/id_ed25519.pub)
+          echo "Public key: $PUB_KEY"
+          # Add SSH key to Railway account via GraphQL API
+          RESULT=$(curl -s -X POST https://backboard.railway.com/graphql/v2 \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -d "{\"query\":\"mutation { sshKeyCreate(input: { name: \\\"gha-seed-$(date +%s)\\\", publicKey: \\\"$PUB_KEY\\\" }) { id name } }\"}")
+          echo "SSH key add result: $RESULT"
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
+
+      - name: Install deps and generate Prisma client
+        run: |
+          cd apps/api
+          npm install --legacy-peer-deps 2>&1 | tail -3
+          npx prisma generate 2>&1 | tail -3
+
+      - name: SSH into Railway service and seed DB
+        run: |
+          cd apps/api
+          # Use railway ssh to run the seed script inside the container
+          railway ssh \
+            --service 3cc8cf6c-4fd0-4021-9473-5a4e569965be \
+            --environment 388aaa3b-46e5-464f-be07-2b2501c6a4c9 \
+            --project c57d784c-0f16-4855-8adf-dfa37eaf3738 \
+            "cd /app && node -e \"
+          const { PrismaClient } = require('@prisma/client');
+          const prisma = new PrismaClient();
+          async function main() {
+            let host = await prisma.user.findUnique({ where: { email: 'testhost@owb-wave4-test.com' } });
+            if (!host) {
+              const bcrypt = require('bcryptjs');
+              const hash = await bcrypt.hash('TestHost123!', 10);
+              host = await prisma.user.create({ data: { email: 'testhost@owb-wave4-test.com', password: hash, firstName: 'Test', lastName: 'Host', role: 'HOST', isEmailVerified: true } });
+              console.log('HOST_CREATED:', host.id);
+            } else { console.log('HOST_EXISTS:', host.id); }
+            let prop = await prisma.property.findFirst({ where: { hostId: host.id } });
+            if (!prop) {
+              prop = await prisma.property.create({ data: { name: 'OWB Wave4 Test Property', description: 'Test property', address: '1 Test Street', city: 'Lagos', state: 'Lagos', country: 'Nigeria', hostId: host.id, isActive: true, propertyType: 'APARTMENT', pricePerNight: 50000, maxGuests: 4 } });
+              console.log('PROPERTY_CREATED:', prop.id);
+            } else { console.log('PROPERTY_EXISTS:', prop.id); }
+            let room = await prisma.room.findFirst({ where: { propertyId: prop.id } });
+            if (!room) {
+              room = await prisma.room.create({ data: { name: 'Standard Room', description: 'Test room', propertyId: prop.id, pricePerNight: 50000, maxGuests: 2, isActive: true } });
+              console.log('ROOM_CREATED:', room.id);
+            } else { console.log('ROOM_EXISTS:', room.id); }
+            console.log('FINAL_ROOM_ID:', room.id);
+          }
+          main().then(() => process.exit(0)).catch(e => { console.error('ERROR:', e.message); process.exit(1); });
+          \"" 2>&1
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
