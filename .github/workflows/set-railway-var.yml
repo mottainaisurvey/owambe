@@ -51,14 +51,16 @@ jobs:
           cat > /tmp/parse_deployments.py << 'PYEOF'
           import sys, json
           data = json.load(sys.stdin)
-          print("RAW:", data)
           edges = data.get('data', {}).get('deployments', {}).get('edges', [])
           print(f'Total deployments: {len(edges)}')
           for e in edges:
             n = e.get('node', {})
-            m = n.get('meta', {})
-            c = (m.get('commitHash') or '')
-            print(n['id'], '|', n['status'], '|', n['createdAt'], '|', c[:8])
+            meta = n.get('meta') or {}
+            if isinstance(meta, dict):
+              c = (meta.get('commitHash') or '')
+            else:
+              c = str(meta)[:8]
+            print(n.get('id','?'), '|', n.get('status','?'), '|', n.get('createdAt','?'), '|', c[:8])
           PYEOF
           cat > /tmp/find_deploy_id.py << 'PYEOF'
           import sys, json
@@ -66,8 +68,11 @@ jobs:
           edges = data.get('data', {}).get('deployments', {}).get('edges', [])
           for e in edges:
             n = e.get('node', {})
-            m = n.get('meta', {})
-            c = (m.get('commitHash') or '')
+            meta = n.get('meta') or {}
+            if isinstance(meta, dict):
+              c = (meta.get('commitHash') or '')
+            else:
+              c = ''
             if c.startswith('47af5bc'):
               print(n['id'])
               break
@@ -75,27 +80,14 @@ jobs:
           cat > /tmp/parse_logs.py << 'PYEOF'
           import sys, json
           data = json.load(sys.stdin)
-          print("RAW LOGS:", str(data)[:500])
           logs = data.get('data', {}).get('deploymentLogs', []) or []
           for l in logs:
             print(l.get('timestamp', ''), '|', l.get('message', ''))
           PYEOF
-          echo "=== DEPLOYMENT LIST ==="
+          echo "=== DEPLOYMENT LIST (no meta subfields) ==="
           RESPONSE=$(curl -s -X POST https://backboard.railway.com/graphql/v2 \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{"query":"query{deployments(input:{serviceId:\"3cc8cf6c-4fd0-4021-9473-5a4e569965be\",environmentId:\"388aaa3b-46e5-464f-be07-2b2501c6a4c9\"}){edges{node{id status createdAt meta{commitHash}}}}}"}')
-          echo "RAW RESPONSE: $RESPONSE"
+            -d '{"query":"query{deployments(input:{serviceId:\"3cc8cf6c-4fd0-4021-9473-5a4e569965be\",environmentId:\"388aaa3b-46e5-464f-be07-2b2501c6a4c9\"}){edges{node{id status createdAt}}}}"}')
+          echo "RAW: $RESPONSE"
           echo "$RESPONSE" | python3 /tmp/parse_deployments.py 2>&1
-          DEPLOY_ID=$(echo "$RESPONSE" | python3 /tmp/find_deploy_id.py 2>/dev/null)
-          echo "Deploy ID for 47af5bc: $DEPLOY_ID"
-          if [ -n "$DEPLOY_ID" ]; then
-            echo "=== DEPLOYMENT LOGS FOR 47af5bc ==="
-            LOGS=$(curl -s -X POST https://backboard.railway.com/graphql/v2 \
-              -H "Authorization: Bearer $RAILWAY_TOKEN" \
-              -H "Content-Type: application/json" \
-              -d "{\"query\":\"query{deploymentLogs(deploymentId:\\\"$DEPLOY_ID\\\"){timestamp message}}\"}")
-            echo "$LOGS" | python3 /tmp/parse_logs.py 2>&1 | head -300
-          else
-            echo "47af5bc not found in deployment list"
-          fi
