@@ -101,6 +101,10 @@ jobs:
           OPENAI_API_KEY: sk-test-placeholder-not-used-in-tests
           COASTAL_CORRIDOR_SHARED_SECRET: test-cc-shared-secret-placeholder
           COASTAL_CORRIDOR_WEBHOOK_SECRET: test-cc-webhook-secret-placeholder
+      # WEB-TEST-INFRASTRUCTURE-01 AC-5: web component tests (Vitest + RTL)
+      # No DB or Redis services required — all external calls are mocked.
+      - name: Run web tests
+        run: cd apps/web && npx vitest run --reporter=verbose
 
   # ─── BUILD ───────────────────────────────────────────
   build:
