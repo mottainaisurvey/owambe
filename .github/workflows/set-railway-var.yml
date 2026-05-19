@@ -44,50 +44,16 @@ jobs:
           "
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
-      - name: Query deployment logs for 47af5bc build
+      - name: List deployments and get logs for 47af5bc
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
         run: |
-          cat > /tmp/parse_deployments.py << 'PYEOF'
-          import sys, json
-          data = json.load(sys.stdin)
-          edges = data.get('data', {}).get('deployments', {}).get('edges', [])
-          print(f'Total deployments: {len(edges)}')
-          for e in edges:
-            n = e.get('node', {})
-            meta = n.get('meta') or {}
-            if isinstance(meta, dict):
-              c = (meta.get('commitHash') or '')
-            else:
-              c = str(meta)[:8]
-            print(n.get('id','?'), '|', n.get('status','?'), '|', n.get('createdAt','?'), '|', c[:8])
-          PYEOF
-          cat > /tmp/find_deploy_id.py << 'PYEOF'
-          import sys, json
-          data = json.load(sys.stdin)
-          edges = data.get('data', {}).get('deployments', {}).get('edges', [])
-          for e in edges:
-            n = e.get('node', {})
-            meta = n.get('meta') or {}
-            if isinstance(meta, dict):
-              c = (meta.get('commitHash') or '')
-            else:
-              c = ''
-            if c.startswith('47af5bc'):
-              print(n['id'])
-              break
-          PYEOF
-          cat > /tmp/parse_logs.py << 'PYEOF'
-          import sys, json
-          data = json.load(sys.stdin)
-          logs = data.get('data', {}).get('deploymentLogs', []) or []
-          for l in logs:
-            print(l.get('timestamp', ''), '|', l.get('message', ''))
-          PYEOF
-          echo "=== DEPLOYMENT LIST (no meta subfields) ==="
-          RESPONSE=$(curl -s -X POST https://backboard.railway.com/graphql/v2 \
-            -H "Authorization: Bearer $RAILWAY_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"query":"query{deployments(input:{serviceId:\"3cc8cf6c-4fd0-4021-9473-5a4e569965be\",environmentId:\"388aaa3b-46e5-464f-be07-2b2501c6a4c9\"}){edges{node{id status createdAt}}}}"}')
-          echo "RAW: $RESPONSE"
-          echo "$RESPONSE" | python3 /tmp/parse_deployments.py 2>&1
+          echo "=== DEPLOYMENT LIST ==="
+          railway deployment list \
+            --service 3cc8cf6c-4fd0-4021-9473-5a4e569965be \
+            --environment 388aaa3b-46e5-464f-be07-2b2501c6a4c9 \
+            --project c57d784c-0f16-4855-8adf-dfa37eaf3738 \
+            --json 2>&1 || railway deployment list \
+            --service 3cc8cf6c-4fd0-4021-9473-5a4e569965be \
+            --environment 388aaa3b-46e5-464f-be07-2b2501c6a4c9 \
+            --project c57d784c-0f16-4855-8adf-dfa37eaf3738 2>&1 || echo "deployment list failed"
