@@ -21,7 +21,7 @@ jobs:
           data = json.load(sys.stdin)
           print('Variable count:', len(data))
           print('Keys:', sorted(data.keys()))
-          for key in ['COASTAL_CORRIDOR_SHARED_SECRET', 'COASTAL_CORRIDOR_WEBHOOK_SECRET', 'OWAMBE_WEBHOOK_OUTBOUND_SECRET', 'OWAMBE_API_KEY']:
+          for key in ['COASTAL_CORRIDOR_SHARED_SECRET', 'COASTAL_CORRIDOR_WEBHOOK_SECRET', 'OWAMBE_WEBHOOK_OUTBOUND_SECRET', 'OWAMBE_API_KEY', 'DATABASE_URL', 'DATABASE_PUBLIC_URL', 'PGHOST', 'PGPORT', 'PGUSER', 'PGPASSWORD', 'PGDATABASE']:
               if key in data:
                   val = data[key]
                   print(f'{key}={val}')
