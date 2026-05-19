@@ -51,9 +51,4 @@ jobs:
           echo "=== DEPLOYMENT LIST ==="
           railway deployment list \
             --service 3cc8cf6c-4fd0-4021-9473-5a4e569965be \
-            --environment 388aaa3b-46e5-464f-be07-2b2501c6a4c9 \
-            --project c57d784c-0f16-4855-8adf-dfa37eaf3738 \
-            --json 2>&1 || railway deployment list \
-            --service 3cc8cf6c-4fd0-4021-9473-5a4e569965be \
-            --environment 388aaa3b-46e5-464f-be07-2b2501c6a4c9 \
-            --project c57d784c-0f16-4855-8adf-dfa37eaf3738 2>&1 || echo "deployment list failed"
+            --environment 388aaa3b-46e5-464f-be07-2b2501c6a4c9 2>&1
