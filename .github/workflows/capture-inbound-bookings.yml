@@ -1,0 +1,29 @@
+name: Capture Inbound Experience Booking Requests
+
+on:
+  workflow_dispatch:
+
+jobs:
+  capture-logs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Railway CLI
+        shell: bash
+        run: |
+          curl -fsSL https://railway.app/install.sh | bash
+          echo "${HOME}/.railway/bin" >> "${GITHUB_PATH}"
+
+      - name: Tail Owambe API logs for inbound booking requests
+        shell: bash
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
+        run: |
+          echo "=== Railway CLI version ==="
+          railway --version
+          echo "=== Owambe API logs (last 500 lines) ==="
+          railway logs \
+            --project c57d784c-0f16-4855-8adf-dfa37eaf3738 \
+            --environment 388aaa3b-46e5-464f-be07-2b2501c6a4c9 \
+            --service 3cc8cf6c-4fd0-4021-9473-5a4e569965be \
+            2>&1 | tail -500 || true
+          echo "=== Done ==="
