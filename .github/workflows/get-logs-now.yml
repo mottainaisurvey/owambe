@@ -1,0 +1,19 @@
+name: Get Railway Logs Now
+on:
+  workflow_dispatch:
+jobs:
+  get-logs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Railway CLI
+        run: bash <(curl -fsSL https://railway.app/install.sh)
+      - name: Add to PATH
+        run: echo "$HOME/.railway/bin" >> $GITHUB_PATH
+      - name: Fetch recent logs
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
+        run: |
+          railway logs \
+            --service 3cc8cf6c-4fd0-4021-9473-5a4e569965be \
+            --environment 388aaa3b-46e5-464f-be07-2b2501c6a4c9 \
+            -n 200 2>&1 | tail -200
