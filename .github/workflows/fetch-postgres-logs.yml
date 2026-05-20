@@ -10,7 +10,7 @@ jobs:
       - name: Install Railway CLI
         run: |
           curl -fsSL https://railway.app/install.sh | sh
-          echo "$HOME/.railway/bin" >> $GITHUB_PATH
+          echo "/root/.railway/bin" >> $GITHUB_PATH
 
       - name: Fetch Postgres service logs
         env:
