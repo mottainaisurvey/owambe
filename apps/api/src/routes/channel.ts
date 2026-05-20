@@ -845,6 +845,22 @@ router.post('/experiences/bookings', async (req: Request, res: Response): Promis
     return;
   }
 
+  // Validate owambe_time_slot_id is a valid UUID — Postgres rejects non-UUID strings with a
+  // P2023 Inconsistent column data error before reaching the null check, which surfaces as
+  // HTTP 500. Return a structured 422 instead so CC can diagnose data alignment issues.
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!UUID_REGEX.test(owambeTimeSlotId)) {
+    logger.warn('[Channel] Invalid owambe_time_slot_id format — not a UUID', {
+      coastalCorridorBookingId,
+      owambeTimeSlotId,
+    });
+    res.status(422).json({
+      error: 'INVALID_SLOT_ID',
+      message: `owambe_time_slot_id '${owambeTimeSlotId}' is not a valid UUID format`,
+    });
+    return;
+  }
+
   logger.info('[Channel] Inbound experience booking', {
     coastalCorridorBookingId,
     owambeTimeSlotId,
