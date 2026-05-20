@@ -8,11 +8,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install Railway CLI
+        shell: bash
         run: |
-          curl -fsSL https://railway.app/install.sh | sh
-          echo "/root/.railway/bin" >> $GITHUB_PATH
+          curl -fsSL https://railway.app/install.sh | bash
+          echo "${HOME}/.railway/bin" >> "${GITHUB_PATH}"
 
       - name: Fetch Postgres service logs
+        shell: bash
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
         run: |
