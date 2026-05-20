@@ -1,0 +1,97 @@
+name: Railway Unpause Staging
+
+on:
+  workflow_dispatch:
+
+jobs:
+  unpause:
+    name: Unpause Railway Staging Project
+    runs-on: ubuntu-latest
+    steps:
+      - name: Attempt Railway project unpause via GraphQL
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
+        run: |
+          # Try serviceInstanceRedeploy mutation to force a new deployment
+          # which may clear the paused state
+          
+          cat > /tmp/unpause.py << 'EOF'
+          import requests, json, os
+
+          token = os.environ.get("RAILWAY_TOKEN", "")
+          headers = {
+              "Authorization": f"Bearer {token}",
+              "Content-Type": "application/json"
+          }
+
+          # First check project status
+          status_query = """
+          query {
+            project(id: "c57d784c-0f16-4855-8adf-dfa37eaf3738") {
+              id
+              name
+              deletedAt
+              environments {
+                edges {
+                  node {
+                    id
+                    name
+                  }
+                }
+              }
+            }
+          }
+          """
+          r = requests.post(
+              "https://backboard.railway.com/graphql/v2",
+              headers=headers,
+              json={"query": status_query}
+          )
+          print("PROJECT STATUS:", r.status_code)
+          print(json.dumps(r.json(), indent=2))
+
+          # Try serviceInstanceRedeploy
+          redeploy_mutation = """
+          mutation {
+            serviceInstanceRedeploy(
+              serviceId: "3cc8cf6c-4fd0-4021-9473-5a4e569965be"
+              environmentId: "388aaa3b-46e5-464f-be07-2b2501c6a4c9"
+            )
+          }
+          """
+          r2 = requests.post(
+              "https://backboard.railway.com/graphql/v2",
+              headers=headers,
+              json={"query": redeploy_mutation}
+          )
+          print("\nREDEPLOY MUTATION:", r2.status_code)
+          print(json.dumps(r2.json(), indent=2))
+
+          # Try deploymentRestart on the latest deployment
+          latest_deploy_query = """
+          query {
+            deployments(
+              input: {
+                serviceId: "3cc8cf6c-4fd0-4021-9473-5a4e569965be"
+                environmentId: "388aaa3b-46e5-464f-be07-2b2501c6a4c9"
+              }
+            ) {
+              edges {
+                node {
+                  id
+                  status
+                  createdAt
+                }
+              }
+            }
+          }
+          """
+          r3 = requests.post(
+              "https://backboard.railway.com/graphql/v2",
+              headers=headers,
+              json={"query": latest_deploy_query}
+          )
+          print("\nDEPLOYMENTS:", r3.status_code)
+          print(json.dumps(r3.json(), indent=2))
+          EOF
+          python3 /tmp/unpause.py
