@@ -103,6 +103,11 @@ jobs:
           COASTAL_CORRIDOR_WEBHOOK_SECRET: test-cc-webhook-secret-placeholder
       # WEB-TEST-INFRASTRUCTURE-01 AC-5: web component tests (Vitest + RTL)
       # No DB or Redis services required — all external calls are mocked.
+      # Explicit install ensures @testing-library/dom and other web devDependencies
+      # are present in apps/web/node_modules (root npm ci hoisting is not reliable
+      # for all workspace devDependencies under --legacy-peer-deps).
+      - name: Install web app dependencies
+        run: cd apps/web && npm install --legacy-peer-deps
       - name: Run web tests
         run: cd apps/web && npx vitest run --reporter=verbose
 
