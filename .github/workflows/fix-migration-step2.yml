@@ -11,33 +11,25 @@ jobs:
       - name: Install Railway CLI
         run: npm install -g @railway/cli
 
-      - name: Check and fix _prisma_migrations record
+      - name: Install psql client
+        run: sudo apt-get install -y postgresql-client
+
+      - name: Write fix script
         run: |
-          railway run \
-            --service owambe-api \
-            --environment staging \
-            -- node -e "
-          const { Client } = require('pg');
-          const client = new Client({ connectionString: process.env.DATABASE_URL });
-          client.connect().then(async () => {
-            const before = await client.query(
-              \"SELECT migration_name, finished_at, logs FROM _prisma_migrations WHERE migration_name = '20260511000001_pay_canonical_01_step2'\"
-            );
-            console.log('BEFORE:', JSON.stringify(before.rows, null, 2));
+          cat > /tmp/fix_migration.sh << 'SCRIPT'
+          #!/bin/bash
+          set -e
+          echo "=== BEFORE ==="
+          psql "$DATABASE_URL" -c "SELECT migration_name, finished_at, logs FROM _prisma_migrations WHERE migration_name = '20260511000001_pay_canonical_01_step2';"
+          echo "=== APPLYING FIX ==="
+          psql "$DATABASE_URL" -c "UPDATE _prisma_migrations SET finished_at = NOW(), applied_steps_count = 1, logs = NULL WHERE migration_name = '20260511000001_pay_canonical_01_step2' AND finished_at IS NULL;"
+          echo "=== AFTER ==="
+          psql "$DATABASE_URL" -c "SELECT migration_name, finished_at, applied_steps_count FROM _prisma_migrations WHERE migration_name = '20260511000001_pay_canonical_01_step2';"
+          echo "=== DONE ==="
+          SCRIPT
+          chmod +x /tmp/fix_migration.sh
 
-            const fix = await client.query(
-              \"UPDATE _prisma_migrations SET finished_at = NOW(), applied_steps_count = 1, logs = NULL WHERE migration_name = '20260511000001_pay_canonical_01_step2' AND finished_at IS NULL\"
-            );
-            console.log('Rows updated:', fix.rowCount);
-
-            const after = await client.query(
-              \"SELECT migration_name, finished_at, applied_steps_count, logs FROM _prisma_migrations WHERE migration_name = '20260511000001_pay_canonical_01_step2'\"
-            );
-            console.log('AFTER:', JSON.stringify(after.rows, null, 2));
-
-            await client.end();
-            process.exit(fix.rowCount === 1 ? 0 : 1);
-          }).catch(e => { console.error('ERROR:', e.message); process.exit(1); });
-          "
+      - name: Run fix via railway run
+        run: railway run --service owambe-api --environment staging -- bash /tmp/fix_migration.sh
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
