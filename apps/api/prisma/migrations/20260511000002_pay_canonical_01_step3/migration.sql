@@ -16,7 +16,13 @@ CREATE TYPE "PaymentStatus_new" AS ENUM (
   'FAILED'
 );
 
--- Step 3b: Alter each column that uses PaymentStatus to use the new type
+-- Step 3b: Drop DEFAULT constraints before altering column types
+-- (Postgres cannot automatically cast enum defaults to a new enum type)
+ALTER TABLE "stay_bookings" ALTER COLUMN "paymentStatus" DROP DEFAULT;
+ALTER TABLE "bookings" ALTER COLUMN "paymentStatus" DROP DEFAULT;
+ALTER TABLE "experience_bookings" ALTER COLUMN "paymentStatus" DROP DEFAULT;
+
+-- Step 3c: Alter each column that uses PaymentStatus to use the new type
 -- stay_bookings
 ALTER TABLE "stay_bookings"
   ALTER COLUMN "paymentStatus" TYPE "PaymentStatus_new"
@@ -32,8 +38,13 @@ ALTER TABLE "experience_bookings"
   ALTER COLUMN "paymentStatus" TYPE "PaymentStatus_new"
   USING "paymentStatus"::text::"PaymentStatus_new";
 
--- Step 3c: Drop the old enum type
+-- Step 3d: Drop the old enum type
 DROP TYPE "PaymentStatus";
 
--- Step 3d: Rename the new enum to the canonical name
+-- Step 3e: Rename the new enum to the canonical name
 ALTER TYPE "PaymentStatus_new" RENAME TO "PaymentStatus";
+
+-- Step 3f: Restore DEFAULT constraints using the renamed enum
+ALTER TABLE "stay_bookings" ALTER COLUMN "paymentStatus" SET DEFAULT 'PENDING';
+ALTER TABLE "bookings" ALTER COLUMN "paymentStatus" SET DEFAULT 'PENDING';
+ALTER TABLE "experience_bookings" ALTER COLUMN "paymentStatus" SET DEFAULT 'PENDING';
