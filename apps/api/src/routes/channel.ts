@@ -142,6 +142,12 @@ router.post('/stays/reservations', async (req: Request, res: Response): Promise<
   const {
     cc_reservation_id: coastalCorridorReservationId,
     owambe_property_id: coastalCorridorPropertyId,
+    // ccPropertyId is scaffolded for the CC->Owambe inbound reservation flow.
+    // The CC originator (CC outbound stays-reservation sender) is not yet built --
+    // verified during OWB-WAVE-4-01 joint window cycle (CC Path 2 stays/reservations
+    // PATCH is scaffolded constant-only with no caller built per Brief 3 finding
+    // 19 May 2026). This field stays null in practice until CC ships its outbound
+    // sender. Symmetric CC-side documentation: commit 858e31f on CC repo.
     cc_property_id: ccPropertyId,
     owambe_room_id: owambeRoomId,
     // Guest fields — CC sends flat snake_case (guest_first_name etc.) or nested guest object
