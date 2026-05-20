@@ -14,22 +14,28 @@ jobs:
       - name: Install psql client
         run: sudo apt-get install -y postgresql-client
 
-      - name: Write fix script
+      - name: Get public DATABASE_URL and run fix
         run: |
-          cat > /tmp/fix_migration.sh << 'SCRIPT'
-          #!/bin/bash
-          set -e
-          echo "=== BEFORE ==="
-          psql "$DATABASE_URL" -c "SELECT migration_name, finished_at, logs FROM _prisma_migrations WHERE migration_name = '20260511000001_pay_canonical_01_step2';"
-          echo "=== APPLYING FIX ==="
-          psql "$DATABASE_URL" -c "UPDATE _prisma_migrations SET finished_at = NOW(), applied_steps_count = 1, logs = NULL WHERE migration_name = '20260511000001_pay_canonical_01_step2' AND finished_at IS NULL;"
-          echo "=== AFTER ==="
-          psql "$DATABASE_URL" -c "SELECT migration_name, finished_at, applied_steps_count FROM _prisma_migrations WHERE migration_name = '20260511000001_pay_canonical_01_step2';"
-          echo "=== DONE ==="
-          SCRIPT
-          chmod +x /tmp/fix_migration.sh
-
-      - name: Run fix via railway run
-        run: railway run --service owambe-api --environment staging -- bash /tmp/fix_migration.sh
+          # railway run injects Railway env vars into the local process
+          # DATABASE_URL uses internal hostname -- not reachable from GitHub runner
+          # DATABASE_PUBLIC_URL uses tramway.proxy.rlwy.net -- reachable externally
+          # We use a shell script that substitutes DATABASE_PUBLIC_URL for DATABASE_URL
+          railway run \
+            --service owambe-api \
+            --environment staging \
+            -- bash -c '
+              echo "=== Available DB vars ==="
+              env | grep -i "database\|postgres\|direct" | sed "s/=.*/=REDACTED/"
+              echo "=== Using DATABASE_PUBLIC_URL ==="
+              DB="${DATABASE_PUBLIC_URL:-$DATABASE_URL}"
+              echo "DB host (redacted): $(echo $DB | sed "s|://.*@|://***@|")"
+              echo "=== BEFORE ==="
+              psql "$DB" -c "SELECT migration_name, finished_at, logs FROM _prisma_migrations WHERE migration_name = '"'"'20260511000001_pay_canonical_01_step2'"'"';"
+              echo "=== APPLYING FIX ==="
+              psql "$DB" -c "UPDATE _prisma_migrations SET finished_at = NOW(), applied_steps_count = 1, logs = NULL WHERE migration_name = '"'"'20260511000001_pay_canonical_01_step2'"'"' AND finished_at IS NULL;"
+              echo "=== AFTER ==="
+              psql "$DB" -c "SELECT migration_name, finished_at, applied_steps_count FROM _prisma_migrations WHERE migration_name = '"'"'20260511000001_pay_canonical_01_step2'"'"';"
+              echo "=== DONE ==="
+            '
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
