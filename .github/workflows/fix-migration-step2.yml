@@ -1,0 +1,43 @@
+name: Fix Failed Migration Step2 Record
+on:
+  workflow_dispatch:
+jobs:
+  fix-migration:
+    name: Mark pay_canonical_01_step2 as applied
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Check and fix _prisma_migrations record
+        run: |
+          railway run \
+            --service owambe-api \
+            --environment staging \
+            -- node -e "
+          const { Client } = require('pg');
+          const client = new Client({ connectionString: process.env.DATABASE_URL });
+          client.connect().then(async () => {
+            const before = await client.query(
+              \"SELECT migration_name, finished_at, logs FROM _prisma_migrations WHERE migration_name = '20260511000001_pay_canonical_01_step2'\"
+            );
+            console.log('BEFORE:', JSON.stringify(before.rows, null, 2));
+
+            const fix = await client.query(
+              \"UPDATE _prisma_migrations SET finished_at = NOW(), applied_steps_count = 1, logs = NULL WHERE migration_name = '20260511000001_pay_canonical_01_step2' AND finished_at IS NULL\"
+            );
+            console.log('Rows updated:', fix.rowCount);
+
+            const after = await client.query(
+              \"SELECT migration_name, finished_at, applied_steps_count, logs FROM _prisma_migrations WHERE migration_name = '20260511000001_pay_canonical_01_step2'\"
+            );
+            console.log('AFTER:', JSON.stringify(after.rows, null, 2));
+
+            await client.end();
+            process.exit(fix.rowCount === 1 ? 0 : 1);
+          }).catch(e => { console.error('ERROR:', e.message); process.exit(1); });
+          "
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
