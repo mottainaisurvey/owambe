@@ -272,16 +272,16 @@ async function main() {
     console.log('✅ Sample event seeded');
   }
 
-  // ─── CHANNEL REGISTRY SEED (Brief A Rev 2 + Amendment-01) ─────────────────
+  // ─── CHANNEL REGISTRY SEED (Brief A Rev 2 + Amendment-01 + Amendment-02) ────
   // Coastal Corridor channel: canonical staging seed.
   // hmacSecret sourced from CC_HMAC_SECRET env var (set in Railway staging Variables).
   // destinationUrl sourced from CC_WEBHOOK_INBOUND_URL env var (Amendment-01).
+  // timestampHeader: 'X-Timestamp' per spec-canonical direction (Amendment-02 bilateral concurrence).
   //
   // Idempotency note: upsert on slug. The update block intentionally includes
   // destinationUrl so that re-seeding against an existing row populates the field
   // from the env-var (canonical value). If CC_WEBHOOK_INBOUND_URL is unset at
-  // seed-time the field is left unchanged (coalesce to existing value via ?? null
-  // only applies on create; update only fires when the env-var is set).
+  // seed-time the field is left unchanged.
   const _ccDestUrl = process.env.CC_WEBHOOK_INBOUND_URL ?? null;
   await prisma.channel.upsert({
     where: { slug: 'coastal-corridor' },
@@ -292,6 +292,7 @@ async function main() {
       authScheme: 'HMAC_SHA256',
       hmacSecret: process.env.CC_HMAC_SECRET ?? null,
       signatureHeader: 'X-Signature',
+      timestampHeader: 'X-Timestamp',  // Amendment-02: canonical default per spec-canonical direction
       supportsStays: true,
       supportsExperiences: true,
       supportsEvents: false,
@@ -306,7 +307,7 @@ async function main() {
       ..._ccDestUrl !== null && { destinationUrl: _ccDestUrl },
     },
   });
-  console.log('✅ Coastal Corridor channel seeded (Amendment-01)');
+  console.log('✅ Coastal Corridor channel seeded (Amendment-01 + Amendment-02)');
 
   console.log('\n🎉 Seed complete! Staging/dev test credentials:');
   console.log('   Admin:   admin@owambe.com / Admin@Owambe2026!');

@@ -595,11 +595,18 @@ model StayBooking {
   confirmedAt     DateTime?
   checkedInAt     DateTime?
   checkedOutAt    DateTime?
-  // Channel integration fields (Phase A.5: Coastal Corridor)
+  // Channel integration fields (Phase A.5: Coastal Corridor → Phase 5.2 generalised)
   channelOrigin   ChannelOrigin     @default(DIRECT)
-  externalRef     String?           // Coastal Corridor reservation ID
-  externalPropertyId String?        // Owambe property ID echoed back by CC (owambe_property_id)
-  ccPropertyId    String?           // CC's native property ID (OWB-PHASE-E-02)
+  channelId       String?           @map("channel_id")  // FK to Channel registry (Brief B Rev 2)
+  channel         Channel?          @relation(fields: [channelId], references: [id])
+  externalRef     String?           // CC reservation ID (or partner equivalent post-generalisation)
+  /// Owambe's own property ID echoed back in the bilateral contract payload per § 07 idempotency key shape.
+  /// Represents Owambe's authoritative property identifier as it appears on the wire to the partner channel.
+  externalPropertyId String?        // DB column: externalPropertyId (camelCase; no @map needed)
+  /// Channel partner's native property ID for property reconciliation.
+  /// Captures the partner's authoritative property identifier in their own system.
+  /// Renamed from ccPropertyId per Brief B Rev 2 Operation 2 (OWB-PHASE-E-02 scaffold preserved).
+  externalPartnerPropertyId String? @map("external_partner_property_id")
   channelCommissionAmount Decimal?  @db.Decimal(12, 2)
   channelCommissionPercent Decimal? @db.Decimal(5, 2)
   netToHost       Decimal?          @db.Decimal(12, 2)
@@ -620,6 +627,7 @@ model StayBooking {
   @@index([guestEmail])
   @@index([status])
   @@index([checkInDate])
+  @@index([channelId])
   @@index([externalRef])
   @@map("stay_bookings")
 }
@@ -736,10 +744,12 @@ model ExperienceBooking {
   cancelledAt     DateTime?
   confirmedAt     DateTime?
   completedAt     DateTime?
-  // Channel integration fields (Phase A.5: Coastal Corridor)
+  // Channel integration fields (Phase A.5: Coastal Corridor → Phase 5.2 generalised)
   channelOrigin   ChannelOrigin          @default(DIRECT)
-  externalRef     String?                // Coastal Corridor booking ID
-  externalExperienceId String?           // Coastal Corridor experience ID
+  channelId       String?                @map("channel_id")  // FK to Channel registry (Brief B Rev 2)
+  channel         Channel?               @relation(fields: [channelId], references: [id])
+  externalRef     String?                // CC booking ID (or partner equivalent post-generalisation)
+  externalExperienceId String?           // CC experience ID (or partner equivalent)
   channelCommissionAmount Decimal?       @db.Decimal(12, 2)
   channelCommissionPercent Decimal?      @db.Decimal(5, 2)
   netToOperator   Decimal?               @db.Decimal(12, 2)
@@ -760,6 +770,7 @@ model ExperienceBooking {
   @@index([slotId])
   @@index([guestEmail])
   @@index([status])
+  @@index([channelId])
   @@index([externalRef])
   @@map("experience_bookings")
 }
@@ -1733,10 +1744,14 @@ model Channel {
   name            String
   contactEmail    String?             @map("contact_email")
 
-  // Auth shape (Brief A Rev 2)
+  // Auth shape (Brief A Rev 2 + Amendment-02)
   authScheme      ChannelAuthScheme   @default(HMAC_SHA256) @map("auth_scheme")
   hmacSecret      String?             @map("hmac_secret")
   signatureHeader String              @default("X-Signature") @map("signature_header")
+  /// HMAC pair companion: per-channel timestamp header name for replay-protection construction.
+  /// Non-nullable; NULL would create undefined HMAC pair construction state.
+  /// Default 'X-Timestamp' per spec-canonical direction (Amendment-02 bilateral concurrence).
+  timestampHeader String              @default("X-Timestamp") @map("timestamp_header")
 
   // Capabilities (Brief A Rev 2)
   supportsStays         Boolean       @default(false) @map("supports_stays")
@@ -1753,6 +1768,10 @@ model Channel {
   // Audit
   createdAt       DateTime            @default(now()) @map("created_at")
   updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  // Reverse relations (Brief B Rev 2)
+  stayBookings        StayBooking[]
+  experienceBookings  ExperienceBooking[]
 
   @@index([slug])
   @@index([state])

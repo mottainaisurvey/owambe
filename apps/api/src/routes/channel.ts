@@ -330,7 +330,7 @@ router.post('/stays/reservations', async (req: Request, res: Response): Promise<
         channelOrigin: 'COASTAL_CORRIDOR',
         externalRef: coastalCorridorReservationId,
         externalPropertyId: coastalCorridorPropertyId,
-        ccPropertyId: ccPropertyId ?? null,
+        externalPartnerPropertyId: ccPropertyId ?? null,  // Brief B Rev 2: renamed from ccPropertyId (OWB-PHASE-E-02)
         depositAmount: depositAmount != null ? parseFloat(depositAmount.toString()) : 0,
       },
     });
