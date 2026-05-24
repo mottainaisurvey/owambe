@@ -1554,6 +1554,17 @@ model Tenant {
 //
 // A date with no CalendarEntry is implicitly available at the room's base rate.
 
+// ─── CHANNEL REGISTRY ENUMS (Brief A Rev 2 + Amendment-01) ─────────────────
+enum ChannelAuthScheme {
+  HMAC_SHA256
+}
+
+enum ChannelState {
+  ACTIVE
+  PAUSED
+  DECOMMISSIONED
+}
+
 enum CalendarEntryStatus {
   AVAILABLE
   BLOCKED
@@ -1710,4 +1721,40 @@ model ReconciliationManualReview {
   @@index([driftType])
   @@index([createdAt])
   @@map("reconciliation_manual_reviews")
+}
+
+// ─── CHANNEL REGISTRY (Brief A Rev 2 + Amendment-01) ─────────────────────────
+// Canonical per-channel registry: identity + auth + capabilities + destination + state.
+// Amendment-01: destinationUrl field added for per-channel outbound dispatch routing.
+// Amendment-02: timestampHeader field to be added alongside Brief C execution.
+model Channel {
+  id              String              @id @default(cuid())
+  slug            String              @unique
+  name            String
+  contactEmail    String?             @map("contact_email")
+
+  // Auth shape (Brief A Rev 2)
+  authScheme      ChannelAuthScheme   @default(HMAC_SHA256) @map("auth_scheme")
+  hmacSecret      String?             @map("hmac_secret")
+  signatureHeader String              @default("X-Signature") @map("signature_header")
+
+  // Capabilities (Brief A Rev 2)
+  supportsStays         Boolean       @default(false) @map("supports_stays")
+  supportsExperiences   Boolean       @default(false) @map("supports_experiences")
+  supportsEvents        Boolean       @default(false) @map("supports_events")
+  supportsVendors       Boolean       @default(false) @map("supports_vendors")
+
+  // Destination (Amendment-01)
+  destinationUrl        String?       @map("destination_url")
+
+  // Operational state (Brief A Rev 2)
+  state           ChannelState        @default(ACTIVE)
+
+  // Audit
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  @@index([slug])
+  @@index([state])
+  @@map("channels")
 }

@@ -272,6 +272,31 @@ async function main() {
     console.log('✅ Sample event seeded');
   }
 
+  // ─── CHANNEL REGISTRY SEED (Brief A Rev 2 + Amendment-01) ─────────────────
+  // Coastal Corridor channel: canonical staging seed.
+  // hmacSecret sourced from CC_HMAC_SECRET env var (set in Railway staging Variables).
+  // destinationUrl sourced from CC_WEBHOOK_INBOUND_URL env var (Amendment-01).
+  // Seed is idempotent: upsert on slug; update:{} preserves any manual overrides.
+  await prisma.channel.upsert({
+    where: { slug: 'coastal-corridor' },
+    create: {
+      slug: 'coastal-corridor',
+      name: 'Coastal Corridor',
+      contactEmail: null,
+      authScheme: 'HMAC_SHA256',
+      hmacSecret: process.env.CC_HMAC_SECRET ?? null,
+      signatureHeader: 'X-Signature',
+      supportsStays: true,
+      supportsExperiences: true,
+      supportsEvents: false,
+      supportsVendors: false,
+      destinationUrl: process.env.CC_WEBHOOK_INBOUND_URL ?? null,
+      state: 'ACTIVE',
+    },
+    update: {},
+  });
+  console.log('✅ Coastal Corridor channel seeded (Amendment-01)');
+
   console.log('\n🎉 Seed complete! Staging/dev test credentials:');
   console.log('   Admin:   admin@owambe.com / Admin@Owambe2026!');
   console.log('   Planner: planner@test.com / Planner123!');
