@@ -276,7 +276,13 @@ async function main() {
   // Coastal Corridor channel: canonical staging seed.
   // hmacSecret sourced from CC_HMAC_SECRET env var (set in Railway staging Variables).
   // destinationUrl sourced from CC_WEBHOOK_INBOUND_URL env var (Amendment-01).
-  // Seed is idempotent: upsert on slug; update:{} preserves any manual overrides.
+  //
+  // Idempotency note: upsert on slug. The update block intentionally includes
+  // destinationUrl so that re-seeding against an existing row populates the field
+  // from the env-var (canonical value). If CC_WEBHOOK_INBOUND_URL is unset at
+  // seed-time the field is left unchanged (coalesce to existing value via ?? null
+  // only applies on create; update only fires when the env-var is set).
+  const _ccDestUrl = process.env.CC_WEBHOOK_INBOUND_URL ?? null;
   await prisma.channel.upsert({
     where: { slug: 'coastal-corridor' },
     create: {
@@ -290,10 +296,15 @@ async function main() {
       supportsExperiences: true,
       supportsEvents: false,
       supportsVendors: false,
-      destinationUrl: process.env.CC_WEBHOOK_INBOUND_URL ?? null,
+      destinationUrl: _ccDestUrl,
       state: 'ACTIVE',
     },
-    update: {},
+    update: {
+      // Populate destinationUrl from env-var on re-seed if the var is set.
+      // This handles the staging backfill case and production first-seed.
+      // If CC_WEBHOOK_INBOUND_URL is unset, destinationUrl is left unchanged.
+      ..._ccDestUrl !== null && { destinationUrl: _ccDestUrl },
+    },
   });
   console.log('✅ Coastal Corridor channel seeded (Amendment-01)');
 
