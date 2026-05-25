@@ -107,6 +107,14 @@ app.use('/api/upload', uploadRouter);
 app.use('/api/ai', aiRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/notifications', notificationsRouter);
+// Phase A.5: Coastal Corridor inbound channel router — mounted BEFORE messagesRouter
+// to prevent the JWT authenticate middleware in messagesRouter from intercepting
+// channel HMAC-authenticated routes (Brief C Rev 2 § 5 Operation 3).
+// Legacy mount (transition window — preserved per Brief C Rev 2 § 5 Operation 3)
+app.use('/api/v1/channel', channelRouter);
+// Canonical channel router mount (Brief C Rev 2 § 5 Operation 3)
+// Handles /api/v1/channels/:channelSlug/... routes with channel-driven auth
+app.use('/api/v1/channels', channelRouter);
 app.use('/api', messagesRouter);
 app.use('/api/contracts', contractsRouter);
 app.use('/api/tenants', tenantsRouter);
@@ -122,12 +130,6 @@ app.use('/api/properties', propertiesRouter);
 app.use('/api/experiences', experiencesRouter);
 app.use('/api/stay-bookings', stayBookingsRouter);
 app.use('/api/experience-bookings', experienceBookingsRouter);
-// Phase A.5: Coastal Corridor inbound channel router
-// Legacy mount (transition window — preserved per Brief C Rev 2 § 5 Operation 3)
-app.use('/api/v1/channel', channelRouter);
-// Canonical channel router mount (Brief C Rev 2 § 5 Operation 3)
-// Handles /api/v1/channels/:channelSlug/... routes with channel-driven auth
-app.use('/api/v1/channels', channelRouter);
 // Phase B: User self-service (password change, profile)
 app.use('/api/users', usersRouter);
 
