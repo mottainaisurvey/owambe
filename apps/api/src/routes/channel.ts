@@ -8,7 +8,7 @@
  *
  * Mounted at:
  *   - /api/v1/channel          (legacy — transition window per Brief C Rev 2 § 5 Operation 3)
- *   - /api/v1/channels         (canonical — Brief C Rev 2 § 5 Operation 3)
+ *   - /api/v1/channels/:channelSlug  (canonical — Brief C Rev 2 § 5 Operation 3)
  *
  * Auth: Channel-driven HMAC-SHA256 signature verification on all inbound
  *       requests (Brief C Rev 2 § 5 Operation 1 + Operation 4).
@@ -42,7 +42,7 @@ import { dispatchWebhookEvent } from '../services/webhookDispatcher.service';
 import { dispatchReconciliationNow } from '../services/reconciliation.service';
 import { validatePaymentStatusTransition, CanonicalPaymentStatus, PAYMENT_STATUS_TRANSITIONS } from '../utils/paymentStatusTransitions';
 
-const router = Router();
+const router = Router({ mergeParams: true });  // mergeParams: true exposes :channelSlug from canonical mount path
 
 // ─── Raw Body Capture ─────────────────────────────────────────────────────
 // Capture the raw request body bytes BEFORE any JSON parsing so that the

@@ -114,7 +114,9 @@ app.use('/api/notifications', notificationsRouter);
 app.use('/api/v1/channel', channelRouter);
 // Canonical channel router mount (Brief C Rev 2 § 5 Operation 3)
 // Handles /api/v1/channels/:channelSlug/... routes with channel-driven auth
-app.use('/api/v1/channels', channelRouter);
+// Mount at /:channelSlug so Express captures the slug param and strips it,
+// leaving /webhooks/inbound for the channelRouter route handler.
+app.use('/api/v1/channels/:channelSlug', channelRouter);
 app.use('/api', messagesRouter);
 app.use('/api/contracts', contractsRouter);
 app.use('/api/tenants', tenantsRouter);
