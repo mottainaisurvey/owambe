@@ -6,10 +6,16 @@
  *   - Flow 4: Experiences Bookings (Coastal Corridor → Owambe)
  *   - Webhooks: Asynchronous event notifications
  *
- * Mounted at: /api/v1/channel
+ * Mounted at:
+ *   - /api/v1/channel          (legacy — transition window per Brief C Rev 2 § 5 Operation 3)
+ *   - /api/v1/channels         (canonical — Brief C Rev 2 § 5 Operation 3)
  *
- * Auth: HMAC-SHA256 signature verification on all inbound requests.
- *       CC → Owambe: x-cc-signature (HMAC-SHA256 of timestamp.body), x-cc-timestamp, x-idempotency-key
+ * Auth: Channel-driven HMAC-SHA256 signature verification on all inbound
+ *       requests (Brief C Rev 2 § 5 Operation 1 + Operation 4).
+ *       Canonical: X-Signature + X-Timestamp per channel.signatureHeader +
+ *                  channel.timestampHeader (Amendment-01 + Amendment-02).
+ *       Legacy (transition window): x-cc-signature + x-cc-timestamp accepted
+ *                  transiently per C-P2 Path (a) hardcoded fallback.
  *       Owambe → CC: x-owambe-signature (HMAC-SHA256 of timestamp.body), x-owambe-timestamp, x-idempotency-key
  *
  * Field naming: CC sends all payload fields in snake_case + flat structure.
@@ -23,6 +29,7 @@ import express, { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../database/client';
 import { logger } from '../utils/logger';
 import { verifyInboundSignature } from '../services/channels/adapters/coastal-corridor.adapter';
+import { verifyChannelSignature } from '../middleware/channelAuth';
 import { StayBookingStatus, ExperienceBookingStatus } from '@prisma/client';
 import {
   notifyHostNewReservation,
@@ -49,46 +56,14 @@ router.use(express.raw({
   verify: (req: any, _res, buf) => { req.rawBody = buf; },
 }));
 
-// ─── HMAC Signature Verification Middleware ────────────────────────────────
-
-function verifyCoastalCorridorSignature(req: Request, res: Response, next: NextFunction): void {
-  // CC signs outbound webhooks with x-cc-signature and x-cc-timestamp (symmetric naming: signer's name in header)
-  const signature = req.headers['x-cc-signature'] as string | undefined;
-  const timestamp = req.headers['x-cc-timestamp'] as string | undefined;
-  const secret = process.env.COASTAL_CORRIDOR_WEBHOOK_SECRET ?? process.env.COASTAL_CORRIDOR_SHARED_SECRET ?? '';
-
-  if (!signature || !timestamp) {
-    res.status(401).json({
-      error: 'MISSING_SIGNATURE',
-      message: 'x-cc-signature and x-cc-timestamp headers are required',
-    });
-    return;
-  }
-
-  // rawBody is set by express.raw() above — always use it for HMAC computation.
-  // For empty-body requests (e.g. GET), rawBody is an empty string; the signed
-  // message is {timestamp}.{empty-string} = "{timestamp}." which matches the
-  // CC-side signing convention. Do NOT reject empty bodies before verification.
-  const rawBodyBuf = (req as Request & { rawBody?: Buffer }).rawBody;
-  const rawBody = rawBodyBuf ? rawBodyBuf.toString('utf8') : '';
-
-  // OWB-FIX-02: removed empty-body early-return guard (was lines 68-74).
-  // The HMAC verifier handles empty strings correctly.
-
-  if (!verifyInboundSignature(rawBody, signature, secret, timestamp)) {
-    logger.warn('[Channel] Invalid HMAC signature on inbound request', {
-      path: req.path,
-      requestId: req.headers['x-request-id'],
-    });
-    res.status(401).json({ error: 'INVALID_SIGNATURE', message: 'Request signature verification failed' });
-    return;
-  }
-
-  next();
-}
-
-// Apply signature verification to all channel routes
-router.use(verifyCoastalCorridorSignature);
+// ─── Channel-Driven HMAC Auth Middleware (Brief C Rev 2 Operations 1 + 4) ────
+// Factory pattern: verifyChannelSignature() reads channel record from registry
+// (channel.signatureHeader + channel.timestampHeader + channel.hmacSecret).
+// Transition window fallback (C-P2 Path (a)): accepts legacy x-cc-signature +
+// x-cc-timestamp headers transiently with deprecation warning log.
+// Legacy route fallback: defaults channelSlug to 'coastal-corridor' when
+// req.params.channelSlug is absent (legacy /api/v1/channel/... mount).
+router.use(verifyChannelSignature());
 
 // ─── Body Parsing Middleware ───────────────────────────────────────────────
 // express.raw() above captures req.rawBody but leaves req.body as a Buffer.
@@ -106,10 +81,11 @@ router.use((req: Request, _res: Response, next: NextFunction) => {
   next();
 });
 
-// ─── OWB-WAVE-4-04: Per-channel-partner rate limiting ────────────────────────
-// Applied after HMAC verification (partner identity derived from x-cc-signature)
-// and after body parsing. Limits: RESERVATION 60/min, AVAILABILITY 100/min,
-// WEBHOOK 120/min, RECONCILIATION 10/hr — each per channel partner.
+// ─── OWB-WAVE-4-04: Per-channel-partner rate limiting (Brief C Rev 2 Op 2) ────
+// Applied after HMAC verification (partner identity derived from
+// req.params.channelSlug per channel-driven Mechanism α route-based lookup).
+// Limits: RESERVATION 60/min, AVAILABILITY 100/min, WEBHOOK 120/min,
+// RECONCILIATION 10/hr — each per channel partner.
 router.use(channelRateLimiter());
 
 // ─── FLOW 2: Stays Reservations ────────────────────────────────────────────
