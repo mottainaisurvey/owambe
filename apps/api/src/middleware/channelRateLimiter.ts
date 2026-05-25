@@ -2,8 +2,13 @@
  * ─── Per-Channel-Partner Rate Limiter ─────────────────────────────────────
  *
  * OWB-WAVE-4-04: Implements per-channel-partner rate limiting for the
- * Coastal Corridor inbound channel routes, separate from the global
- * 300 req/min backstop in app.ts.
+ * inbound channel routes, separate from the global 300 req/min backstop
+ * in app.ts.
+ *
+ * Brief C Rev 2 Operation 2: partner identity generalised to channel-driven
+ * derivation via req.params.channelSlug (Mechanism α route-based, shared
+ * channel-lookup mechanism with channelAuth.ts per § 2.7). Replaces
+ * hardcoded 'cc:coastal-corridor' identity per [VERIFY:V4] finding.
  *
  * Rate limits per contract Section (reservation endpoints 60/min,
  * availability endpoints 100/min, webhook endpoints 120/min,
@@ -14,15 +19,19 @@
  *   WEBHOOK      : POST /webhooks/inbound                                   → 120/min
  *   RECONCILIATION: GET /reconciliation/*                                   → 10/hr
  *
- * Partner identity is derived from the first 16 hex chars of the
- * x-cc-signature header (the HMAC signature prefix), which is unique
- * per shared secret. Falls back to the request IP if the header is absent.
+ * Partner identity derived from req.params.channelSlug (set by
+ * verifyChannelSignature middleware on canonical route; set on legacy route
+ * via channelAuth.ts legacy route fallback). Falls back to request IP for
+ * unauthenticated requests (should not reach this middleware in production
+ * since HMAC verification runs first).
  *
  * Response headers per contract:
  *   X-RateLimit-Limit     — ceiling for this window
  *   X-RateLimit-Remaining — requests remaining
  *   X-RateLimit-Reset     — Unix epoch when window resets
  *   Retry-After           — seconds until retry (on 429 only)
+ *
+ * Logger prefix [ChannelAuth] per § 2.8 for auth-tier middleware.
  */
 import { Request, Response, NextFunction } from 'express';
 import { logger } from '../utils/logger';
@@ -64,21 +73,21 @@ function classifyPath(path: string): EndpointCategory | null {
 /**
  * Derive a stable partner identity key from the request.
  *
- * Currently Owambe has a single channel partner (Coastal Corridor). The
- * shared-secret architecture means all authenticated CC requests carry the
- * same secret, so the stable discriminator is the constant string
- * 'coastal-corridor'. A future multi-partner architecture would introduce
- * a stable x-channel-partner-id header or a secret-hash lookup table.
+ * Brief C Rev 2 Operation 2: partner identity derived from
+ * req.params.channelSlug (Mechanism α route-based, shared with
+ * channelAuth.ts per § 2.7). verifyChannelSignature middleware sets
+ * req.params.channelSlug on both canonical and legacy routes before
+ * this middleware runs.
  *
  * Falls back to the request IP for unauthenticated requests (should not
  * reach this middleware in production since HMAC verification runs first).
  */
 function partnerKey(req: Request): string {
-  // All requests that pass HMAC verification are from Coastal Corridor.
-  // Use a constant key so the rate limit counter accumulates correctly.
-  const sig = req.headers['x-cc-signature'] as string | undefined;
-  if (sig) {
-    return 'cc:coastal-corridor';
+  // channelSlug is set by verifyChannelSignature on both canonical and
+  // legacy routes (legacy route fallback defaults to 'coastal-corridor').
+  const channelSlug = req.params.channelSlug as string | undefined;
+  if (channelSlug) {
+    return `channel:${channelSlug}`;
   }
   return `ip:${req.ip ?? 'unknown'}`;
 }

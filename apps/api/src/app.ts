@@ -73,7 +73,10 @@ app.use(ipLogger);
 
 // Raw body for Paystack webhook signature verification and Coastal Corridor inbound channel
 app.use('/api/payments/webhook/paystack', express.raw({ type: 'application/json' }));
+// Legacy route raw body capture (transition window — preserved per Brief C Rev 2 § 5 Operation 3)
 app.use('/api/v1/channel/webhooks/inbound', express.raw({ type: 'application/json' }));
+// Canonical route raw body capture (Brief C Rev 2 § 5 Operation 3)
+app.use('/api/v1/channels/:channelSlug/webhooks/inbound', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(requestLogger);
@@ -120,7 +123,11 @@ app.use('/api/experiences', experiencesRouter);
 app.use('/api/stay-bookings', stayBookingsRouter);
 app.use('/api/experience-bookings', experienceBookingsRouter);
 // Phase A.5: Coastal Corridor inbound channel router
+// Legacy mount (transition window — preserved per Brief C Rev 2 § 5 Operation 3)
 app.use('/api/v1/channel', channelRouter);
+// Canonical channel router mount (Brief C Rev 2 § 5 Operation 3)
+// Handles /api/v1/channels/:channelSlug/... routes with channel-driven auth
+app.use('/api/v1/channels', channelRouter);
 // Phase B: User self-service (password change, profile)
 app.use('/api/users', usersRouter);
 

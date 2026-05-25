@@ -309,6 +309,32 @@ async function main() {
   });
   console.log('✅ Coastal Corridor channel seeded (Amendment-01 + Amendment-02)');
 
+  // ─── TEST CHANNEL (Brief C Rev 2 § 11 — staging/dev only) ─────────────────
+  // Inbound-only test channel for AC-C1 second-channel HMAC verification wire probe.
+  // destinationUrl null + supports* flags false: inbound-only per § 11 articulation.
+  // hmacSecret sourced from TEST_CHANNEL_HMAC_SECRET env var (set in Railway staging Variables).
+  // Seed is idempotent: upsert on slug; update:{} preserves any manual overrides.
+  await prisma.channel.upsert({
+    where: { slug: 'test-channel' },
+    create: {
+      slug: 'test-channel',
+      name: 'Test Channel (Brief C verification)',
+      contactEmail: null,
+      authScheme: 'HMAC_SHA256',
+      hmacSecret: process.env.TEST_CHANNEL_HMAC_SECRET ?? null,
+      signatureHeader: 'X-Signature',
+      timestampHeader: 'X-Timestamp',
+      supportsStays: false,
+      supportsExperiences: false,
+      supportsEvents: false,
+      supportsVendors: false,
+      destinationUrl: null,
+      state: 'ACTIVE',
+    },
+    update: {},
+  });
+  console.log('✅ Test channel seeded (Brief C Rev 2 § 11 — staging/dev only)');
+
   console.log('\n🎉 Seed complete! Staging/dev test credentials:');
   console.log('   Admin:   admin@owambe.com / Admin@Owambe2026!');
   console.log('   Planner: planner@test.com / Planner123!');
