@@ -278,11 +278,12 @@ async function main() {
   // destinationUrl sourced from CC_WEBHOOK_INBOUND_URL env var (Amendment-01).
   // timestampHeader: 'X-Timestamp' per spec-canonical direction (Amendment-02 bilateral concurrence).
   //
-  // Idempotency note: upsert on slug. The update block intentionally includes
-  // destinationUrl so that re-seeding against an existing row populates the field
-  // from the env-var (canonical value). If CC_WEBHOOK_INBOUND_URL is unset at
-  // seed-time the field is left unchanged.
+  // Path (γ-secret): update block includes hmacSecret so that re-seeding against an
+  // existing row populates the field from the env-var (canonical value). Symmetric
+  // with destinationUrl env-var seed fix pattern from Amendment-01 execution layer.
+  // If CC_HMAC_SECRET is unset at seed-time the field is left unchanged.
   const _ccDestUrl = process.env.CC_WEBHOOK_INBOUND_URL ?? null;
+  const _ccHmacSecret = process.env.CC_HMAC_SECRET ?? null;
   await prisma.channel.upsert({
     where: { slug: 'coastal-corridor' },
     create: {
@@ -290,7 +291,7 @@ async function main() {
       name: 'Coastal Corridor',
       contactEmail: null,
       authScheme: 'HMAC_SHA256',
-      hmacSecret: process.env.CC_HMAC_SECRET ?? null,
+      hmacSecret: _ccHmacSecret,
       signatureHeader: 'X-Signature',
       timestampHeader: 'X-Timestamp',  // Amendment-02: canonical default per spec-canonical direction
       supportsStays: true,
@@ -301,19 +302,21 @@ async function main() {
       state: 'ACTIVE',
     },
     update: {
-      // Populate destinationUrl from env-var on re-seed if the var is set.
+      // Populate destinationUrl + hmacSecret from env-vars on re-seed if set.
       // This handles the staging backfill case and production first-seed.
-      // If CC_WEBHOOK_INBOUND_URL is unset, destinationUrl is left unchanged.
+      // If env-vars are unset, fields are left unchanged (no null overwrite).
       ..._ccDestUrl !== null && { destinationUrl: _ccDestUrl },
+      ..._ccHmacSecret !== null && { hmacSecret: _ccHmacSecret },
     },
   });
-  console.log('✅ Coastal Corridor channel seeded (Amendment-01 + Amendment-02)');
+  console.log('✅ Coastal Corridor channel seeded (Amendment-01 + Amendment-02 + Path γ-secret)');
 
   // ─── TEST CHANNEL (Brief C Rev 2 § 11 — staging/dev only) ─────────────────
   // Inbound-only test channel for AC-C1 second-channel HMAC verification wire probe.
   // destinationUrl null + supports* flags false: inbound-only per § 11 articulation.
   // hmacSecret sourced from TEST_CHANNEL_HMAC_SECRET env var (set in Railway staging Variables).
-  // Seed is idempotent: upsert on slug; update:{} preserves any manual overrides.
+  // Path (γ-secret): update block includes hmacSecret so re-seed populates from env-var.
+  const _testHmacSecret = process.env.TEST_CHANNEL_HMAC_SECRET ?? null;
   await prisma.channel.upsert({
     where: { slug: 'test-channel' },
     create: {
@@ -321,7 +324,7 @@ async function main() {
       name: 'Test Channel (Brief C verification)',
       contactEmail: null,
       authScheme: 'HMAC_SHA256',
-      hmacSecret: process.env.TEST_CHANNEL_HMAC_SECRET ?? null,
+      hmacSecret: _testHmacSecret,
       signatureHeader: 'X-Signature',
       timestampHeader: 'X-Timestamp',
       supportsStays: false,
@@ -331,9 +334,13 @@ async function main() {
       destinationUrl: null,
       state: 'ACTIVE',
     },
-    update: {},
+    update: {
+      // Populate hmacSecret from env-var on re-seed if set.
+      // If TEST_CHANNEL_HMAC_SECRET is unset, field is left unchanged.
+      ..._testHmacSecret !== null && { hmacSecret: _testHmacSecret },
+    },
   });
-  console.log('✅ Test channel seeded (Brief C Rev 2 § 11 — staging/dev only)');
+  console.log('✅ Test channel seeded (Brief C Rev 2 § 11 + Path γ-secret — staging/dev only)');
 
   console.log('\n🎉 Seed complete! Staging/dev test credentials:');
   console.log('   Admin:   admin@owambe.com / Admin@Owambe2026!');
