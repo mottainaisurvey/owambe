@@ -10,7 +10,7 @@ This document serves as the durable engagement record for Phase 5.2, banking the
 
 ## Section A: Sub-Shape Banking
 
-Phase 5.2 successfully banked the following architectural sub-shapes, transforming the integration from a hardcoded single-partner implementation to a generalised multi-channel architecture:
+Phase 5.2 successfully banked the following architectural sub-shapes, transforming the integration from a hardcoded single-channel-target implementation to a generalised multi-channel architecture:
 
 1. **Channel Registry Foundation (Brief A Rev 2 + Amendments 01/02):**
    - `Channel` model established as the canonical state source.
@@ -36,7 +36,7 @@ Phase 5.2 successfully banked the following architectural sub-shapes, transformi
    - `WebhookDeliveryLog.channelSlug` migration (D5 correction) applied.
 
 5. **Vocabulary Canonicalisation (Brief EF Rev 2):**
-   - "Partner" terminology systematically replaced with "Channel" terminology in `channel.ts` and `channelRateLimiter.ts`.
+   - "Channel" terminology canonicalised (replacing historical "partner" references) in `channel.ts` and `channelRateLimiter.ts`.
 
 ---
 
@@ -66,7 +66,7 @@ Per the decoupled disposition, the following items are explicitly deferred to a 
 
 Following the successful cutover cycle, the engagement will proceed to Briefs E and F:
 
-- **Brief E:** Vendor Marketplace Expansion (EXPANSION-01 / EXPANSION-02).
+- **Brief E:** Vendor Platform Expansion (EXPANSION-01 / EXPANSION-02).
 - **Brief F:** Multi-Tenant Architecture / White-Labeling.
 
 This engagement record serves as the foundational context for these subsequent phases, ensuring architectural continuity and strategic alignment.

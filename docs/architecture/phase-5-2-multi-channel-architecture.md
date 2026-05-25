@@ -4,13 +4,13 @@
 **Context:** Phase 5.2 Engineering Scope Overview
 **Status:** Substantively closed Owambe-side under decoupled disposition
 
-This document captures the Phase 5.2 architectural achievement as a durable engagement-record artefact. It articulates the multi-channel architectural commitment achieved under Phase 5.2 and serves as future-onboarding-context for when CC-side capacity engages, when a future second channel partner onboards, or for future strategic evolution.
+This document captures the Phase 5.2 architectural achievement as a durable engagement-record artefact. It articulates the multi-channel architectural commitment achieved under Phase 5.2 and serves as future-onboarding-context for when CC-side capacity engages, when a future second channel integration target onboards, or for future strategic evolution.
 
 ---
 
 ## Section A: Phase 5.2 Engineering Scope Overview
 
-Phase 5.2 transformed the Owambe integration architecture from a single-partner hardcoded implementation (the historical OWB-WAVE-4-04 Coastal Corridor integration) into a generalised, multi-channel architectural commitment.
+Phase 5.2 transformed the Owambe integration architecture from a single-channel-target hardcoded implementation (the historical OWB-WAVE-4-04 Coastal Corridor integration) into a generalised, multi-channel architectural commitment.
 
 The engineering scope was executed across four Briefs and two Amendments:
 
