@@ -81,11 +81,11 @@ router.use((req: Request, _res: Response, next: NextFunction) => {
   next();
 });
 
-// ─── OWB-WAVE-4-04: Per-channel-partner rate limiting (Brief C Rev 2 Op 2) ────
-// Applied after HMAC verification (partner identity derived from
+// ─── OWB-WAVE-4-04: Per-channel rate limiting (Brief C Rev 2 Op 2) ─────────
+// Applied after HMAC verification (channel identity derived from
 // req.params.channelSlug per channel-driven Mechanism α route-based lookup).
 // Limits: RESERVATION 60/min, AVAILABILITY 100/min, WEBHOOK 120/min,
-// RECONCILIATION 10/hr — each per channel partner.
+// RECONCILIATION 10/hr — each per channel.
 router.use(channelRateLimiter());
 
 // ─── FLOW 2: Stays Reservations ────────────────────────────────────────────

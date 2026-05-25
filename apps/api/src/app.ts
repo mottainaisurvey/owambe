@@ -75,8 +75,6 @@ app.use(ipLogger);
 app.use('/api/payments/webhook/paystack', express.raw({ type: 'application/json' }));
 // Legacy route raw body capture (transition window — preserved per Brief C Rev 2 § 5 Operation 3)
 app.use('/api/v1/channel/webhooks/inbound', express.raw({ type: 'application/json' }));
-// Canonical route raw body capture (Brief C Rev 2 § 5 Operation 3)
-app.use('/api/v1/channels/:channelSlug/webhooks/inbound', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(requestLogger);
@@ -112,11 +110,6 @@ app.use('/api/notifications', notificationsRouter);
 // channel HMAC-authenticated routes (Brief C Rev 2 § 5 Operation 3).
 // Legacy mount (transition window — preserved per Brief C Rev 2 § 5 Operation 3)
 app.use('/api/v1/channel', channelRouter);
-// Canonical channel router mount (Brief C Rev 2 § 5 Operation 3)
-// Handles /api/v1/channels/:channelSlug/... routes with channel-driven auth
-// Mount at /:channelSlug so Express captures the slug param and strips it,
-// leaving /webhooks/inbound for the channelRouter route handler.
-app.use('/api/v1/channels/:channelSlug', channelRouter);
 app.use('/api', messagesRouter);
 app.use('/api/contracts', contractsRouter);
 app.use('/api/tenants', tenantsRouter);

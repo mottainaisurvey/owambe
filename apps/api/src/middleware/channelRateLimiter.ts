@@ -1,25 +1,25 @@
 /**
- * ─── Per-Channel-Partner Rate Limiter ─────────────────────────────────────
+ * ─── Per-Channel Rate Limiter ─────────────────────────────────────────────
  *
- * OWB-WAVE-4-04: Implements per-channel-partner rate limiting for the
+ * OWB-WAVE-4-04: Implements per-channel rate limiting for the
  * inbound channel routes, separate from the global 300 req/min backstop
  * in app.ts.
  *
- * Brief C Rev 2 Operation 2: partner identity generalised to channel-driven
+ * Brief C Rev 2 Operation 2: channel identity generalised to channel-driven
  * derivation via req.params.channelSlug (Mechanism α route-based, shared
  * channel-lookup mechanism with channelAuth.ts per § 2.7). Replaces
  * hardcoded 'cc:coastal-corridor' identity per [VERIFY:V4] finding.
  *
  * Rate limits per contract Section (reservation endpoints 60/min,
  * availability endpoints 100/min, webhook endpoints 120/min,
- * reconciliation endpoints 10/hr — each per-channel-partner):
+ * reconciliation endpoints 10/hr — each per-channel):
  *
  *   RESERVATION  : POST/PATCH /stays/reservations*, /experiences/bookings*  → 60/min
  *   AVAILABILITY : GET /stays/availability*, /experiences/availability*     → 100/min
  *   WEBHOOK      : POST /webhooks/inbound                                   → 120/min
  *   RECONCILIATION: GET /reconciliation/*                                   → 10/hr
  *
- * Partner identity derived from req.params.channelSlug (set by
+ * Channel identity derived from req.params.channelSlug (set by
  * verifyChannelSignature middleware on canonical route; set on legacy route
  * via channelAuth.ts legacy route fallback). Falls back to request IP for
  * unauthenticated requests (should not reach this middleware in production
@@ -71,9 +71,9 @@ function classifyPath(path: string): EndpointCategory | null {
 }
 
 /**
- * Derive a stable partner identity key from the request.
+ * Derive a stable channel identity key from the request.
  *
- * Brief C Rev 2 Operation 2: partner identity derived from
+ * Brief C Rev 2 Operation 2: channel identity derived from
  * req.params.channelSlug (Mechanism α route-based, shared with
  * channelAuth.ts per § 2.7). verifyChannelSignature middleware sets
  * req.params.channelSlug on both canonical and legacy routes before
@@ -82,7 +82,7 @@ function classifyPath(path: string): EndpointCategory | null {
  * Falls back to the request IP for unauthenticated requests (should not
  * reach this middleware in production since HMAC verification runs first).
  */
-function partnerKey(req: Request): string {
+function channelKey(req: Request): string {
   // channelSlug is set by verifyChannelSignature on both canonical and
   // legacy routes (legacy route fallback defaults to 'coastal-corridor').
   const channelSlug = req.params.channelSlug as string | undefined;
@@ -123,7 +123,7 @@ async function incrementCounter(
 // ─── Middleware factory ────────────────────────────────────────────────────
 
 /**
- * Returns an Express middleware that enforces per-channel-partner rate limits
+ * Returns an Express middleware that enforces per-channel rate limits
  * on inbound channel routes.
  */
 export function channelRateLimiter() {
@@ -139,8 +139,8 @@ export function channelRateLimiter() {
     }
 
     const config = RATE_LIMIT_CONFIG[category];
-    const partner = partnerKey(req);
-    const windowKey = `${category}:${partner}`;
+    const key = channelKey(req);
+    const windowKey = `${category}:${key}`;
 
     const { count, ttlSec } = await incrementCounter(windowKey, config.windowSec);
 
@@ -156,7 +156,7 @@ export function channelRateLimiter() {
       res.setHeader('Retry-After', ttlSec);
       logger.warn('[ChannelRateLimit] Rate limit exceeded', {
         category,
-        partner,
+        channelSlug: key,
         count,
         max: config.max,
         path: req.path,
@@ -164,7 +164,7 @@ export function channelRateLimiter() {
       });
       res.status(429).json({
         error: 'RATE_LIMIT_EXCEEDED',
-        message: `Too many requests. Limit: ${config.max} per ${config.windowSec}s per channel partner.`,
+        message: `Too many requests. Limit: ${config.max} per ${config.windowSec}s per channel.`,
         retryAfter: ttlSec,
       });
       return;
