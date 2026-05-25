@@ -62,11 +62,8 @@ Per the decoupled disposition, the following items are explicitly deferred to a 
 
 ---
 
-## Section C: Strategic Evolution (Briefs E + F)
+## Section C: Phase 5.2 Substantive Closure Achievement
 
-Following the successful cutover cycle, the engagement will proceed to Briefs E and F:
+Phase 5.2 is substantively closed Owambe-side under the decoupled disposition per founder reconciliation 2026-05-25. The Brief EF Rev 2 execution cycle (vocabulary canonicalisation + app.ts dead code cleanup + architecture documentation) constitutes the cleanup-and-documentation closure artefact for Phase 5.2 under the light-scope lean per CC strategic anchor + Owambe coordinator bilateral concurrence 2026-05-25.
 
-- **Brief E:** Vendor Platform Expansion (EXPANSION-01 / EXPANSION-02).
-- **Brief F:** Multi-Tenant Architecture / White-Labeling.
-
-This engagement record serves as the foundational context for these subsequent phases, ensuring architectural continuity and strategic alignment.
+The multi-channel architectural commitment is durable and engagement-record-anchored. The cutover cycle items in Section B represent the remaining forward engineering surface requiring CC-side capacity engagement. No speculative scope beyond the cutover cycle is articulated here; if substantive work surfaces post-v-1.5-trigger or at a future engagement evolution cycle, it will enter the engagement record at that future cycle rather than as speculative forward-articulation.
