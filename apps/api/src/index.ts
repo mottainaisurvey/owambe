@@ -79,6 +79,7 @@ app.use(requestTimeout(30000));
 app.use('/api/payments/webhook/paystack', express.raw({ type: 'application/json' }));
 // Skip express.json() for /api/v1/channel routes — those routes use express.raw() inside
 // the channel router to capture the raw body for HMAC verification.
+// Also skip for /api/v1/channels/:channelSlug routes (canonical channel route, Brief C Rev 2).
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/v1/channel')) return next();
   express.json({ limit: '10mb' })(req, res, next);
@@ -117,9 +118,14 @@ app.use('/api/ai', rateLimiter({ windowMs: 60000, max: 20 }));
 app.use('/api/upload', rateLimiter({ windowMs: 60000, max: 30 }));
 app.use('/api', rateLimiter({ windowMs: 60000, max: 300 }));
 
-// Phase B: Coastal Corridor inbound channel router (HMAC-signed, no JWT auth)
-// MUST be mounted before messagesRouter (/api catch-all) to avoid JWT auth interception
+// Phase A.5 + Brief C Rev 2: Channel router mounts (HMAC-signed, no JWT auth)
+// MUST be mounted before messagesRouter (/api catch-all) to avoid JWT auth interception.
+// Legacy mount (transition window — preserved per Brief C Rev 2 § 5 Operation 3)
 app.use('/api/v1/channel', channelRouter);
+// Canonical channel router mount (Brief C Rev 2 § 5 Operation 3)
+// Handles /api/v1/channels/:channelSlug/... routes with channel-driven auth
+// (mergeParams: true on channelRouter ensures req.params.channelSlug is accessible)
+app.use('/api/v1/channels/:channelSlug', channelRouter);
 
 // Phase B: User self-service routes (change password, profile)
 app.use('/api/users', usersRouter);
