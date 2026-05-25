@@ -1671,7 +1671,8 @@ model PortfolioItem {
 model WebhookDeliveryLog {
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   eventId         String   @unique                    // owb-evt-{hex} — idempotency anchor
-  eventType       String                              // e.g. reservation.status_changed
+  eventType       String                              // e.g. reservation.guest_checked_in (spec-canonical post-Brief-D)
+  channelSlug     String              @default("coastal-corridor") @map("channel_slug") // Brief D Rev 2 D5 correction
   targetUrl       String
   requestBody     String   @db.Text                  // first 5000 chars of outbound JSON
   httpStatus      Int?                               // last HTTP response status
@@ -1686,6 +1687,7 @@ model WebhookDeliveryLog {
 
   @@index([deliveryStatus])
   @@index([eventType])
+  @@index([channelSlug])
   @@index([createdAt])
   @@map("webhook_delivery_logs")
 }

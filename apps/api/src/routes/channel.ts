@@ -708,8 +708,8 @@ router.patch('/stays/reservations/:cc_reservation_id', async (req: Request, res:
       try {
         // Map Owambe status to the appropriate CC event type
         const eventTypeMap: Partial<Record<string, string>> = {
-          CHECKED_IN:  'reservation.checked_in',
-          CHECKED_OUT: 'reservation.checked_out',
+          CHECKED_IN:  'reservation.guest_checked_in',   // Brief D Rev 2 AC-D2: spec-canonical naming
+          CHECKED_OUT: 'reservation.guest_checked_out',  // Brief D Rev 2 AC-D2: spec-canonical naming
           CANCELLED:   'reservation.cancelled',
           NO_SHOW:     'reservation.no_show',
         };

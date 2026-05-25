@@ -1,5 +1,6 @@
 // ─── webhookDispatcher.service.ts ────────────────────────────────────────────
-// OWB-WAVE-4-01: Outbound webhook dispatcher for Owambe→CC event notifications.
+// OWB-WAVE-4-01: Outbound webhook dispatcher for Owambe→channel event notifications.
+// Brief D Rev 2: Generalised to channel-driven dispatch pattern.
 //
 // Architecture:
 //   - BullMQ queue  "owambe:webhook-dispatch"  (Redis-backed, falls back to
@@ -9,7 +10,7 @@
 //     timestamp and signature immediately before each HTTP POST so that
 //     signatures are never stale under queue delay.
 //   - Signing: HMAC-SHA256 over `${timestamp}.${bodyString}` using
-//     OWAMBE_WEBHOOK_OUTBOUND_SECRET (same scheme CC uses for inbound).
+//     channel.hmacSecret (per-channel, from channel registry).
 //
 // OWB-WAVE-4-01-FIX (timestamp staleness):
 //   BEFORE: timestamp + signature generated at enqueue time (dispatchWebhookEvent),
@@ -19,37 +20,39 @@
 //           immediately before the HTTP POST.  The signed bytes are identical to
 //           the bytes put on the wire (approach (b) from the CC verification ask).
 //
-// Scope boundary of the fix:
-//   Moves from enqueue to dispatch:
-//     - timestamp generation
-//     - signature generation
-//   Stays at enqueue (stable across retries):
-//     - idempotency key generation
-//     - event-id generation
-//     - body field construction (unsigned fields stored in job.data)
-//   Worker generates at dispatch:
-//     - fresh timestamp
-//     - fresh signature (against the bytes actually sent)
-//   Worker reads from job.data verbatim:
-//     - idempotencyKey  → x-idempotency-key header
-//     - eventId         → x-owambe-event-id header
-//     - eventType, data → used to reconstruct the body
+// Brief D Rev 2 — Channel-driven dispatch:
+//   - dispatchWebhookEvent enqueues one job per capable ACTIVE channel
+//   - Capability dispatch: Pattern α (supportsStays / supportsExperiences /
+//     supportsEvents / supportsVendors flags)
+//   - Per-channel circuit breaker: 20 consecutive failures → OPEN (120-second
+//     timeout before HALF_OPEN probe attempt)
+//   - Declarative header emission: channel.signatureHeader + channel.timestampHeader
+//   - Spec-canonical event naming: reservation.guest_checked_in / _out
+//   - Booking event family: booking.created / booking.cancelled / booking.refunded
+//     gated by OWAMBE_OUTBOUND_BOOKING_EVENTS_ENABLED env var (option iii staged enable)
 //
-// Supported event types (OWB-WAVE-4-01):
+// Supported event types (post-Brief-D):
 //   reservation.status_changed
 //   reservation.cancelled
-//   reservation.checked_in
-//   reservation.checked_out
+//   reservation.guest_checked_in    ← spec-canonical (was reservation.checked_in)
+//   reservation.guest_checked_out   ← spec-canonical (was reservation.checked_out)
 //   reservation.no_show
+//   booking.created                 ← booking family (gated by env var)
+//   booking.cancelled               ← booking family (gated by env var)
+//   booking.refunded                ← booking family (gated by env var)
 //
 // Usage:
 //   import { dispatchWebhookEvent } from './webhookDispatcher.service';
-//   dispatchWebhookEvent({ eventType: 'reservation.status_changed', data: { ... } });
+//   dispatchWebhookEvent({ eventType: 'reservation.guest_checked_in', data: { ... } });
 //
 // Environment variables:
-//   OWAMBE_WEBHOOK_OUTBOUND_SECRET  — HMAC signing secret (required for dispatch)
-//   CC_WEBHOOK_INBOUND_URL          — CC's inbound webhook endpoint
+//   OWAMBE_WEBHOOK_OUTBOUND_SECRET  — Legacy HMAC signing secret (fallback for
+//                                     channels without hmacSecret in DB)
+//   CC_WEBHOOK_INBOUND_URL          — CC's inbound webhook endpoint (legacy fallback
+//                                     destination for coastal-corridor channel)
 //   REDIS_URL                       — BullMQ backing store (optional; falls back to sync)
+//   OWAMBE_OUTBOUND_BOOKING_EVENTS_ENABLED — Set to 'true' to enable booking event
+//                                     family dispatch (option iii staged enable)
 
 import { Queue, Worker, Job } from 'bullmq';
 import IORedis from 'ioredis';
@@ -61,36 +64,58 @@ import { prisma } from '../database/client';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type WebhookEventType =
+/** Reservation event family (spec-canonical naming post-Brief-D) */
+export type ReservationEventType =
   | 'reservation.status_changed'
   | 'reservation.cancelled'
-  | 'reservation.checked_in'
-  | 'reservation.checked_out'
+  | 'reservation.guest_checked_in'
+  | 'reservation.guest_checked_out'
   | 'reservation.no_show';
+
+/** Booking event family (gated by OWAMBE_OUTBOUND_BOOKING_EVENTS_ENABLED) */
+export type BookingEventType =
+  | 'booking.created'
+  | 'booking.cancelled'
+  | 'booking.refunded';
+
+export type WebhookEventType = ReservationEventType | BookingEventType;
+
+/** Event family classification */
+export type EventFamily = 'reservation' | 'booking';
 
 export interface WebhookDispatchPayload {
   eventType: WebhookEventType;
   data: Record<string, unknown>;
-  /** Optional: override the target URL (defaults to CC_WEBHOOK_INBOUND_URL) */
+  /** Optional: override the target URL (defaults to channel.destinationUrl) */
   targetUrl?: string;
-  /** Optional: idempotency key for deduplication on CC's side */
+  /** Optional: idempotency key for deduplication on receiver's side */
   idempotencyKey?: string;
+  /**
+   * Optional: restrict dispatch to a specific channel slug.
+   * If omitted, dispatcher dispatches to ALL capable ACTIVE channels.
+   */
+  channelSlug?: string;
 }
 
 /**
- * Job data stored in BullMQ.
+ * Job data stored in BullMQ — one job per channel per event.
  *
  * OWB-WAVE-4-01-FIX: `timestamp` and `signature` are NOT stored here.
  * They are generated fresh at dispatch time (executeDelivery) immediately
  * before the HTTP POST, so they are never stale under queue delay.
  *
  * `idempotencyKey` and `eventId` ARE stored here — they must be stable
- * across retry attempts so CC's inbound side can deduplicate correctly.
+ * across retry attempts so the receiver can deduplicate correctly.
  */
 interface WebhookJobData {
   eventId: string;
   eventType: WebhookEventType;
+  channelSlug: string;
   targetUrl: string;
+  /** Per-channel auth config — resolved at enqueue time from channel record */
+  signatureHeader: string;
+  timestampHeader: string;
+  hmacSecret: string;
   /** Unsigned event body fields; worker reconstructs the JSON body at dispatch time */
   eventTimestamp: string;   // ISO-8601 wall-clock time of the event (stable, for body content)
   data: Record<string, unknown>;
@@ -102,11 +127,108 @@ interface WebhookJobData {
 
 export const WEBHOOK_DISPATCH_QUEUE_NAME = 'owambe:webhook-dispatch';
 
-const DEFAULT_CC_WEBHOOK_URL =
+/** Legacy fallback secret for channels without hmacSecret in DB */
+const LEGACY_OUTBOUND_SECRET = process.env.OWAMBE_WEBHOOK_OUTBOUND_SECRET ?? '';
+
+/** Legacy fallback destination URL for coastal-corridor channel */
+const LEGACY_CC_WEBHOOK_URL =
   process.env.CC_WEBHOOK_INBOUND_URL ??
   'https://coastal-corridor-staging.vercel.app/api/v1/channel/webhooks/inbound';
 
-const OUTBOUND_SECRET = process.env.OWAMBE_WEBHOOK_OUTBOUND_SECRET ?? '';
+/** Booking event family enable flag (option iii staged enable) */
+const BOOKING_EVENTS_ENABLED =
+  process.env.OWAMBE_OUTBOUND_BOOKING_EVENTS_ENABLED === 'true';
+
+// ─── Circuit Breaker ──────────────────────────────────────────────────────────
+
+const CIRCUIT_BREAKER_THRESHOLD = 20;       // consecutive failures before OPEN
+const CIRCUIT_BREAKER_TIMEOUT_MS = 120_000; // 120 seconds before HALF_OPEN probe
+
+type CircuitState = 'CLOSED' | 'OPEN' | 'HALF_OPEN';
+
+interface CircuitBreakerState {
+  state: CircuitState;
+  consecutiveFailures: number;
+  openedAt: number | null;
+}
+
+/** Per-channel circuit breaker state (in-memory; resets on process restart) */
+const _circuitBreakers = new Map<string, CircuitBreakerState>();
+
+function getCircuitBreaker(channelSlug: string): CircuitBreakerState {
+  if (!_circuitBreakers.has(channelSlug)) {
+    _circuitBreakers.set(channelSlug, {
+      state: 'CLOSED',
+      consecutiveFailures: 0,
+      openedAt: null,
+    });
+  }
+  return _circuitBreakers.get(channelSlug)!;
+}
+
+function recordCircuitSuccess(channelSlug: string): void {
+  const cb = getCircuitBreaker(channelSlug);
+  if (cb.state !== 'CLOSED' || cb.consecutiveFailures > 0) {
+    logger.info('[WebhookDispatcher] Circuit breaker reset to CLOSED', { channelSlug });
+  }
+  cb.state = 'CLOSED';
+  cb.consecutiveFailures = 0;
+  cb.openedAt = null;
+}
+
+function recordCircuitFailure(channelSlug: string): void {
+  const cb = getCircuitBreaker(channelSlug);
+  cb.consecutiveFailures += 1;
+  if (cb.state === 'CLOSED' && cb.consecutiveFailures >= CIRCUIT_BREAKER_THRESHOLD) {
+    cb.state = 'OPEN';
+    cb.openedAt = Date.now();
+    logger.error('[WebhookDispatcher] Circuit breaker OPEN', {
+      channelSlug,
+      consecutiveFailures: cb.consecutiveFailures,
+    });
+  }
+}
+
+/**
+ * Returns true if the circuit allows dispatch to proceed.
+ * CLOSED → allow; OPEN → check timeout → HALF_OPEN probe or block; HALF_OPEN → allow probe.
+ */
+function circuitAllowsDispatch(channelSlug: string): boolean {
+  const cb = getCircuitBreaker(channelSlug);
+  if (cb.state === 'CLOSED') return true;
+  if (cb.state === 'HALF_OPEN') return true; // allow one probe attempt
+  // OPEN — check if timeout has elapsed
+  if (cb.openedAt !== null && Date.now() - cb.openedAt >= CIRCUIT_BREAKER_TIMEOUT_MS) {
+    cb.state = 'HALF_OPEN';
+    logger.info('[WebhookDispatcher] Circuit breaker → HALF_OPEN (probe attempt)', { channelSlug });
+    return true;
+  }
+  return false;
+}
+
+// ─── Event Family Classification ──────────────────────────────────────────────
+
+function getEventFamily(eventType: WebhookEventType): EventFamily {
+  if (eventType.startsWith('booking.')) return 'booking';
+  return 'reservation';
+}
+
+/**
+ * Returns true if the channel's capability flags indicate it should receive
+ * this event type (Pattern α capability dispatch).
+ */
+function channelSupportsEvent(
+  channel: { supportsStays: boolean; supportsExperiences: boolean; supportsEvents: boolean; supportsVendors: boolean },
+  eventType: WebhookEventType,
+): boolean {
+  const family = getEventFamily(eventType);
+  if (family === 'booking') {
+    // Booking events: route to channels supporting stays OR experiences
+    return channel.supportsStays || channel.supportsExperiences;
+  }
+  // Reservation events: route to channels supporting stays
+  return channel.supportsStays;
+}
 
 // ─── Redis Connection ─────────────────────────────────────────────────────────
 
@@ -133,15 +255,27 @@ let _redisAvailable = false;
 
 // ─── Signing ──────────────────────────────────────────────────────────────────
 
-function signPayload(timestamp: string, bodyString: string): string {
+function signPayload(secret: string, timestamp: string, bodyString: string): string {
   const msg = `${timestamp}.${bodyString}`;
-  return crypto.createHmac('sha256', OUTBOUND_SECRET).update(msg).digest('hex');
+  return crypto.createHmac('sha256', secret).update(msg).digest('hex');
 }
 
 // ─── Delivery Execution ───────────────────────────────────────────────────────
 
 async function executeDelivery(job: WebhookJobData): Promise<void> {
-  const { eventId, eventType, targetUrl, eventTimestamp, data, idempotencyKey, attemptNumber } = job;
+  const {
+    eventId, eventType, channelSlug, targetUrl,
+    signatureHeader, timestampHeader, hmacSecret,
+    eventTimestamp, data, idempotencyKey, attemptNumber,
+  } = job;
+
+  // Check circuit breaker before attempting delivery
+  if (!circuitAllowsDispatch(channelSlug)) {
+    logger.warn('[WebhookDispatcher] Circuit breaker OPEN — skipping delivery', {
+      channelSlug, eventId, eventType,
+    });
+    return; // Do not throw — skip this delivery without triggering BullMQ retry
+  }
 
   // ── OWB-WAVE-4-01-FIX: generate timestamp and signature at dispatch time ──
   //
@@ -162,7 +296,7 @@ async function executeDelivery(job: WebhookJobData): Promise<void> {
   };
   const bodyString = JSON.stringify(bodyObj);
   const freshTimestamp = String(Math.floor(Date.now() / 1000));
-  const signature = signPayload(freshTimestamp, bodyString);
+  const signature = signPayload(hmacSecret, freshTimestamp, bodyString);
   // ── end fix ───────────────────────────────────────────────────────────────
 
   const startMs = Date.now();
@@ -176,19 +310,24 @@ async function executeDelivery(job: WebhookJobData): Promise<void> {
       const url = new URL(targetUrl);
       const transport = url.protocol === 'https:' ? https : http;
       const bodyBuf = Buffer.from(bodyString, 'utf8');
+
+      // Brief D Rev 2 AC-D10: declarative header emission from channel record
+      // signatureHeader + timestampHeader read from channel registry (not hardcoded)
+      const headers: Record<string, string | number> = {
+        'Content-Type': 'application/json',
+        'Content-Length': bodyBuf.length,
+        [signatureHeader]: signature,
+        [timestampHeader]: freshTimestamp,
+        'x-owambe-event-id': eventId,       // enqueue-time stable
+        'x-idempotency-key': idempotencyKey, // enqueue-time stable
+      };
+
       const options = {
         hostname: url.hostname,
         port: url.port || (url.protocol === 'https:' ? 443 : 80),
         path: url.pathname + url.search,
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': bodyBuf.length,
-          'x-owambe-signature': signature,
-          'x-owambe-timestamp': freshTimestamp,
-          'x-owambe-event-id': eventId,       // enqueue-time stable
-          'x-idempotency-key': idempotencyKey, // enqueue-time stable
-        },
+        headers,
         timeout: 10000,
       };
       const req = transport.request(options, (res) => {
@@ -207,18 +346,24 @@ async function executeDelivery(job: WebhookJobData): Promise<void> {
 
     if (result.status >= 200 && result.status < 300) {
       deliveryStatus = 'DELIVERED';
-      logger.info('[WebhookDispatcher] Delivered', { eventId, eventType, httpStatus, attemptNumber });
+      recordCircuitSuccess(channelSlug);
+      logger.info('[WebhookDispatcher] Delivered', {
+        eventId, eventType, channelSlug, httpStatus, attemptNumber,
+      });
     } else {
       errorMessage = `HTTP ${result.status}: ${responseBody?.slice(0, 200)}`;
-      logger.warn('[WebhookDispatcher] Non-2xx response', { eventId, eventType, httpStatus, attemptNumber });
+      logger.warn('[WebhookDispatcher] Non-2xx response', {
+        eventId, eventType, channelSlug, httpStatus, attemptNumber,
+      });
       throw new Error(errorMessage); // triggers BullMQ retry
     }
   } catch (err: any) {
     if (!errorMessage) {
       errorMessage = err.message ?? String(err);
     }
+    recordCircuitFailure(channelSlug);
     logger.error('[WebhookDispatcher] Delivery failed', {
-      eventId, eventType, attemptNumber,
+      eventId, eventType, channelSlug, attemptNumber,
       error: errorMessage?.slice(0, 300),
     });
     throw err; // re-throw so BullMQ retries
@@ -241,6 +386,7 @@ async function executeDelivery(job: WebhookJobData): Promise<void> {
           create: {
             eventId,
             eventType,
+            channelSlug,
             targetUrl,
             requestBody: bodyString.slice(0, 5000),
             httpStatus,
@@ -255,7 +401,7 @@ async function executeDelivery(job: WebhookJobData): Promise<void> {
       } catch (logErr) {
         // Log persistence is non-fatal
         logger.warn('[WebhookDispatcher] Failed to persist delivery log', {
-          eventId,
+          eventId, channelSlug,
           error: logErr instanceof Error ? logErr.message : String(logErr),
         });
       }
@@ -323,8 +469,15 @@ export async function closeWebhookDispatcher(): Promise<void> {
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
- * Enqueue (or synchronously fire) an outbound webhook event to CC.
- * This is the only function callers should use.
+ * Enqueue (or synchronously fire) an outbound webhook event to all capable
+ * ACTIVE channels in the channel registry.
+ *
+ * Brief D Rev 2 — Channel-driven dispatch:
+ *   - Queries channel registry for ACTIVE channels
+ *   - Filters by capability flags (Pattern α: supportsStays / supportsExperiences)
+ *   - Dispatches one job per capable channel
+ *   - Per-channel circuit breaker gates dispatch (20 consecutive failures → OPEN)
+ *   - Booking events gated by OWAMBE_OUTBOUND_BOOKING_EVENTS_ENABLED env var
  *
  * OWB-WAVE-4-01-FIX: timestamp and signature are no longer generated here.
  * Only the stable, retry-invariant fields are stored in job.data:
@@ -336,46 +489,150 @@ export async function closeWebhookDispatcher(): Promise<void> {
  * @param payload  Event type + data bag + optional overrides
  */
 export async function dispatchWebhookEvent(payload: WebhookDispatchPayload): Promise<void> {
-  if (!OUTBOUND_SECRET) {
-    logger.warn('[WebhookDispatcher] OWAMBE_WEBHOOK_OUTBOUND_SECRET not set — skipping dispatch', {
-      eventType: payload.eventType,
+  const { eventType, data, idempotencyKey: payloadIdempotencyKey, channelSlug: targetChannelSlug } = payload;
+
+  // Booking event family gate (option iii staged enable)
+  if (getEventFamily(eventType) === 'booking' && !BOOKING_EVENTS_ENABLED) {
+    logger.debug('[WebhookDispatcher] Booking events disabled — skipping dispatch', { eventType });
+    return;
+  }
+
+  // Query channel registry for capable ACTIVE channels
+  let channels: Array<{
+    id: string;
+    slug: string;
+    state: string;
+    supportsStays: boolean;
+    supportsExperiences: boolean;
+    supportsEvents: boolean;
+    supportsVendors: boolean;
+    destinationUrl: string | null;
+    signatureHeader: string;
+    timestampHeader: string;
+    hmacSecret: string | null;
+  }>;
+
+  try {
+    channels = await (prisma as any).channel.findMany({
+      where: {
+        state: 'ACTIVE',
+        ...(targetChannelSlug ? { slug: targetChannelSlug } : {}),
+      },
+      select: {
+        id: true,
+        slug: true,
+        state: true,
+        supportsStays: true,
+        supportsExperiences: true,
+        supportsEvents: true,
+        supportsVendors: true,
+        destinationUrl: true,
+        signatureHeader: true,
+        timestampHeader: true,
+        hmacSecret: true,
+      },
+    });
+  } catch (err: any) {
+    logger.error('[WebhookDispatcher] Failed to query channel registry — skipping dispatch', {
+      eventType,
+      error: err.message,
     });
     return;
   }
 
-  // Enqueue-time stable fields
-  const eventId = `owb-evt-${crypto.randomBytes(8).toString('hex')}`;
-  const idempotencyKey = payload.idempotencyKey ?? eventId;
-  const targetUrl = payload.targetUrl ?? DEFAULT_CC_WEBHOOK_URL;
-  // eventTimestamp is the wall-clock time of the event for the body content field;
-  // it is distinct from the signing timestamp which is generated fresh at dispatch.
+  // Filter by capability (Pattern α)
+  const capableChannels = channels.filter((ch) => channelSupportsEvent(ch, eventType));
+
+  if (capableChannels.length === 0) {
+    logger.debug('[WebhookDispatcher] No capable ACTIVE channels for event', { eventType });
+    return;
+  }
+
+  // Enqueue-time stable fields (shared across all channel jobs for this event)
+  const baseEventId = `owb-evt-${crypto.randomBytes(8).toString('hex')}`;
   const eventTimestamp = new Date().toISOString();
 
-  const jobData: WebhookJobData = {
-    eventId,
-    eventType: payload.eventType,
-    targetUrl,
-    eventTimestamp,
-    data: payload.data,
-    idempotencyKey,
-    attemptNumber: 1,
-  };
+  // Dispatch one job per capable channel
+  for (const channel of capableChannels) {
+    // Per-channel circuit breaker check
+    if (!circuitAllowsDispatch(channel.slug)) {
+      logger.warn('[WebhookDispatcher] Circuit breaker OPEN — skipping channel', {
+        channelSlug: channel.slug, eventType,
+      });
+      continue;
+    }
 
-  if (_redisAvailable && _dispatchQueue) {
-    await _dispatchQueue.add('dispatch-webhook', jobData);
-    logger.debug('[WebhookDispatcher] Job enqueued', { eventId, eventType: payload.eventType });
-  } else {
-    // Synchronous fallback (no retry)
-    logger.info('[WebhookDispatcher] Synchronous dispatch (no Redis)', {
+    // Resolve per-channel destination URL
+    const targetUrl = payload.targetUrl
+      ?? channel.destinationUrl
+      ?? (channel.slug === 'coastal-corridor' ? LEGACY_CC_WEBHOOK_URL : null);
+
+    if (!targetUrl) {
+      logger.warn('[WebhookDispatcher] No destination URL for channel — skipping', {
+        channelSlug: channel.slug, eventType,
+      });
+      continue;
+    }
+
+    // Resolve per-channel HMAC secret
+    const hmacSecret = channel.hmacSecret ?? LEGACY_OUTBOUND_SECRET;
+    if (!hmacSecret) {
+      logger.warn('[WebhookDispatcher] No HMAC secret for channel — skipping', {
+        channelSlug: channel.slug, eventType,
+      });
+      continue;
+    }
+
+    // Per-channel event ID (suffix with channel slug for multi-channel deduplication)
+    const eventId = capableChannels.length === 1
+      ? baseEventId
+      : `${baseEventId}-${channel.slug}`;
+    const idempotencyKey = payloadIdempotencyKey
+      ? `${payloadIdempotencyKey}-${channel.slug}`
+      : eventId;
+
+    const jobData: WebhookJobData = {
       eventId,
-      eventType: payload.eventType,
-    });
-    try {
-      await executeDelivery(jobData);
-    } catch {
-      // Swallow — synchronous fallback does not propagate delivery failures to caller
+      eventType,
+      channelSlug: channel.slug,
+      targetUrl,
+      signatureHeader: channel.signatureHeader,
+      timestampHeader: channel.timestampHeader,
+      hmacSecret,
+      eventTimestamp,
+      data,
+      idempotencyKey,
+      attemptNumber: 1,
+    };
+
+    if (_redisAvailable && _dispatchQueue) {
+      await _dispatchQueue.add('dispatch-webhook', jobData);
+      logger.debug('[WebhookDispatcher] Job enqueued', {
+        eventId, eventType, channelSlug: channel.slug,
+      });
+    } else {
+      // Synchronous fallback (no retry)
+      logger.info('[WebhookDispatcher] Synchronous dispatch (no Redis)', {
+        eventId, eventType, channelSlug: channel.slug,
+      });
+      try {
+        await executeDelivery(jobData);
+      } catch {
+        // Swallow — synchronous fallback does not propagate delivery failures to caller
+      }
     }
   }
+}
+
+// ─── Circuit Breaker Inspection (for health checks / tests) ──────────────────
+
+export function getCircuitBreakerState(channelSlug: string): CircuitBreakerState {
+  return getCircuitBreaker(channelSlug);
+}
+
+export function resetCircuitBreaker(channelSlug: string): void {
+  _circuitBreakers.delete(channelSlug);
+  logger.info('[WebhookDispatcher] Circuit breaker manually reset', { channelSlug });
 }
 
 // ─── Queue Health ─────────────────────────────────────────────────────────────
