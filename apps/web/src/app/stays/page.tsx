@@ -60,8 +60,8 @@ export default function StaysPage() {
           <span className="text-[var(--accent)]">Reach guests across Nigeria.</span>
         </h1>
         <p className="text-lg text-[var(--muted)] max-w-2xl mx-auto mb-8">
-          Owambe Stays connects property owners and short-let operators with guests booking
-          directly and via Coastal Corridor — Nigeria's premier coastal travel platform.
+          Owambe Stays connects property owners and short-let operators with guests making
+          reservations directly and via Coastal Corridor — Nigeria's premier coastal travel platform.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link href="/register" className="btn-primary px-6 py-3 text-base">
