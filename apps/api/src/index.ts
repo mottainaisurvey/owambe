@@ -31,6 +31,7 @@ import { contractsRouter } from './routes/contracts';
 import { tenantsRouter } from './routes/tenants';
 import { promosRouter } from './routes/promos';
 import { waitlistRouter } from './routes/waitlist';
+import { cohortRouter } from './routes/cohort';
 import { ticketsRouter } from './routes/tickets';
 import { crmRouter } from './routes/crm';
 import { instalmentsRouter } from './routes/instalments';
@@ -126,6 +127,10 @@ app.use('/api/v1/channel', channelRouter);
 // Handles /api/v1/channels/:channelSlug/... routes with channel-driven auth
 // (mergeParams: true on channelRouter ensures req.params.channelSlug is accessible)
 app.use('/api/v1/channels/:channelSlug', channelRouter);
+// CC-COHORT-OFFER-SURFACES-01: cohortRouter is a public endpoint (no auth required).
+// Must be mounted BEFORE messagesRouter to avoid messagesRouter.use(authenticate)
+// intercepting /api/cohort/* requests (same pattern as channelRouter above).
+app.use('/api/cohort', cohortRouter);
 
 // Phase B: User self-service routes (change password, profile)
 app.use('/api/users', usersRouter);
