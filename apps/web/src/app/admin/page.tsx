@@ -808,12 +808,12 @@ function CategoryVisibilityTab() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-categories'],
-    queryFn: () => api.get('/admin/vendors/categories').then(r => r.data),
+    queryFn: () => api.get('/admin/categories/vendor').then(r => r.data),
   });
 
   const toggleMutation = useMutation({
     mutationFn: ({ id, isPublicVisible }: { id: string; isPublicVisible: boolean }) =>
-      api.patch(`/admin/vendors/categories/${id}/visibility`, { isPublicVisible }),
+      api.patch(`/admin/categories/vendor/${id}/visibility`, { isPublicVisible }),
     onSuccess: () => {
       toast.success('Category visibility updated');
       queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
