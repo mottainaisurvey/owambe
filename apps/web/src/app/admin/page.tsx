@@ -17,11 +17,17 @@ import {
 const TABS = ['Overview', 'Vendor Queue', 'Users', 'Disputes', 'Commission', 'Portals', 'Contracts', 'Tags', 'Categories'];
 
 export default function AdminPage() {
-  const { user, logout } = useAuthStore();
+  const { user, logout, _hasHydrated } = useAuthStore();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('Overview');
   const [showChangePwd, setShowChangePwd] = useState(false);
   const queryClient = useQueryClient();
+
+  // Wait for Zustand persist hydration before evaluating the role guard.
+  // Without this, user is null on first render and the guard fires before
+  // the stored admin session is read from localStorage, causing a redirect
+  // to /dashboard on every direct navigation to /admin.
+  if (!_hasHydrated) return null;
 
   if (user?.role !== 'ADMIN') {
     router.replace('/dashboard');
