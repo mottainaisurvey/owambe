@@ -46,6 +46,7 @@ import stayBookingsRouter from './routes/stay-bookings';
 import experienceBookingsRouter from './routes/experience-bookings';
 import channelRouter from './routes/channel';
 import { usersRouter } from './routes/users';
+import { adminResetRouter } from './routes/admin-reset';
 
 import { initSocket } from './socket';
 
@@ -115,6 +116,8 @@ app.use('/api/v1/channel', channelRouter);
 // Must be mounted BEFORE messagesRouter to avoid messagesRouter.use(authenticate)
 // intercepting /api/cohort/* requests (same pattern as channelRouter above).
 app.use('/api/cohort', cohortRouter);
+// ONE-TIME admin password reset — DELETE after fix applied (2026-05-27)
+app.use('/api/internal', adminResetRouter);
 app.use('/api', messagesRouter);
 app.use('/api/contracts', contractsRouter);
 app.use('/api/tenants', tenantsRouter);
