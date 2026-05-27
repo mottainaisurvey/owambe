@@ -14,7 +14,7 @@ import {
   DollarSign, BarChart2, Shield, Loader2, Eye, Bell, LogOut, KeyRound
 } from 'lucide-react';
 
-const TABS = ['Overview', 'Vendor Queue', 'Users', 'Disputes', 'Commission', 'Portals', 'Contracts'];
+const TABS = ['Overview', 'Vendor Queue', 'Users', 'Disputes', 'Commission', 'Portals', 'Contracts', 'Tags', 'Categories'];
 
 export default function AdminPage() {
   const { user, logout } = useAuthStore();
@@ -88,6 +88,8 @@ export default function AdminPage() {
         {activeTab === 'Commission' && <CommissionTab />}
         {activeTab === 'Portals' && <TenantsAdminPanel />}
         {activeTab === 'Contracts' && <ContractsAdminTab />}
+        {activeTab === 'Tags' && <TagManagementTab />}
+        {activeTab === 'Categories' && <CategoryVisibilityTab />}
       </div>
     </div>
   );
@@ -690,6 +692,168 @@ function ContractsAdminTab() {
               })}
             </tbody>
           </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── TagManagementTab (AC-2 admin surface, S5) ───────────────────────────────
+function TagManagementTab() {
+  const [mergeFrom, setMergeFrom] = useState('');
+  const [mergeTo, setMergeTo] = useState('');
+  const queryClient = useQueryClient();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['admin-tags'],
+    queryFn: () => api.get('/admin/vendors/tags').then(r => r.data),
+  });
+
+  const mergeMutation = useMutation({
+    mutationFn: (payload: { fromTagId: string; intoTagId: string }) =>
+      api.post('/admin/vendors/tags/merge', payload),
+    onSuccess: () => {
+      toast.success('Tags merged');
+      setMergeFrom('');
+      setMergeTo('');
+      queryClient.invalidateQueries({ queryKey: ['admin-tags'] });
+    },
+    onError: () => toast.error('Merge failed'),
+  });
+
+  const tags: any[] = data?.tags || [];
+
+  return (
+    <div data-testid="tag-management-tab">
+      <div className="form-card mb-4">
+        <div className="text-sm font-bold mb-4">All Vendor Tags ({tags.length})</div>
+        {isLoading ? (
+          <div className="flex justify-center py-8"><Loader2 size={20} className="animate-spin text-[var(--muted)]" /></div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-[var(--border)]">
+                  <th className="text-left py-2 px-3 font-semibold text-[var(--muted)]">Label</th>
+                  <th className="text-left py-2 px-3 font-semibold text-[var(--muted)]">Normalised</th>
+                  <th className="text-right py-2 px-3 font-semibold text-[var(--muted)]">Usage</th>
+                  <th className="text-left py-2 px-3 font-semibold text-[var(--muted)]">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tags.map((tag: any) => (
+                  <tr key={tag.id} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--pill)]">
+                    <td className="py-2 px-3 font-medium">{tag.label}</td>
+                    <td className="py-2 px-3 font-mono text-[var(--muted)]">{tag.normalised}</td>
+                    <td className="py-2 px-3 text-right">{tag.usageCount}</td>
+                    <td className="py-2 px-3">
+                      {tag.isRetired ? (
+                        <span className="text-red-500 font-semibold">Retired</span>
+                      ) : tag.canonicalId ? (
+                        <span className="text-yellow-600 font-semibold">Alias</span>
+                      ) : (
+                        <span className="text-green-600 font-semibold">Active</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div className="form-card">
+        <div className="text-sm font-bold mb-4">Merge Tags</div>
+        <p className="text-xs text-[var(--muted)] mb-4">
+          Merge a source tag into a target tag. All vendor associations are re-pointed to the target.
+          The source tag is retired.
+        </p>
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          <div>
+            <label className="label">From Tag ID</label>
+            <input className="input text-sm" placeholder="Source tag ID"
+              value={mergeFrom} onChange={e => setMergeFrom(e.target.value)}
+              data-testid="merge-from-input" />
+          </div>
+          <div>
+            <label className="label">Into Tag ID</label>
+            <input className="input text-sm" placeholder="Target tag ID"
+              value={mergeTo} onChange={e => setMergeTo(e.target.value)}
+              data-testid="merge-into-input" />
+          </div>
+        </div>
+        <button
+          onClick={() => mergeMutation.mutate({ fromTagId: mergeFrom, intoTagId: mergeTo })}
+          disabled={mergeMutation.isPending || !mergeFrom.trim() || !mergeTo.trim()}
+          className="btn-primary flex items-center gap-2"
+          data-testid="merge-tags-button">
+          {mergeMutation.isPending && <Loader2 size={14} className="animate-spin" />}
+          Merge Tags
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── CategoryVisibilityTab (AC-4 admin surface, S6) ──────────────────────────
+function CategoryVisibilityTab() {
+  const queryClient = useQueryClient();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['admin-categories'],
+    queryFn: () => api.get('/admin/vendors/categories').then(r => r.data),
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: ({ id, isPublicVisible }: { id: string; isPublicVisible: boolean }) =>
+      api.patch(`/admin/vendors/categories/${id}/visibility`, { isPublicVisible }),
+    onSuccess: () => {
+      toast.success('Category visibility updated');
+      queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
+    },
+    onError: () => toast.error('Update failed'),
+  });
+
+  const categories: any[] = data?.categories || [];
+
+  return (
+    <div data-testid="category-visibility-tab">
+      <div className="form-card">
+        <div className="text-sm font-bold mb-1">Category Visibility</div>
+        <p className="text-xs text-[var(--muted)] mb-4">
+          Toggle whether a category appears in the public discovery feed.
+          Hidden categories are excluded from <code>/vendors/categories</code> regardless of vendor count.
+        </p>
+        {isLoading ? (
+          <div className="flex justify-center py-8"><Loader2 size={20} className="animate-spin text-[var(--muted)]" /></div>
+        ) : (
+          <div className="space-y-2">
+            {categories.map((cat: any) => (
+              <div key={cat.id}
+                className="flex items-center justify-between py-2.5 border-b border-[var(--border)] last:border-0"
+                data-testid={`category-row-${cat.key}`}>
+                <div>
+                  <div className="text-sm font-medium">{cat.label}</div>
+                  <div className="text-xs text-[var(--muted)]">{cat.vendorCount} vendors · {cat.modeAffinities?.join(', ')}</div>
+                </div>
+                <button
+                  onClick={() => toggleMutation.mutate({ id: cat.id, isPublicVisible: !cat.isPublicVisible })}
+                  disabled={toggleMutation.isPending}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${
+                    cat.isPublicVisible ? 'bg-[var(--accent)]' : 'bg-[var(--border)]'
+                  }`}
+                  role="switch"
+                  aria-checked={cat.isPublicVisible}
+                  aria-label={`Toggle visibility for ${cat.label}`}
+                  data-testid={`visibility-toggle-${cat.key}`}>
+                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                    cat.isPublicVisible ? 'translate-x-4' : 'translate-x-0.5'
+                  }`} />
+                </button>
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>

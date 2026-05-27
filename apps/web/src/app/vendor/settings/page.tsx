@@ -3,12 +3,19 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
-import { vendorsApi } from '@/lib/api';
+import { vendorsApi, api } from '@/lib/api';
 import { VENDOR_CATEGORY_LABELS, NIGERIAN_CITIES, NIGERIAN_STATES } from '@/lib/utils';
 import toast from 'react-hot-toast';
-import { Loader2, CheckCircle, AlertCircle, Upload, Sparkles } from 'lucide-react';
+import { Loader2, CheckCircle, AlertCircle, Upload, Sparkles, X, Plus } from 'lucide-react';
 
-const TABS = ['Profile', 'Portfolio', 'Bank Account', 'Verification'];
+const TABS = ['Profile', 'Portfolio', 'Bank Account', 'Verification', 'Tags'];
+
+// ─── Tags API (AC-2 vendor-self tag management) ───────────────────────────────
+export const tagsApi = {
+  suggest: (q: string) => api.get('/vendors/tags/suggest', { params: { q } }),
+  addTag: (label: string) => api.post('/vendors/me/tags', { label }),
+  removeTag: (tagId: string) => api.delete(`/vendors/me/tags/${tagId}`),
+};
 
 export default function VendorSettingsPage() {
   const [activeTab, setActiveTab] = useState('Profile');
@@ -74,6 +81,7 @@ export default function VendorSettingsPage() {
           {activeTab === 'Portfolio' && <PortfolioTab vendor={vendor} />}
           {activeTab === 'Bank Account' && <BankTab vendor={vendor} />}
           {activeTab === 'Verification' && <VerificationTab vendor={vendor} />}
+          {activeTab === 'Tags' && <TagsTab vendor={vendor} onSave={() => queryClient.invalidateQueries({ queryKey: ['vendor-profile'] })} />}
         </>
       )}
     </div>
@@ -352,3 +360,121 @@ const NIGERIAN_BANKS = [
   { name: 'Sterling Bank', code: '232' },
   { name: 'Wema Bank', code: '035' },
 ];
+
+// ─── TagsTab (AC-2: vendor-self tag management) ───────────────────────────────
+function TagsTab({ vendor, onSave }: { vendor: any; onSave: () => void }) {
+  const [input, setInput] = useState('');
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [isAdding, setIsAdding] = useState(false);
+  const queryClient = useQueryClient();
+
+  const currentTags: any[] = vendor?.tags || [];
+
+  async function fetchSuggestions(q: string) {
+    if (!q.trim()) { setSuggestions([]); return; }
+    try {
+      const res = await tagsApi.suggest(q);
+      setSuggestions(res.data.suggestions || []);
+    } catch { setSuggestions([]); }
+  }
+
+  async function addTag(label: string) {
+    if (!label.trim()) return;
+    setIsAdding(true);
+    try {
+      await tagsApi.addTag(label.trim());
+      toast.success(`Tag "${label}" added`);
+      setInput('');
+      setSuggestions([]);
+      onSave();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || 'Failed to add tag');
+    } finally { setIsAdding(false); }
+  }
+
+  async function removeTag(tagId: string, label: string) {
+    try {
+      await tagsApi.removeTag(tagId);
+      toast.success(`Tag "${label}" removed`);
+      onSave();
+    } catch {
+      toast.error('Failed to remove tag');
+    }
+  }
+
+  return (
+    <div className="form-card" data-testid="tags-tab">
+      <div className="text-sm font-bold mb-1">Service Tags</div>
+      <p className="text-xs text-[var(--muted)] mb-4">
+        Add up to 10 tags that describe your specialty (e.g. "outdoor weddings", "corporate events").
+        Tags help clients find you when browsing by style or occasion.
+      </p>
+
+      {/* Current tags */}
+      {currentTags.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-4" role="list" aria-label="Current tags">
+          {currentTags.map((tag: any) => (
+            <div key={tag.id} role="listitem"
+              className="flex items-center gap-1.5 bg-[var(--pill)] border border-[var(--border)] rounded-full px-3 py-1 text-xs font-medium text-[var(--dark)]">
+              🏷 {tag.label}
+              <button
+                onClick={() => removeTag(tag.id, tag.label)}
+                aria-label={`Remove tag ${tag.label}`}
+                className="text-[var(--muted)] hover:text-red-500 transition-colors ml-0.5">
+                <X size={11} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {currentTags.length === 0 && (
+        <p className="text-xs text-[var(--muted)] italic mb-4" data-testid="no-tags-message">
+          No tags yet. Add your first tag below.
+        </p>
+      )}
+
+      {/* Add tag input */}
+      {currentTags.length < 10 && (
+        <div className="relative">
+          <div className="flex gap-2">
+            <input
+              className="input flex-1 text-sm"
+              placeholder="Type a tag and press Enter or click +"
+              value={input}
+              onChange={e => { setInput(e.target.value); fetchSuggestions(e.target.value); }}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag(input); } }}
+              data-testid="tag-input"
+            />
+            <button
+              onClick={() => addTag(input)}
+              disabled={isAdding || !input.trim()}
+              className="btn-primary px-3 flex items-center gap-1"
+              aria-label="Add tag"
+              data-testid="add-tag-button">
+              {isAdding ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+            </button>
+          </div>
+
+          {/* Suggestions dropdown */}
+          {suggestions.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[var(--border)] rounded-lg shadow-lg z-10"
+              data-testid="tag-suggestions">
+              {suggestions.map((s: any) => (
+                <button key={s.id} onClick={() => addTag(s.label)}
+                  className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--pill)] transition-colors flex items-center justify-between">
+                  <span>🏷 {s.label}</span>
+                  <span className="text-[var(--muted)]">{s.usageCount} vendors</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {currentTags.length >= 10 && (
+        <p className="text-xs text-[var(--muted)]">Maximum 10 tags reached.</p>
+      )}
+    </div>
+  );
+}

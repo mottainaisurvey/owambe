@@ -185,6 +185,25 @@ const templates: Record<string, (data: any) => string> = {
       </div>
     </div>`,
 
+  // ─── CC-COHORT-OFFER-SURFACES-01 (Amendment 01) ─────
+  'cohort-interest-forward': (d) => `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+      <div style="background:#6C2BD9;padding:24px;border-radius:8px 8px 0 0;text-align:center">
+        <h1 style="color:#fff;margin:0;font-size:22px">Owambe — Coastal Corridor Cohort Interest</h1>
+      </div>
+      <div style="padding:32px;background:#fff;border:1px solid #e5e7eb;border-radius:0 0 8px 8px">
+        <h2 style="color:#1C1528;margin-top:0">New cohort interest submission</h2>
+        <table style="width:100%;border-collapse:collapse;margin:16px 0">
+          <tr><td style="padding:8px 12px;background:#F5F0FF;font-weight:bold;width:140px">Email</td><td style="padding:8px 12px;background:#F5F0FF">${d.submittedEmail}</td></tr>
+          <tr><td style="padding:8px 12px;font-weight:bold">Submitted at</td><td style="padding:8px 12px">${d.submittedAt}</td></tr>
+          <tr><td style="padding:8px 12px;background:#F5F0FF;font-weight:bold">Source</td><td style="padding:8px 12px;background:#F5F0FF">/coastal-corridor-cohort landing page</td></tr>
+        </table>
+        <p style="color:#374151;font-size:14px">This lead submitted interest in the Coastal Corridor cohort bundled offer (free Owambe Stays Growth + Experiences Growth for 12 months). Follow up manually until the cohort onboarding brief ships.</p>
+        <hr style="margin:24px 0;border:none;border-top:1px solid #e5e7eb">
+        <p style="color:#9CA3AF;font-size:12px">Forwarded automatically by Owambe · /api/cohort/interest</p>
+      </div>
+    </div>`,
+
   'custom-campaign': (d) => `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
       <div style="background:#2D6A4F;padding:24px;border-radius:8px 8px 0 0;text-align:center">

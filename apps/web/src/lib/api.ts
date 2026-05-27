@@ -117,6 +117,10 @@ export const vendorsApi = {
   setAvailability: (dates: any[]) => api.put('/vendors/me/availability', { dates }),
   addPackage: (data: any) => api.post('/vendors/me/packages', data),
   generateBio: (data: any) => api.post('/vendors/generate-bio', data),
+  // AC-2 / VENDOR-MARKETPLACE-EXPANSION-01
+  discover: (params?: any) => api.get('/vendors/discover', { params }),
+  getCategories: (params?: any) => api.get('/vendors/categories', { params }),
+  suggestTags: (q: string) => api.get('/vendors/tags/suggest', { params: { q } }),
 };
 
 export const bookingsApi = {

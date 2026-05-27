@@ -40,7 +40,6 @@ import modeRouter from './routes/mode';
 import propertiesRouter from './routes/properties';
 import channelRouter from './routes/channel';
 import { usersRouter } from './routes/users';
-import { adminResetRouter } from './routes/admin-reset';
 import experiencesRouter from './routes/experiences';
 import stayBookingsRouter from './routes/stay-bookings';
 import experienceBookingsRouter from './routes/experience-bookings';
@@ -132,8 +131,6 @@ app.use('/api/v1/channels/:channelSlug', channelRouter);
 // Must be mounted BEFORE messagesRouter to avoid messagesRouter.use(authenticate)
 // intercepting /api/cohort/* requests (same pattern as channelRouter above).
 app.use('/api/cohort', cohortRouter);
-// ONE-TIME admin password reset — DELETE after fix applied (2026-05-27)
-app.use('/api/internal', adminResetRouter);
 
 // Phase B: User self-service routes (change password, profile)
 app.use('/api/users', usersRouter);
