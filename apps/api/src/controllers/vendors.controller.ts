@@ -237,8 +237,24 @@ export async function getAvailability(req: Request, res: Response, next: NextFun
     const { vendorId } = req.params;
     const { month, year } = req.query;
 
-    const startDate = new Date(Number(year), Number(month) - 1, 1);
-    const endDate = new Date(Number(year), Number(month), 0);
+    const monthNum = Number(month);
+    const yearNum = Number(year);
+    if (
+      !month || !year ||
+      isNaN(monthNum) || isNaN(yearNum) ||
+      monthNum < 1 || monthNum > 12 ||
+      yearNum < 2000 || yearNum > 2100
+    ) {
+      res.status(400).json({
+        success: false,
+        error: 'month (1–12) and year (2000–2100) query parameters are required.',
+        code: 'INVALID_QUERY_PARAMS',
+      });
+      return;
+    }
+
+    const startDate = new Date(yearNum, monthNum - 1, 1);
+    const endDate = new Date(yearNum, monthNum, 0);
 
     const [availability, bookings] = await Promise.all([
       prisma.vendorAvailability.findMany({
