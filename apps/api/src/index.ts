@@ -32,7 +32,6 @@ import { tenantsRouter } from './routes/tenants';
 import { promosRouter } from './routes/promos';
 import { waitlistRouter } from './routes/waitlist';
 import { cohortRouter } from './routes/cohort';
-import seedCategoriesRouter from './routes/seed-categories';
 import { ticketsRouter } from './routes/tickets';
 import { crmRouter } from './routes/crm';
 import { instalmentsRouter } from './routes/instalments';
@@ -132,7 +131,6 @@ app.use('/api/v1/channels/:channelSlug', channelRouter);
 // Must be mounted BEFORE messagesRouter to avoid messagesRouter.use(authenticate)
 // intercepting /api/cohort/* requests (same pattern as channelRouter above).
 app.use('/api/cohort', cohortRouter);
-app.use('/api', seedCategoriesRouter);
 
 // Phase B: User self-service routes (change password, profile)
 app.use('/api/users', usersRouter);
