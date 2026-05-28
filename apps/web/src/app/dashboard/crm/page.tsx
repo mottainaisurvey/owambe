@@ -1,6 +1,4 @@
 'use client';
-export const dynamic = 'force-dynamic';
-
 // Force dynamic rendering to avoid SSG issues with useSearchParams
 export const dynamic = 'force-dynamic';
 
