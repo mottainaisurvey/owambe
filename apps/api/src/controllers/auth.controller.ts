@@ -287,6 +287,7 @@ export async function changePassword(req: Request, res: Response, next: NextFunc
     const userId = (req as any).userId;
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new AppError('User not found', 404);
+    if (!user.passwordHash) throw new AppError('Password change not available for this account type', 400);
     const valid = await bcrypt.compare(currentPassword, user.passwordHash);
     if (!valid) throw new AppError('Current password is incorrect', 400);
     const hashed = await bcrypt.hash(newPassword, 12);
