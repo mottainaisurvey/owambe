@@ -1,0 +1,21 @@
+name: Railway API Redeploy
+on:
+  workflow_dispatch:
+jobs:
+  redeploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+      - name: Redeploy API on Railway production
+        run: |
+          echo "=== Railway CLI version ==="
+          railway --version
+          echo "=== Triggering redeploy ==="
+          railway redeploy --service owambe-api --environment production --yes 2>&1 || true
+          echo "=== Also try: railway up with explicit project ==="
+          railway up --service owambe-api --environment production 2>&1 || true
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
