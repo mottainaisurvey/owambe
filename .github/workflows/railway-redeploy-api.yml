@@ -9,13 +9,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install Railway CLI
         run: npm install -g @railway/cli
-      - name: Redeploy API on Railway production
+      - name: Redeploy API from apps/api directory
         run: |
           echo "=== Railway CLI version ==="
           railway --version
-          echo "=== Triggering redeploy ==="
-          railway redeploy --service owambe-api --environment production --yes 2>&1 || true
-          echo "=== Also try: railway up with explicit project ==="
-          railway up --service owambe-api --environment production 2>&1 || true
+          echo "=== Deploying from apps/api ==="
+          cd apps/api
+          railway up --service owambe-api --environment production 2>&1
+          echo "=== Deploy triggered ==="
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_API }}
