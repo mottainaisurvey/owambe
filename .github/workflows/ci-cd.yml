@@ -155,7 +155,7 @@ jobs:
       - name: Install Railway CLI
         run: npm install -g @railway/cli
       - name: Deploy API to Railway staging
-        run: railway up --service owambe-api --environment staging --detach
+        run: cd apps/api && railway up --service owambe-api --environment staging --detach
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
 
@@ -191,7 +191,7 @@ jobs:
       - name: Install Railway CLI
         run: npm install -g @railway/cli
       - name: Deploy API to Railway production
-        run: railway up --service owambe-api --environment production --detach
+        run: cd apps/api && railway up --service owambe-api --environment production --detach
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_API }}
 
