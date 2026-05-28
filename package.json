@@ -15,7 +15,7 @@
     "db:seed": "cd apps/api && npm run db:seed",
     "vocab:lint": "node scripts/vocab-lint.js",
     "vocab:lint:strict": "node scripts/vocab-lint.js --strict",
-    "prepare": "husky"
+    "prepare": "node -e \"if(process.env.CI||process.env.RAILWAY_ENVIRONMENT)process.exit(0);require('child_process').execSync('husky',{stdio:'inherit'})\""
   },
   "devDependencies": {
     "@testing-library/dom": "^10.4.1",
