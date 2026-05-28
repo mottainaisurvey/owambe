@@ -6,4 +6,6 @@
 --   - ccPropertyId non-null count was 0 in staging; no data loss
 --   - AC-B4 verification: grep -r "ccPropertyId" apps/api/src/ must return zero hits post-Step-3
 
-ALTER TABLE "stay_bookings" DROP COLUMN "ccPropertyId";
+-- IF EXISTS: ccPropertyId was added directly to staging DB outside the migration system.
+-- On a fresh CI DB the column does not exist; IF EXISTS makes this a safe no-op.
+ALTER TABLE "stay_bookings" DROP COLUMN IF EXISTS "ccPropertyId";
