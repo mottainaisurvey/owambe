@@ -6,7 +6,6 @@ on:
       - master
     paths:
       - '.github/workflows/railway-domain-fix.yml'
-      - 'scripts/railway-domain-query.py'
   workflow_dispatch:
 
 jobs:
@@ -15,7 +14,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Query all custom domains and status via Railway API
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Check Railway status and domain info
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: python3 scripts/railway-domain-query.py
+        run: |
+          echo "=== Railway status ==="
+          railway status || true
+          echo ""
+          echo "=== List services ==="
+          railway list || true
+          echo ""
+          echo "=== Check owambe-web domain ==="
+          railway domain --service owambe-web --environment production 2>&1 || true
+          echo ""
+          echo "=== Check owambe-web service details ==="
+          railway service --service owambe-web 2>&1 || true
+
+      - name: Try to link and manage owambe.com domain
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          echo "=== Attempt to remove owambe.com from any existing service and re-add to owambe-web ==="
+          # First try to add owambe.com to owambe-web (will fail if already on another service)
+          railway domain add owambe.com --service owambe-web --environment production 2>&1 || true
+          echo ""
+          echo "=== Check domain status after attempt ==="
+          railway domain --service owambe-web --environment production 2>&1 || true
