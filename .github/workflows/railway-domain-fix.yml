@@ -1,0 +1,33 @@
+name: Railway Domain Fix (One-time)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix-domain:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: List all services and domains in project
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          echo "=== Railway project status ==="
+          railway status || true
+          echo ""
+          echo "=== List services ==="
+          railway list || true
+
+      - name: Query Railway API for all custom domains
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          # Use Railway GraphQL API with the token to find all custom domains
+          curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "{ me { projects { edges { node { id name services { edges { node { id name serviceInstances { edges { node { id environmentId domains { customDomains { id domain syncStatus } serviceDomains { id domain } } } } } } } } } } } }"
+            }' | python3 -c "import json,sys; d=json.load(sys.stdin); print(json.dumps(d, indent=2))"
