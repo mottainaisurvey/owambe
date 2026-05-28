@@ -193,7 +193,7 @@ jobs:
       - name: Deploy API to Railway production
         run: railway up --service owambe-api --environment production --detach
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_API }}
 
   # ─── DEPLOY WEB TO PRODUCTION (Railway) ──────────────
   # NOTE: owambe-web deploys to Railway (not Vercel).
