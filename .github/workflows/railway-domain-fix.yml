@@ -7,27 +7,80 @@ jobs:
   fix-domain:
     runs-on: ubuntu-latest
     steps:
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
-
-      - name: List all services and domains in project
+      - name: Query all custom domains and status via Railway API
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
-          echo "=== Railway project status ==="
-          railway status || true
-          echo ""
-          echo "=== List services ==="
-          railway list || true
+          python3 - << 'PYEOF'
+import urllib.request, json, os
 
-      - name: Query Railway API for all custom domains
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: |
-          # Use Railway GraphQL API with the token to find all custom domains
-          curl -s -X POST "https://backboard.railway.app/graphql/v2" \
-            -H "Authorization: Bearer $RAILWAY_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{
-              "query": "{ me { projects { edges { node { id name services { edges { node { id name serviceInstances { edges { node { id environmentId domains { customDomains { id domain syncStatus } serviceDomains { id domain } } } } } } } } } } } }"
-            }' | python3 -c "import json,sys; d=json.load(sys.stdin); print(json.dumps(d, indent=2))"
+token = os.environ['RAILWAY_TOKEN']
+url = "https://backboard.railway.app/graphql/v2"
+
+def gql(query, variables=None):
+    payload = json.dumps({"query": query, "variables": variables or {}}).encode()
+    req = urllib.request.Request(url, data=payload, headers={
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    })
+    with urllib.request.urlopen(req) as resp:
+        return json.loads(resp.read())
+
+query = """
+{
+  me {
+    projects {
+      edges {
+        node {
+          id
+          name
+          services {
+            edges {
+              node {
+                id
+                name
+                serviceInstances {
+                  edges {
+                    node {
+                      id
+                      environmentId
+                      domains {
+                        customDomains {
+                          id
+                          domain
+                          syncStatus
+                          status {
+                            cdnProvider
+                            certificateStatus
+                            verified
+                            dnsRecords {
+                              zone
+                              subdomain
+                              recordType
+                              required
+                              currentValue
+                              expectedValue
+                              isGood
+                            }
+                          }
+                        }
+                        serviceDomains {
+                          id
+                          domain
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+"""
+result = gql(query)
+print(json.dumps(result, indent=2))
+PYEOF
