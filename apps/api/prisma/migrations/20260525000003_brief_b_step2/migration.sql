@@ -20,7 +20,7 @@ UPDATE "experience_bookings"
 SET "channel_id" = (SELECT "id" FROM "channels" WHERE "slug" = 'coastal-corridor')
 WHERE "channel_id" IS NULL;
 
--- Backfill externalPartnerPropertyId from ccPropertyId (zero-row no-op per [VERIFY:V5])
-UPDATE "stay_bookings"
-SET "external_partner_property_id" = "ccPropertyId"
-WHERE "ccPropertyId" IS NOT NULL;
+-- Backfill externalPartnerPropertyId from ccPropertyId:
+-- OMITTED: ccPropertyId was added directly to staging DB outside the migration system.
+-- Verified zero non-null rows (2026-05-25 [VERIFY:V5]); column absent in fresh CI DB.
+-- external_partner_property_id initialises NULL for all rows; no data loss.
