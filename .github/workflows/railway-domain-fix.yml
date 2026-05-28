@@ -1,6 +1,11 @@
 name: Railway Domain Fix (One-time)
 
 on:
+  push:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/railway-domain-fix.yml'
   workflow_dispatch:
 
 jobs:
