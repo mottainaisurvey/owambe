@@ -6,86 +6,16 @@ on:
       - master
     paths:
       - '.github/workflows/railway-domain-fix.yml'
+      - 'scripts/railway-domain-query.py'
   workflow_dispatch:
 
 jobs:
   fix-domain:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Query all custom domains and status via Railway API
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: |
-          python3 - << 'PYEOF'
-import urllib.request, json, os
-
-token = os.environ['RAILWAY_TOKEN']
-url = "https://backboard.railway.app/graphql/v2"
-
-def gql(query, variables=None):
-    payload = json.dumps({"query": query, "variables": variables or {}}).encode()
-    req = urllib.request.Request(url, data=payload, headers={
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
-    })
-    with urllib.request.urlopen(req) as resp:
-        return json.loads(resp.read())
-
-query = """
-{
-  me {
-    projects {
-      edges {
-        node {
-          id
-          name
-          services {
-            edges {
-              node {
-                id
-                name
-                serviceInstances {
-                  edges {
-                    node {
-                      id
-                      environmentId
-                      domains {
-                        customDomains {
-                          id
-                          domain
-                          syncStatus
-                          status {
-                            cdnProvider
-                            certificateStatus
-                            verified
-                            dnsRecords {
-                              zone
-                              subdomain
-                              recordType
-                              required
-                              currentValue
-                              expectedValue
-                              isGood
-                            }
-                          }
-                        }
-                        serviceDomains {
-                          id
-                          domain
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-"""
-result = gql(query)
-print(json.dumps(result, indent=2))
-PYEOF
+        run: python3 scripts/railway-domain-query.py
