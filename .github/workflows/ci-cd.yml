@@ -159,22 +159,25 @@ jobs:
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
 
-  # ─── DEPLOY WEB TO STAGING (Vercel Preview) ──────────
+  # ─── DEPLOY WEB TO STAGING (Railway) ─────────────────
+  # NOTE: owambe-web deploys to Railway (not Vercel).
+  # Railway's own GitHub integration auto-deploys owambe-web on push to the
+  # configured branch. This explicit step is retained for parity with the API
+  # staging step and to ensure the web service is deployed in the same pipeline.
   deploy-web-staging:
-    name: Deploy Web to Staging (Vercel Preview)
+    name: Deploy Web to Staging (Railway)
     runs-on: ubuntu-latest
     needs: build
     if: github.ref == 'refs/heads/staging'
     environment: staging
     steps:
       - uses: actions/checkout@v4
-      - name: Install Vercel CLI
-        run: npm install -g vercel
-      - name: Deploy to Vercel Preview
-        run: vercel --token ${{ secrets.VERCEL_TOKEN }} --yes
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+      - name: Deploy Web to Railway staging
+        run: railway up --service owambe-web --environment staging --detach
         env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
 
   # ─── DEPLOY API TO PRODUCTION (Railway) ──────────────
   deploy-api-production:
@@ -192,19 +195,22 @@ jobs:
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
-  # ─── DEPLOY WEB TO PRODUCTION (Vercel) ───────────────
+  # ─── DEPLOY WEB TO PRODUCTION (Railway) ──────────────
+  # NOTE: owambe-web deploys to Railway (not Vercel).
+  # Railway's own GitHub integration auto-deploys owambe-web on push to main.
+  # This explicit step ensures the web service is deployed in the same pipeline
+  # as the API and that CI gate (lint → test → build) is enforced before deploy.
   deploy-web-production:
-    name: Deploy Web to Production (Vercel)
+    name: Deploy Web to Production (Railway)
     runs-on: ubuntu-latest
     needs: build
     if: github.ref == 'refs/heads/main'
     environment: production
     steps:
       - uses: actions/checkout@v4
-      - name: Install Vercel CLI
-        run: npm install -g vercel
-      - name: Deploy to Vercel Production
-        run: vercel --prod --token ${{ secrets.VERCEL_TOKEN }} --yes
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+      - name: Deploy Web to Railway production
+        run: railway up --service owambe-web --environment production --detach
         env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
