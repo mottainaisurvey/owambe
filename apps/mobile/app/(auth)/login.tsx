@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, KeyboardAvoidingView,
-  Platform, ScrollView, Alert,
+  Platform, ScrollView, Alert, Image, StyleSheet,
 } from 'react-native';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '../../src/store/auth.store';
 import { Button, Input } from '../../src/components/ui';
 import { COLORS, SPACING, TYPOGRAPHY, RADIUS } from '../../src/utils/theme';
@@ -27,7 +28,6 @@ export default function LoginScreen() {
     if (!validate()) return;
     try {
       await login(email.trim().toLowerCase(), password);
-      // Router redirect is handled by auth layout
     } catch (err: any) {
       const msg = err.response?.data?.error || 'Login failed. Check your email and password.';
       Alert.alert('Sign In Failed', msg);
@@ -39,29 +39,50 @@ export default function LoginScreen() {
       style={{ flex: 1, backgroundColor: COLORS.surface }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       <ScrollView
         contentContainerStyle={{ flexGrow: 1 }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={{
-          backgroundColor: COLORS.primary,
-          paddingTop: 80,
-          paddingBottom: SPACING.xl,
-          paddingHorizontal: SPACING.xl,
-        }}>
-          <Text style={{ fontSize: 28, fontWeight: '900', color: COLORS.white, letterSpacing: -0.5 }}>
-            event<Text style={{ color: COLORS.accent }}>flow</Text>
-          </Text>
-          <Text style={{ color: 'rgba(255,255,255,0.7)', marginTop: 6, fontSize: 15 }}>
-            Nigeria's smartest event platform
-          </Text>
-        </View>
 
-        {/* Form */}
-        <View style={{ flex: 1, padding: SPACING.xl }}>
+        {/* ── Premium Header ──────────────────────────────────────────── */}
+        <LinearGradient
+          colors={['#1C1528', '#2D1B5E', '#1C1528']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.header}
+        >
+          {/* Subtle glow orb top-right */}
+          <View style={styles.glowOrb} />
+
+          {/* Logo — correct aspect ratio 2.117:1 */}
+          <Image
+            source={require('../../assets/owambe-logo-auth.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+
+          {/* Tagline */}
+          <Text style={styles.tagline}>Nigeria&apos;s Event Platform</Text>
+
+          {/* Stats row */}
+          <View style={styles.statsRow}>
+            {[
+              { val: '200+', label: 'Vendors' },
+              { val: 'Lagos', label: 'Based' },
+              { val: 'AI', label: 'Powered' },
+            ].map((s, i) => (
+              <View key={i} style={styles.statItem}>
+                <Text style={styles.statVal}>{s.val}</Text>
+                <Text style={styles.statLabel}>{s.label}</Text>
+              </View>
+            ))}
+          </View>
+        </LinearGradient>
+
+        {/* ── Form ────────────────────────────────────────────────────── */}
+        <View style={styles.form}>
           <Text style={{ ...TYPOGRAPHY.h2, marginBottom: 4 }}>Welcome back</Text>
           <Text style={{ ...TYPOGRAPHY.body, color: COLORS.muted, marginBottom: SPACING.xl }}>
             Sign in to your Owambe account
@@ -106,16 +127,12 @@ export default function LoginScreen() {
             size="lg"
           />
 
-          <View style={{
-            flexDirection: 'row', alignItems: 'center',
-            marginVertical: SPACING.lg, gap: SPACING.sm,
-          }}>
-            <View style={{ flex: 1, height: 1, backgroundColor: COLORS.border }} />
-            <Text style={{ color: COLORS.muted, fontSize: 12 }}>or</Text>
-            <View style={{ flex: 1, height: 1, backgroundColor: COLORS.border }} />
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
           </View>
 
-          {/* Google sign in */}
           <Button
             title="Continue with Google"
             variant="secondary"
@@ -129,12 +146,83 @@ export default function LoginScreen() {
             onPress={() => router.push('/(auth)/register')}
           >
             <Text style={{ color: COLORS.muted, fontSize: 14 }}>
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Text style={{ color: COLORS.primary, fontWeight: '700' }}>Create one free</Text>
             </Text>
           </TouchableOpacity>
         </View>
+
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
+
+const styles = StyleSheet.create({
+  header: {
+    paddingTop: 72,
+    paddingBottom: SPACING.xl,
+    paddingHorizontal: SPACING.xl,
+    alignItems: 'flex-start',
+    overflow: 'hidden',
+  },
+  glowOrb: {
+    position: 'absolute',
+    top: -60,
+    right: -60,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: COLORS.primary,
+    opacity: 0.18,
+  },
+  logo: {
+    height: 78,
+    width: 78 * 2.117,
+    marginBottom: SPACING.sm,
+  },
+  tagline: {
+    color: 'rgba(255,255,255,0.45)',
+    fontSize: 11,
+    letterSpacing: 1.8,
+    textTransform: 'uppercase',
+    marginBottom: SPACING.lg,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: SPACING.xl,
+  },
+  statItem: {
+    alignItems: 'flex-start',
+  },
+  statVal: {
+    color: COLORS.accent,
+    fontSize: 17,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  statLabel: {
+    color: 'rgba(255,255,255,0.35)',
+    fontSize: 10,
+    marginTop: 1,
+  },
+  form: {
+    flex: 1,
+    padding: SPACING.xl,
+    paddingTop: SPACING.xl,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: SPACING.lg,
+    gap: SPACING.sm,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: COLORS.border,
+  },
+  dividerText: {
+    color: COLORS.muted,
+    fontSize: 12,
+  },
+});

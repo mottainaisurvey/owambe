@@ -81,7 +81,7 @@ interface StatCardProps {
   positive?: boolean;
 }
 
-export function StatCard({ label, value, sub, color = '#2D6A4F', icon, positive }: StatCardProps) {
+export function StatCard({ label, value, sub, color = '#6C2BD9', icon, positive }: StatCardProps) {
   return (
     <div className="stat-card">
       <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-xl" style={{ background: color }} />
@@ -188,7 +188,7 @@ export function ConfirmDialog({
 // ─── AVATAR ──────────────────────────────────────────
 export function Avatar({ name, size = 32, src }: { name: string; size?: number; src?: string }) {
   const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  const COLORS = ['#2D6A4F', '#E76F2A', '#7B61FF', '#0EA5E9', '#D97706', '#059669'];
+  const COLORS = ['#6C2BD9', '#C9A227', '#7B61FF', '#0EA5E9', '#D97706', '#059669'];
   const colorIndex = name.charCodeAt(0) % COLORS.length;
 
   if (src) {

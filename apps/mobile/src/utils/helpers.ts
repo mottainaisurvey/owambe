@@ -76,10 +76,10 @@ export function getBookingStatusColor(status: string): string {
   const map: Record<string, string> = {
     PENDING: '#D97706',
     CONFIRMED: '#059669',
-    COMPLETED: '#2D6A4F',
-    CANCELLED: '#E63946',
+    COMPLETED: '#6C2BD9',
+    CANCELLED: '#DC2626',
   };
-  return map[status] || '#9A9080';
+  return map[status] || '#8B82A0';
 }
 
 export function getDepositAmount(totalAmount: number): number {
@@ -98,7 +98,7 @@ export function speakerProgress(checklist: Record<string, boolean>): number {
 }
 
 // ─── AVATAR COLOR ─────────────────────────────────────
-const AVATAR_COLORS = ['#2D6A4F', '#E76F2A', '#7B61FF', '#059669', '#D97706', '#E63946', '#0EA5E9'];
+const AVATAR_COLORS = ['#6C2BD9', '#C9A227', '#7B61FF', '#059669', '#D97706', '#DC2626', '#0EA5E9'];
 export function getAvatarColor(name: string): string {
   return AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length];
 }

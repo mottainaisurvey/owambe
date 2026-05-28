@@ -81,10 +81,10 @@ export default function SpeakersPage() {
       {selectedEventId && (
         <div className="grid grid-cols-4 gap-3 mb-5">
           {[
-            { label: 'Total', value: speakers.length, color: '#2D6A4F' },
+            { label: 'Total', value: speakers.length, color: '#6C2BD9' },
             { label: 'Confirmed', value: speakers.filter((s: any) => s.status === 'CONFIRMED').length, color: '#059669' },
             { label: 'Invited', value: speakers.filter((s: any) => s.status === 'INVITED').length, color: '#D97706' },
-            { label: 'Pending', value: speakers.filter((s: any) => s.status === 'PENDING').length, color: '#E63946' },
+            { label: 'Pending', value: speakers.filter((s: any) => s.status === 'PENDING').length, color: '#DC2626' },
           ].map(s => (
             <div key={s.label} className="stat-card">
               <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-xl" style={{ background: s.color }} />
@@ -183,7 +183,7 @@ function SpeakerCard({ speaker: s, onEdit, onDelete, onChecklist }: any) {
     session: s.checklistSession, slides: s.checklistSlides,
   });
   const initials = `${s.name?.split(' ')[0]?.[0] || ''}${s.name?.split(' ')[1]?.[0] || ''}`.toUpperCase();
-  const COLORS = ['#2D6A4F','#E76F2A','#7B61FF','#0EA5E9','#D97706','#059669','#E63946'];
+  const COLORS = ['#6C2BD9','#C9A227','#7B61FF','#0EA5E9','#D97706','#059669','#DC2626'];
   const color = COLORS[s.name?.charCodeAt(0) % COLORS.length];
 
   const statusColor: Record<string, string> = {
@@ -245,13 +245,13 @@ function ScheduleTab({ speakers }: { speakers: any[] }) {
     return a.sessionTime.localeCompare(b.sessionTime);
   });
   const trackColors: Record<string, string> = {
-    'Keynote': '#1A1612', 'Track A — Growth': '#2D6A4F',
+    'Keynote': '#1C1528', 'Track A — Growth': '#6C2BD9',
     'Track B — AI': '#7B61FF', 'Track C — Operations': '#D97706',
   };
   return (
     <div className="space-y-3">
       {sorted.map(s => {
-        const color = trackColors[s.track] || '#9A9080';
+        const color = trackColors[s.track] || '#8B82A0';
         return (
           <div key={s.id} className="card px-5 py-4 relative overflow-hidden hover:shadow-card transition-all">
             <div className="absolute left-0 top-0 bottom-0 w-1" style={{ background: color }} />
@@ -263,7 +263,7 @@ function ScheduleTab({ speakers }: { speakers: any[] }) {
                 <div className="font-bold text-sm mb-1">{s.topic || 'Session TBD'}</div>
                 <div className="text-xs text-[var(--muted)] flex items-center gap-2">
                   <span className="w-5 h-5 rounded-full inline-flex items-center justify-center text-[9px] font-bold text-white"
-                    style={{ background: '#2D6A4F' }}>
+                    style={{ background: '#6C2BD9' }}>
                     {s.name?.split(' ').map((n: string) => n[0]).join('')}
                   </span>
                   {s.name}
@@ -300,7 +300,7 @@ function OnboardingTab({ speakers, onToggle }: any) {
           <div key={s.id} className="card p-4">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white text-sm shrink-0"
-                style={{ background: '#2D6A4F' }}>
+                style={{ background: '#6C2BD9' }}>
                 {s.name?.split(' ').map((n: string) => n[0]).join('')}
               </div>
               <div className="flex-1">

@@ -62,7 +62,7 @@ export default function VendorBookingsScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={{ ...TYPOGRAPHY.h4, fontSize: 14 }} numberOfLines={1}>{b.eventDescription || 'Booking'}</Text>
                   <Text style={TYPOGRAPHY.caption}>
-                    📅 {new Date(b.eventDate).toLocaleDateString('en-NG')} · {b.guestCount || '—'} guests
+                    📅 {b.eventDate ? new Date(b.eventDate).toLocaleDateString('en-NG') : 'TBC'} · {b.guestCount || '—'} guests
                   </Text>
                   <Text style={{ ...TYPOGRAPHY.caption, fontFamily: 'Courier', marginTop: 2 }}>{b.reference}</Text>
                 </View>

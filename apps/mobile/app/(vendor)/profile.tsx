@@ -53,7 +53,7 @@ export default function VendorProfileScreen() {
           </Text>
           <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginTop: 4 }}>{user?.email}</Text>
           <View style={{
-            marginTop: 8, backgroundColor: vendor?.status === 'VERIFIED' ? '#065F46' : '#92400E',
+            marginTop: 8, backgroundColor: vendor?.status === 'VERIFIED' ? '#4A1D96' : '#92400E',
             paddingHorizontal: 10, paddingVertical: 4, borderRadius: RADIUS.full,
           }}>
             <Text style={{ color: COLORS.white, fontSize: 11, fontWeight: '700' }}>

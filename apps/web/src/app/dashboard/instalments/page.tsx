@@ -23,11 +23,11 @@ const PLAN_STATUS_CONFIG: Record<string, { label: string; color: string; bg: str
 };
 
 const PAYMENT_STATUS_CONFIG: Record<string, { label: string; icon: any; color: string }> = {
-  SCHEDULED:   { label: 'Scheduled',   icon: Clock,         color: '#9A9080' },
+  SCHEDULED:   { label: 'Scheduled',   icon: Clock,         color: '#8B82A0' },
   PENDING:     { label: 'Due soon',     icon: AlertTriangle, color: '#D97706' },
   PROCESSING:  { label: 'Processing',  icon: RefreshCw,     color: '#3B82F6' },
   PAID:        { label: 'Paid',         icon: CheckCircle,   color: '#059669' },
-  FAILED:      { label: 'Failed',       icon: XCircle,       color: '#E63946' },
+  FAILED:      { label: 'Failed',       icon: XCircle,       color: '#DC2626' },
   WAIVED:      { label: 'Waived',       icon: Ban,           color: '#9CA3AF' },
 };
 
@@ -383,10 +383,10 @@ export default function InstalmentsPage() {
       {plans.length > 0 && (
         <div className="grid grid-cols-4 gap-3 mb-5">
           {[
-            { label: 'Active Plans', value: activePlans, color: '#2D6A4F' },
+            { label: 'Active Plans', value: activePlans, color: '#6C2BD9' },
             { label: 'Total Committed', value: formatNGN(totalCommitted, true), color: '#7B61FF' },
             { label: 'Amount Paid', value: formatNGN(totalPaid, true), color: '#059669' },
-            { label: 'Failed Payments', value: failedPayments, color: failedPayments > 0 ? '#E63946' : '#9A9080' },
+            { label: 'Failed Payments', value: failedPayments, color: failedPayments > 0 ? '#DC2626' : '#8B82A0' },
           ].map(s => (
             <div key={s.label} className="stat-card">
               <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-xl" style={{ background: s.color }} />

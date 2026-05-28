@@ -177,8 +177,8 @@ export default function VendorProfileScreen() {
                         <Text key={i} style={{ fontSize: 12 }}>{i < r.rating ? '⭐' : '☆'}</Text>
                       ))}
                     </View>
-                    <View style={{ backgroundColor: '#D1FAE5', paddingHorizontal: 6, paddingVertical: 2, borderRadius: RADIUS.full }}>
-                      <Text style={{ fontSize: 9, fontWeight: '700', color: '#065F46' }}>VERIFIED</Text>
+                    <View style={{ backgroundColor: '#EDE9FF', paddingHorizontal: 6, paddingVertical: 2, borderRadius: RADIUS.full }}>
+                      <Text style={{ fontSize: 9, fontWeight: '700', color: '#4A1D96' }}>VERIFIED</Text>
                     </View>
                   </View>
                   {r.title && <Text style={{ ...TYPOGRAPHY.h4, fontSize: 14, marginBottom: 4 }}>{r.title}</Text>}

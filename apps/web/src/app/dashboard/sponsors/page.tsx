@@ -43,7 +43,9 @@ export default function SponsorsPage() {
   const events = eventsData?.events || [];
   const sponsors = sponsorsData?.sponsors || [];
   const totalRaised = sponsors.reduce((s: number, sp: any) => s + Number(sp.amount), 0);
-  const goal = totalRaised * 1.35; // mock goal
+  const [goal, setGoal] = useState(0);
+  const [editingGoal, setEditingGoal] = useState(false);
+  const [goalInput, setGoalInput] = useState('');
 
   const byTier = (tier: Tier) => sponsors.filter((s: any) => s.tier === tier.toUpperCase());
 
@@ -81,17 +83,41 @@ export default function SponsorsPage() {
               </div>
               <div className="text-right">
                 <div className="font-bold text-xl text-[var(--accent)]">{formatNGN(totalRaised, true)}</div>
-                <div className="text-xs text-[var(--muted)]">of {formatNGN(goal, true)} goal</div>
+                {editingGoal ? (
+                  <div className="flex items-center gap-1 mt-1">
+                    <input
+                      type="number"
+                      value={goalInput}
+                      onChange={e => setGoalInput(e.target.value)}
+                      placeholder="Enter goal amount"
+                      className="input text-xs w-36 h-7 px-2"
+                    />
+                    <button
+                      onClick={() => { setGoal(Number(goalInput) || 0); setEditingGoal(false); }}
+                      className="btn-primary text-xs h-7 px-2">Save</button>
+                    <button onClick={() => setEditingGoal(false)} className="btn-secondary text-xs h-7 px-2">✕</button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { setGoalInput(String(goal || '')); setEditingGoal(true); }}
+                    className="text-xs text-[var(--muted)] hover:text-[var(--dark)] transition-colors mt-0.5">
+                    {goal > 0 ? `of ${formatNGN(goal, true)} goal ✏️` : '+ Set sponsorship goal'}
+                  </button>
+                )}
               </div>
             </div>
-            <div className="h-2 bg-[var(--border)] rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-[var(--accent)] to-[var(--accent2)] rounded-full transition-all"
-                style={{ width: `${Math.min(100, (totalRaised / goal) * 100)}%` }} />
-            </div>
-            <div className="flex justify-between text-xs text-[var(--muted)] mt-1">
-              <span>{Math.round((totalRaised / goal) * 100)}% achieved</span>
-              <span>{formatNGN(goal - totalRaised, true)} remaining</span>
-            </div>
+            {goal > 0 && (
+              <>
+                <div className="h-2 bg-[var(--border)] rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-[var(--accent)] to-[var(--accent2)] rounded-full transition-all"
+                    style={{ width: `${Math.min(100, (totalRaised / goal) * 100)}%` }} />
+                </div>
+                <div className="flex justify-between text-xs text-[var(--muted)] mt-1">
+                  <span>{Math.round((totalRaised / goal) * 100)}% achieved</span>
+                  <span>{formatNGN(Math.max(0, goal - totalRaised), true)} remaining</span>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Sponsor tiers */}

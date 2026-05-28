@@ -182,6 +182,46 @@ export async function deleteEvent(req: Request, res: Response, next: NextFunctio
   }
 }
 
+// ─── LIST PUBLIC EVENTS ─────────────────────────────
+export async function listPublicEvents(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { page = 1, limit = 20, city, type, search } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+    const where: any = { isPublic: true, status: { in: ['PUBLISHED', 'LIVE'] } };
+    if (city) where.city = { contains: String(city), mode: 'insensitive' };
+    if (type) where.type = String(type);
+    if (search) where.name = { contains: String(search), mode: 'insensitive' };
+    const [events, total] = await Promise.all([
+      prisma.event.findMany({
+        where,
+        select: {
+          id: true, name: true, slug: true, type: true, format: true, status: true,
+          startDate: true, endDate: true, venue: true, city: true, coverImageUrl: true,
+          maxCapacity: true,
+          ticketTypes: {
+            where: { status: 'ACTIVE' },
+            select: { id: true, name: true, price: true, currency: true, capacity: true, soldCount: true },
+          },
+          _count: { select: { attendees: true } },
+        },
+        orderBy: { startDate: 'asc' },
+        skip,
+        take: Number(limit),
+      }),
+      prisma.event.count({ where }),
+    ]);
+    const enriched = events.map(ev => ({
+      ...ev,
+      attendeeCount: ev._count.attendees,
+      minPrice: ev.ticketTypes.length > 0 ? Math.min(...ev.ticketTypes.map(t => Number(t.price))) : 0,
+      isSoldOut: ev.maxCapacity ? ev._count.attendees >= ev.maxCapacity : false,
+    }));
+    res.json({ success: true, events: enriched, total, page: Number(page), limit: Number(limit) });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // ─── GET PUBLIC REGISTRATION PAGE ────────────────────
 export async function getPublicEvent(req: Request, res: Response, next: NextFunction) {
   try {

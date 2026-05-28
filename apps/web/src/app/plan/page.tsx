@@ -121,7 +121,7 @@ export default function PlanPage() {
               {messages.map((m, i) => (
                 <div key={i} className={`flex gap-3 mb-4 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
                   {m.role === 'assistant' && (
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--accent)] to-[#1a4d38] flex items-center justify-center flex-shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--accent)] to-[#4a1d96] flex items-center justify-center flex-shrink-0">
                       <Sparkles size={14} className="text-white" />
                     </div>
                   )}
@@ -136,7 +136,7 @@ export default function PlanPage() {
               ))}
               {(intakeMutation.isPending || planMutation.isPending) && (
                 <div className="flex gap-3 mb-4">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--accent)] to-[#1a4d38] flex items-center justify-center flex-shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--accent)] to-[#4a1d96] flex items-center justify-center flex-shrink-0">
                     <Sparkles size={14} className="text-white" />
                   </div>
                   <div className="bg-[var(--bg)] px-4 py-3 rounded-2xl rounded-tl-sm flex items-center gap-2">
@@ -255,8 +255,8 @@ export default function PlanPage() {
 function PlansView({ plans, extracted, selectedPlan, onSelectPlan, onBook, onBack, onRegenerate, isRegenerating }: any) {
   const TIERS: { key: PlanTier; label: string; color: string }[] = [
     { key: 'budget', label: 'Budget-Smart', color: '#059669' },
-    { key: 'standard', label: 'Best Value', color: '#2D6A4F' },
-    { key: 'premium', label: 'Premium', color: '#E76F2A' },
+    { key: 'standard', label: 'Best Value', color: '#6C2BD9' },
+    { key: 'premium', label: 'Premium', color: '#C9A227' },
   ];
 
   return (

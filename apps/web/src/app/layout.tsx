@@ -7,17 +7,27 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'], variable: '--font-body' });
 
 export const metadata: Metadata = {
-  title: { default: 'Owambe — Nigeria\'s Event Planning Platform', template: '%s | Owambe' },
-  description: 'AI-powered event planning for Nigeria. Find venues, vendors, and manage events end-to-end on owambe.com',
-  keywords: ['event planning Nigeria', 'Lagos events', 'event vendors Nigeria', 'wedding venues Lagos'],
+  title: { default: 'Owambe — Nigeria\'s Event Platform', template: '%s | Owambe' },
+  description: 'Plan, discover, and manage events across Nigeria. Book verified vendors, sell tickets, and run your event end-to-end on Owambe.',
+  keywords: ['event planning Nigeria', 'Lagos events', 'event vendors Nigeria', 'owambe events', 'party planning Lagos'],
+  icons: {
+    icon: [
+      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+    ],
+    apple: '/apple-touch-icon.png',
+    shortcut: '/favicon.ico',
+  },
   openGraph: {
-    title: 'Owambe — Nigeria\'s Event Planning Platform',
-    description: 'AI-powered event planning. Book verified vendors. Manage everything in one place.',
+    title: 'Owambe — Nigeria\'s Event Platform',
+    description: 'Plan, discover, and manage events across Nigeria.',
     url: 'https://owambe.com',
     siteName: 'Owambe',
     locale: 'en_NG',
     type: 'website',
+    images: [{ url: '/og-icon.png', width: 512, height: 512 }],
   },
+  themeColor: '#6C2BD9',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -29,9 +39,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Toaster
             position="bottom-right"
             toastOptions={{
-              style: { background: '#1A1612', color: '#fff', borderRadius: '9px', fontSize: '14px' },
-              success: { iconTheme: { primary: '#2D6A4F', secondary: '#fff' } },
-              error: { iconTheme: { primary: '#E63946', secondary: '#fff' } },
+              style: { background: '#1C1528', color: '#fff', borderRadius: '9px', fontSize: '14px' },
+              success: { iconTheme: { primary: '#6C2BD9', secondary: '#fff' } },
+              error: { iconTheme: { primary: '#DC2626', secondary: '#fff' } },
             }}
           />
         </Providers>

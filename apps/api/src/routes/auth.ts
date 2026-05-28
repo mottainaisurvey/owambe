@@ -12,6 +12,7 @@ import {
   resetPassword,
   getMe,
   updateProfile,
+  changePassword,
   googleCallback,
 } from '../controllers/auth.controller';
 
@@ -65,6 +66,13 @@ authRouter.post('/reset-password/:token',
 // ─── PROFILE ─────────────────────────────────────────
 authRouter.get('/me', authenticate, getMe);
 authRouter.put('/me', authenticate, updateProfile);
+
+authRouter.post('/change-password',
+  authenticate,
+  [body('currentPassword').notEmpty(), body('newPassword').isLength({ min: 8 })],
+  validate,
+  changePassword
+);
 
 // ─── OAUTH ───────────────────────────────────────────
 authRouter.get('/google/callback', googleCallback);

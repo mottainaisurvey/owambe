@@ -1,4 +1,5 @@
 'use client';
+export const dynamic = 'force-dynamic';
 
 // Force dynamic rendering to avoid SSG issues with useSearchParams
 export const dynamic = 'force-dynamic';
@@ -39,10 +40,10 @@ const PROVIDERS = {
 };
 
 const STATUS_CONFIG = {
-  IDLE:     { label: 'Idle',     color: '#9A9080', icon: Clock },
+  IDLE:     { label: 'Idle',     color: '#8B82A0', icon: Clock },
   SYNCING:  { label: 'Syncing…', color: '#3B82F6', icon: RefreshCw },
   SUCCESS:  { label: 'Success',  color: '#059669', icon: CheckCircle },
-  FAILED:   { label: 'Failed',   color: '#E63946', icon: XCircle },
+  FAILED:   { label: 'Failed',   color: '#DC2626', icon: XCircle },
   PARTIAL:  { label: 'Partial',  color: '#D97706', icon: AlertTriangle },
 };
 
@@ -485,10 +486,10 @@ export default function CrmSyncPage() {
       {connections.length > 0 && (
         <div className="grid grid-cols-4 gap-3 mb-5">
           {[
-            { label: 'Connections', value: `${activeConns}/2`, color: '#2D6A4F', icon: <Plug size={14} className="text-[var(--accent)]" /> },
-            { label: 'Total Synced', value: totalSynced, color: '#2D6A4F', icon: <Users size={14} className="text-[var(--accent)]" /> },
-            { label: 'Sync Errors', value: totalErrors, color: totalErrors > 0 ? '#E63946' : '#9A9080', icon: <AlertTriangle size={14} style={{ color: totalErrors > 0 ? '#E63946' : '#9A9080' }} /> },
-            { label: 'Auto-sync', value: connections.filter(c => c.autoSyncEnabled).length > 0 ? 'Active' : 'Off', color: '#2D6A4F', icon: <Zap size={14} className="text-[var(--accent)]" /> },
+            { label: 'Connections', value: `${activeConns}/2`, color: '#6C2BD9', icon: <Plug size={14} className="text-[var(--accent)]" /> },
+            { label: 'Total Synced', value: totalSynced, color: '#6C2BD9', icon: <Users size={14} className="text-[var(--accent)]" /> },
+            { label: 'Sync Errors', value: totalErrors, color: totalErrors > 0 ? '#DC2626' : '#8B82A0', icon: <AlertTriangle size={14} style={{ color: totalErrors > 0 ? '#DC2626' : '#8B82A0' }} /> },
+            { label: 'Auto-sync', value: connections.filter(c => c.autoSyncEnabled).length > 0 ? 'Active' : 'Off', color: '#6C2BD9', icon: <Zap size={14} className="text-[var(--accent)]" /> },
           ].map(s => (
             <div key={s.label} className="stat-card">
               <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-xl" style={{ background: s.color }} />

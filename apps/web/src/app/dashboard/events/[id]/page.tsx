@@ -190,9 +190,9 @@ export default function EventDetailPage() {
       {/* Stats */}
       <div className="grid grid-cols-4 gap-3 mb-5">
         <StatCard label="Registered" value={totalRegistered}
-          sub={event.maxCapacity ? `of ${event.maxCapacity} capacity` : 'No limit set'} color="#2D6A4F" />
+          sub={event.maxCapacity ? `of ${event.maxCapacity} capacity` : 'No limit set'} color="#6C2BD9" />
         <StatCard label="Fill Rate" value={fillRate !== null ? `${fillRate}%` : '—'}
-          sub={fillRate !== null && fillRate >= 80 ? '🔥 Nearly full' : 'Spots available'} color="#E76F2A" />
+          sub={fillRate !== null && fillRate >= 80 ? '🔥 Nearly full' : 'Spots available'} color="#C9A227" />
         <StatCard label="Revenue" value={formatNGN(totalRevenue, true)}
           sub="from ticket sales" color="#7B61FF" />
         <StatCard label="Ticket Types" value={tickets.length}

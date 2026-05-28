@@ -60,7 +60,7 @@ export default function VendorHomeScreen() {
           {vendor?.status && (
             <View style={{ marginTop: 8, flexDirection: 'row', gap: 8 }}>
               <View style={{
-                backgroundColor: vendor.status === 'VERIFIED' ? '#065F46' : '#92400E',
+                backgroundColor: vendor.status === 'VERIFIED' ? '#4A1D96' : '#92400E',
                 paddingHorizontal: 10, paddingVertical: 4, borderRadius: RADIUS.full,
               }}>
                 <Text style={{ color: COLORS.white, fontSize: 11, fontWeight: '700' }}>
@@ -114,7 +114,7 @@ export default function VendorHomeScreen() {
                         {b.eventDescription || 'Event Booking'}
                       </Text>
                       <Text style={{ ...TYPOGRAPHY.caption, marginTop: 2 }}>
-                        📅 {new Date(b.eventDate).toLocaleDateString('en-NG', { day: 'numeric', month: 'short' })}
+                        📅 {b.eventDate ? new Date(b.eventDate).toLocaleDateString('en-NG', { day: 'numeric', month: 'short' }) : 'TBC'}
                         {' · '}{b.bookingType}
                       </Text>
                     </View>

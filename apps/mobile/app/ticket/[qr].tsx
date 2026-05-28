@@ -162,13 +162,13 @@ export default function TicketScreen() {
               {/* Status */}
               <View style={{
                 flexDirection: 'row', alignItems: 'center', gap: 8,
-                backgroundColor: a?.status === 'CHECKED_IN' ? '#D1FAE5' : COLORS.primaryLight,
+                backgroundColor: a?.status === 'CHECKED_IN' ? '#EDE9FF' : COLORS.primaryLight,
                 padding: SPACING.sm, borderRadius: RADIUS.md, marginBottom: SPACING.lg,
               }}>
                 <Text style={{ fontSize: 16 }}>{a?.status === 'CHECKED_IN' ? '✅' : '🎫'}</Text>
                 <Text style={{
                   fontSize: 13, fontWeight: '700',
-                  color: a?.status === 'CHECKED_IN' ? '#065F46' : COLORS.primary,
+                  color: a?.status === 'CHECKED_IN' ? '#4A1D96' : COLORS.primary,
                 }}>
                   {a?.status === 'CHECKED_IN' ? 'Checked In ✓' : 'Valid Ticket — Present at Door'}
                 </Text>

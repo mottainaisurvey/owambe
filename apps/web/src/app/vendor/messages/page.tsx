@@ -65,7 +65,7 @@ export default function VendorMessagesPage() {
                 className={`flex items-start gap-3 px-4 py-3 border-b border-[var(--border)] cursor-pointer hover:bg-[var(--bg)] transition-colors ${
                   selectedBookingId === b.id ? 'bg-[var(--pill)]' : ''
                 }`}>
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[var(--accent)] to-[#1a4d38] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[var(--accent)] to-[#4a1d96] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                   {b.reference?.slice(-3)}
                 </div>
                 <div className="flex-1 min-w-0">

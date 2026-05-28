@@ -1,8 +1,9 @@
 import React from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  RefreshControl, Dimensions,
+  RefreshControl, Dimensions, Image,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -49,12 +50,17 @@ export default function HomeScreen() {
         contentContainerStyle={{ paddingBottom: SPACING.xxl }}
       >
         {/* Hero header */}
-        <View style={{
-          backgroundColor: COLORS.primary,
-          paddingHorizontal: SPACING.xl,
-          paddingTop: SPACING.lg,
-          paddingBottom: 40,
-        }}>
+        <LinearGradient
+          colors={['#1C1528', '#2D1B5E', '#1C1528']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{
+            paddingHorizontal: SPACING.xl,
+            paddingTop: SPACING.lg,
+            paddingBottom: 40,
+            overflow: 'hidden',
+          }}
+        >
           <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14 }}>
             {new Date().toLocaleDateString('en-NG', { weekday: 'long', month: 'long', day: 'numeric' })}
           </Text>
@@ -86,7 +92,7 @@ export default function HomeScreen() {
               {isPlanner ? 'Create Event with AI' : 'Plan My Event Free'}
             </Text>
           </TouchableOpacity>
-        </View>
+        </LinearGradient>
 
         <View style={{ padding: SPACING.lg, marginTop: -20 }}>
           {/* Stats row — planners only */}
@@ -170,6 +176,29 @@ export default function HomeScreen() {
                   </Text>
                 </View>
               </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => router.push('/browse-events')}
+                activeOpacity={0.85}
+                style={{
+                  backgroundColor: COLORS.accent + '15',
+                  borderRadius: RADIUS.xl,
+                  padding: SPACING.xl,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: SPACING.md,
+                  borderWidth: 1,
+                  borderColor: COLORS.accent + '40',
+                }}
+              >
+                <Text style={{ fontSize: 48 }}>🎪</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: COLORS.dark, fontSize: 18, fontWeight: '800' }}>Browse Events</Text>
+                  <Text style={{ color: COLORS.muted, fontSize: 13, marginTop: 4 }}>
+                    Discover concerts, conferences, weddings & more
+                  </Text>
+                </View>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -209,13 +238,13 @@ export default function HomeScreen() {
                         <View style={{ flex: 1 }}>
                           <Text style={{ ...TYPOGRAPHY.h4, marginBottom: 4 }} numberOfLines={1}>{ev.name}</Text>
                           <Text style={TYPOGRAPHY.caption}>
-                            📅 {new Date(ev.startDate).toLocaleDateString('en-NG', { day: 'numeric', month: 'short' })}
+                            📅 {ev.startDate ? new Date(ev.startDate).toLocaleDateString('en-NG', { day: 'numeric', month: 'short' }) : 'TBC'}
                             {ev.city ? ` · 📍 ${ev.city}` : ''}
                           </Text>
                         </View>
                         <Badge
-                          label={ev.status}
-                          variant={ev.status.toLowerCase() as any}
+                          label={ev.status || 'DRAFT'}
+                          variant={(ev.status || 'draft').toLowerCase() as any}
                         />
                       </View>
                       <View style={{ flexDirection: 'row', gap: SPACING.lg, marginTop: SPACING.sm }}>

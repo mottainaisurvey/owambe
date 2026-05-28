@@ -3,7 +3,6 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import Toast from 'react-native-toast-message';
 import * as SplashScreen from 'expo-splash-screen';
 import { useAuthStore } from '../src/store/auth.store';
 
@@ -36,7 +35,6 @@ export default function RootLayout() {
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="(vendor)" options={{ headerShown: false }} />
-          <Stack.Screen name="plan" options={{ headerShown: false }} />
           <Stack.Screen name="vendor/[slug]" options={{
             headerShown: true,
             headerTitle: '',
@@ -53,9 +51,33 @@ export default function RootLayout() {
             headerTitle: 'Booking',
             headerBackTitle: 'Back',
           }} />
-          <Stack.Screen name="payment" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="browse-events" options={{ headerShown: false }} />
+          <Stack.Screen name="events" options={{
+            headerShown: true,
+            headerTitle: 'My Events',
+            headerBackTitle: 'Back',
+          }} />
+          <Stack.Screen name="event/[id]" options={{
+            headerShown: true,
+            headerTitle: 'Event Details',
+            headerBackTitle: 'Back',
+          }} />
+          <Stack.Screen name="analytics" options={{
+            headerShown: true,
+            headerTitle: 'Analytics',
+            headerBackTitle: 'Back',
+          }} />
+          <Stack.Screen name="checkin" options={{
+            headerShown: true,
+            headerTitle: 'Check-in Scanner',
+            headerBackTitle: 'Back',
+          }} />
+          <Stack.Screen name="dayof" options={{
+            headerShown: true,
+            headerTitle: 'Day-of Tools',
+            headerBackTitle: 'Back',
+          }} />
         </Stack>
-        <Toast />
       </QueryClientProvider>
     </GestureHandlerRootView>
   );

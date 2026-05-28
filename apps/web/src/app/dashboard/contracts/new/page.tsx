@@ -14,7 +14,7 @@ const TEMPLATES = [
     icon: <FileText size={22} />,
     label: 'Service Agreement',
     desc: 'General-purpose contract for any vendor service',
-    color: '#2D6A4F',
+    color: '#6C2BD9',
   },
   {
     id: 'VENUE_HIRE',
@@ -28,7 +28,7 @@ const TEMPLATES = [
     icon: <Camera size={22} />,
     label: 'Photography & Video',
     desc: 'Copyright, deliverables, equipment failure terms',
-    color: '#E76F2A',
+    color: '#C9A227',
   },
   {
     id: 'CATERING',
@@ -107,12 +107,12 @@ export default function NewContractPage() {
       // Preview via local generation — we'll show the full editor
       const vendor = vendors.find((v: any) => v.id === form.vendorId);
       setPreview(`
-        <div style="padding:20px; font-family:Georgia,serif; color:#1A1612; line-height:1.7">
+        <div style="padding:20px; font-family:Georgia,serif; color:#1C1528; line-height:1.7">
           <h2 style="margin-bottom:8px;">${form.title || 'Event Services Agreement'}</h2>
-          <p style="color:#9A9080; font-size:13px; margin-bottom:20px;">Template: ${form.templateType} · Vendor: ${vendor?.businessName || '—'}</p>
+          <p style="color:#8B82A0; font-size:13px; margin-bottom:20px;">Template: ${form.templateType} · Vendor: ${vendor?.businessName || '—'}</p>
           <p>This contract will be generated automatically using the <strong>${form.templateType.replace(/_/g, ' ')}</strong> template 
           with all your event details, payment schedule, and legally-compliant terms for ${vendor?.category || 'vendor services'}.</p>
-          <p style="margin-top:16px; color:#9A9080; font-size:13px;">The full contract will include: scope of services, payment schedule with Paystack escrow terms, 
+          <p style="margin-top:16px; color:#8B82A0; font-size:13px;">The full contract will include: scope of services, payment schedule with Paystack escrow terms, 
           cancellation policy, liability limitations, governing law (Nigerian), and signature blocks for both parties.</p>
         </div>
       `);

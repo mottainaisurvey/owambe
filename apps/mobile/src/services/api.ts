@@ -70,6 +70,9 @@ export const authApi = {
   login: (email: string, password: string) => api.post('/auth/login', { email, password }),
   logout: () => api.post('/auth/logout'),
   me: () => api.get('/auth/me'),
+  updateProfile: (d: any) => api.put('/auth/me', d),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api.post('/auth/change-password', { currentPassword, newPassword }),
 };
 
 export const eventsApi = {
@@ -78,6 +81,7 @@ export const eventsApi = {
   create: (d: any) => api.post('/events', d),
   publish: (id: string) => api.post(`/events/${id}/publish`),
   getPublic: (slug: string) => api.get(`/events/public/${slug}`),
+  listPublic: (params?: any) => api.get('/events/public', { params }),
 };
 
 export const vendorsApi = {

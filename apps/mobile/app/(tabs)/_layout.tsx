@@ -1,16 +1,14 @@
 import { Tabs, Redirect } from 'expo-router';
-import { View, Text } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useAuthStore } from '../../src/store/auth.store';
-import { COLORS } from '../../src/utils/theme';
+import { COLORS, RADIUS } from '../../src/utils/theme';
 
 function TabIcon({ emoji, label, focused }: { emoji: string; label: string; focused: boolean }) {
   return (
-    <View style={{ alignItems: 'center', gap: 2 }}>
-      <Text style={{ fontSize: 20 }}>{emoji}</Text>
-      <Text style={{
-        fontSize: 10, fontWeight: focused ? '700' : '500',
-        color: focused ? COLORS.primary : COLORS.muted,
-      }}>
+    <View style={styles.tabItem}>
+      {focused && <View style={styles.activePill} />}
+      <Text style={[styles.tabEmoji, focused && styles.tabEmojiFocused]}>{emoji}</Text>
+      <Text style={[styles.tabLabel, focused && styles.tabLabelFocused]}>
         {label}
       </Text>
     </View>
@@ -28,13 +26,7 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: false,
-        tabBarStyle: {
-          backgroundColor: COLORS.white,
-          borderTopColor: COLORS.border,
-          borderTopWidth: 1,
-          height: 82,
-          paddingTop: 8,
-        },
+        tabBarStyle: styles.tabBar,
       }}
     >
       <Tabs.Screen
@@ -70,3 +62,49 @@ export default function TabsLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  tabBar: {
+    backgroundColor: '#FFFFFF',
+    borderTopColor: 'rgba(108,43,217,0.08)',
+    borderTopWidth: 1,
+    height: 82,
+    paddingTop: 6,
+    shadowColor: '#6C2BD9',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  tabItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    paddingTop: 4,
+    position: 'relative',
+  },
+  activePill: {
+    position: 'absolute',
+    top: -6,
+    width: 32,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: COLORS.primary,
+  },
+  tabEmoji: {
+    fontSize: 20,
+    opacity: 0.6,
+  },
+  tabEmojiFocused: {
+    opacity: 1,
+  },
+  tabLabel: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: COLORS.muted,
+  },
+  tabLabelFocused: {
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+});

@@ -8,7 +8,7 @@ import { BarChart2, TrendingUp, Mail, Smartphone, Users, Zap, Star, DollarSign }
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LineChart, Line, PieChart, Pie, Legend } from 'recharts';
 
 const TOOLTIP_STYLE = {
-  contentStyle: { background: '#1A1612', border: 'none', borderRadius: 8, fontSize: 12, color: '#fff' },
+  contentStyle: { background: '#1C1528', border: 'none', borderRadius: 8, fontSize: 12, color: '#fff' },
 };
 
 export default function AnalyticsPage() {
@@ -49,8 +49,8 @@ export default function AnalyticsPage() {
       {/* Platform overview */}
       <div className="grid grid-cols-4 gap-3.5 mb-5">
         {[
-          { label: 'Total Events', value: stats.totalEvents ?? '—', sub: `${stats.liveEvents ?? 0} live now`, color: '#2D6A4F', icon: <Zap size={15}/> },
-          { label: 'Total Registrations', value: stats.totalAttendees ?? '—', sub: `${stats.recentAttendees ?? 0} this month`, color: '#E76F2A', icon: <Users size={15}/> },
+          { label: 'Total Events', value: stats.totalEvents ?? '—', sub: `${stats.liveEvents ?? 0} live now`, color: '#6C2BD9', icon: <Zap size={15}/> },
+          { label: 'Total Registrations', value: stats.totalAttendees ?? '—', sub: `${stats.recentAttendees ?? 0} this month`, color: '#C9A227', icon: <Users size={15}/> },
           { label: 'Total Revenue', value: stats.totalRevenue ? formatNGN(stats.totalRevenue, true) : '—', sub: 'All events', color: '#7B61FF', icon: <DollarSign size={15}/> },
           { label: 'Avg Fill Rate', value: stats.fillRate ? `${stats.fillRate}%` : '—', sub: 'Across all events', color: '#059669', icon: <Star size={15}/> },
         ].map(m => (
@@ -73,12 +73,12 @@ export default function AnalyticsPage() {
           <div className="text-xs text-[var(--muted)] mb-4">Daily across all events</div>
           <ResponsiveContainer width="100%" height={160}>
             <BarChart data={regByDay} margin={{ top: 0, right: 0, left: -24, bottom: 0 }}>
-              <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#9A9080' }} tickFormatter={v => v?.slice(5)} />
-              <YAxis tick={{ fontSize: 10, fill: '#9A9080' }} />
+              <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#8B82A0' }} tickFormatter={v => v?.slice(5)} />
+              <YAxis tick={{ fontSize: 10, fill: '#8B82A0' }} />
               <Tooltip {...TOOLTIP_STYLE} formatter={(v: any) => [v, 'Registrations']} />
               <Bar dataKey="count" radius={[3,3,0,0]}>
                 {regByDay.map((_: any, i: number) => (
-                  <Cell key={i} fill={i === regByDay.length - 1 ? '#E76F2A' : '#2D6A4F'} opacity={0.55 + i * 0.03} />
+                  <Cell key={i} fill={i === regByDay.length - 1 ? '#C9A227' : '#6C2BD9'} opacity={0.55 + i * 0.03} />
                 ))}
               </Bar>
             </BarChart>
@@ -89,11 +89,11 @@ export default function AnalyticsPage() {
           <div className="text-sm font-bold mb-4">Revenue by Month (₦)</div>
           <ResponsiveContainer width="100%" height={160}>
             <LineChart data={revenueByMonth} margin={{ top: 0, right: 0, left: -24, bottom: 0 }}>
-              <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#9A9080' }} />
-              <YAxis tick={{ fontSize: 10, fill: '#9A9080' }} tickFormatter={v => `₦${(v/1000000).toFixed(1)}M`} />
+              <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#8B82A0' }} />
+              <YAxis tick={{ fontSize: 10, fill: '#8B82A0' }} tickFormatter={v => `₦${(v/1000000).toFixed(1)}M`} />
               <Tooltip {...TOOLTIP_STYLE} formatter={(v: any) => [formatNGN(v, true), 'Revenue']} />
-              <Line type="monotone" dataKey="amount" stroke="#2D6A4F" strokeWidth={2.5}
-                dot={{ fill: '#2D6A4F', strokeWidth: 0, r: 3 }} />
+              <Line type="monotone" dataKey="amount" stroke="#6C2BD9" strokeWidth={2.5}
+                dot={{ fill: '#6C2BD9', strokeWidth: 0, r: 3 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>

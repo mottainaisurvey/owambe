@@ -38,7 +38,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
       name: 'Owambe Notifications',
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#2D6A4F',
+      lightColor: '#6C2BD9',
     });
     await Notifications.setNotificationChannelAsync('owambe-bookings', {
       name: 'Booking Alerts',

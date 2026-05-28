@@ -83,11 +83,11 @@ export default function ContractsPage() {
       {/* Stats row */}
       <div className="grid grid-cols-5 gap-3 mb-5">
         {[
-          { label: 'Total', value: data?.total ?? '—', color: '#9A9080' },
+          { label: 'Total', value: data?.total ?? '—', color: '#8B82A0' },
           { label: 'Awaiting Signature', value: contracts.filter((c: any) => ['SENT', 'PARTIALLY_SIGNED'].includes(c.status)).length, color: '#F59E0B' },
           { label: 'Fully Signed', value: contracts.filter((c: any) => c.status === 'FULLY_SIGNED').length, color: '#059669' },
-          { label: 'Drafts', value: contracts.filter((c: any) => c.status === 'DRAFT').length, color: '#9A9080' },
-          { label: 'Voided', value: contracts.filter((c: any) => c.status === 'VOID').length, color: '#E63946' },
+          { label: 'Drafts', value: contracts.filter((c: any) => c.status === 'DRAFT').length, color: '#8B82A0' },
+          { label: 'Voided', value: contracts.filter((c: any) => c.status === 'VOID').length, color: '#DC2626' },
         ].map(s => (
           <div key={s.label} className="stat-card">
             <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-xl" style={{ background: s.color }} />
@@ -176,9 +176,9 @@ export default function ContractsPage() {
                           <div key={s.signerRole} title={`${s.signerRole}: ${s.isSigned ? 'Signed' : 'Pending'}`}
                             style={{
                               width: 22, height: 22, borderRadius: '50%',
-                              background: s.isSigned ? '#059669' : '#E2DDD5',
+                              background: s.isSigned ? '#059669' : '#E5E0F0',
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              fontSize: 10, color: s.isSigned ? '#fff' : '#9A9080', fontWeight: 700,
+                              fontSize: 10, color: s.isSigned ? '#fff' : '#8B82A0', fontWeight: 700,
                             }}>
                             {s.signerRole === 'PLANNER' ? 'P' : 'V'}
                           </div>

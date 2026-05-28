@@ -209,12 +209,12 @@ export default function ContractDetailPage() {
                     </div>
                     <div style={{
                       width: 36, height: 36, borderRadius: '50%',
-                      background: s.isSigned ? '#D1FAE5' : '#F5F2EB',
+                      background: s.isSigned ? '#D1FAE5' : '#FAF9FC',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>
                       {s.isSigned
                         ? <CheckCircle size={18} color="#059669" />
-                        : <Clock size={18} color="#9A9080" />}
+                        : <Clock size={18} color="#8B82A0" />}
                     </div>
                   </div>
 
@@ -294,8 +294,8 @@ export default function ContractDetailPage() {
                   <div key={step.label} className="flex gap-3">
                     <div style={{
                       width: 22, height: 22, borderRadius: '50%', flexShrink: 0, position: 'relative', zIndex: 1,
-                      background: step.done ? '#2D6A4F' : '#F5F2EB',
-                      border: `2px solid ${step.done ? '#2D6A4F' : '#E2DDD5'}`,
+                      background: step.done ? '#6C2BD9' : '#FAF9FC',
+                      border: `2px solid ${step.done ? '#6C2BD9' : '#E5E0F0'}`,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>
                       {step.done && <CheckCircle size={12} color="#fff" />}

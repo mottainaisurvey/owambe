@@ -1,33 +1,33 @@
 import { Platform } from 'react-native';
 
 export const COLORS = {
-  // Brand
-  primary: '#2D6A4F',
-  primaryLight: '#EEF7F2',
-  primaryDark: '#1A4D38',
-  accent: '#E76F2A',
-  accentLight: '#FEF3C7',
+  // Owambe Brand
+  primary: '#6C2BD9',        // Owambe purple
+  primaryLight: '#F3EEFF',
+  primaryDark: '#4A1D96',
+  accent: '#C9A227',         // Owambe gold
+  accentLight: '#FDF8E7',
 
   // Neutrals
-  dark: '#1A1612',
-  mid: '#3D3730',
-  muted: '#9A9080',
-  border: '#E2DDD5',
-  surface: '#FDFAF4',
-  bg: '#F5F2EB',
+  dark: '#1C1528',           // deep purple-black
+  mid: '#3D3452',            // purple-tinted mid
+  muted: '#8B82A0',          // muted lavender-grey
+  border: '#E5E0F0',         // soft purple-tinted border
+  surface: '#FFFFFF',
+  bg: '#FAF9FC',             // very light lavender-white
   white: '#FFFFFF',
 
   // Semantic
   success: '#059669',
   warning: '#D97706',
-  danger: '#E63946',
+  danger: '#DC2626',         // red — limited use
   info: '#3B82F6',
 
   // Status badges
-  confirmed: { bg: '#D1FAE5', text: '#065F46' },
+  confirmed: { bg: '#EDE9FF', text: '#4A1D96' },
   pending: { bg: '#FEF3C7', text: '#92400E' },
   cancelled: { bg: '#FEE2E2', text: '#991B1B' },
-  live: { bg: '#D1FAE5', text: '#065F46' },
+  live: { bg: '#EDE9FF', text: '#4A1D96' },
   draft: { bg: '#F3F4F6', text: '#374151' },
 };
 
@@ -56,21 +56,21 @@ export const RADIUS = {
 
 export const SHADOWS = {
   sm: {
-    shadowColor: '#1A1612',
+    shadowColor: '#1C1528',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 4,
     elevation: 2,
   },
   md: {
-    shadowColor: '#1A1612',
+    shadowColor: '#1C1528',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.10,
     shadowRadius: 12,
     elevation: 4,
   },
   lg: {
-    shadowColor: '#1A1612',
+    shadowColor: '#1C1528',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.14,
     shadowRadius: 24,

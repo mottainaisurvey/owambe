@@ -5,12 +5,13 @@ import { authenticate } from '../middleware/authenticate';
 import { requireRole } from '../middleware/requireRole';
 import {
   createEvent, getMyEvents, getEvent, updateEvent,
-  publishEvent, deleteEvent, getPublicEvent, registerAttendee,
+  publishEvent, deleteEvent, getPublicEvent, listPublicEvents, registerAttendee,
 } from '../controllers/events.controller';
 
 export const eventsRouter = Router();
 
 // ─── PUBLIC ──────────────────────────────────────────
+eventsRouter.get('/public', listPublicEvents);
 eventsRouter.get('/public/:slug', getPublicEvent);
 eventsRouter.post('/public/:slug/register',
   [

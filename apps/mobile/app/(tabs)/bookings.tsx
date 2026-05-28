@@ -102,7 +102,7 @@ export default function BookingsScreen() {
                         {b.vendor?.category} · {b.bookingType}
                       </Text>
                       <Text style={{ ...TYPOGRAPHY.caption }}>
-                        📅 {new Date(b.eventDate).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        📅 {b.eventDate ? new Date(b.eventDate).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' }) : 'TBC'}
                       </Text>
                     </View>
                     <View style={{ alignItems: 'flex-end', gap: 6 }}>

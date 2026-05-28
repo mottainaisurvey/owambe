@@ -152,7 +152,7 @@ export default function EmailsPage() {
             </div>
           </div>
           <div className="p-5 bg-white">
-            <div style={{ background: 'linear-gradient(135deg, #2D6A4F, #1a4d38)', padding: '20px', textAlign: 'center', margin: '-20px -20px 16px', color: '#fff', borderRadius: '0 0 8px 8px' }}>
+            <div style={{ background: 'linear-gradient(135deg, #6C2BD9, #4a1d96)', padding: '20px', textAlign: 'center', margin: '-20px -20px 16px', color: '#fff', borderRadius: '0 0 8px 8px' }}>
               <div style={{ fontSize: 22, fontWeight: 900, marginBottom: 4 }}>owambe.com</div>
               <div style={{ fontSize: 14, opacity: 0.8 }}>{previewTemplate.subject}</div>
             </div>
@@ -160,7 +160,7 @@ export default function EmailsPage() {
               {previewTemplate.body}
             </div>
             <div className="text-center mt-5">
-              <div style={{ display: 'inline-block', background: '#E76F2A', color: '#fff', padding: '10px 24px', borderRadius: 8, fontSize: 13, fontWeight: 700 }}>
+              <div style={{ display: 'inline-block', background: '#C9A227', color: '#fff', padding: '10px 24px', borderRadius: 8, fontSize: 13, fontWeight: 700 }}>
                 View My Ticket →
               </div>
             </div>

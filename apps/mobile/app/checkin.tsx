@@ -112,7 +112,7 @@ export default function CheckInScreen() {
             >
               <Text style={{ color: COLORS.white, fontWeight: '700', fontSize: 15 }}>{ev.name}</Text>
               <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, marginTop: 4 }}>
-                📅 {new Date(ev.startDate).toLocaleDateString('en-NG')} · {ev._count?.attendees || 0} registered
+                📅 {ev.startDate ? new Date(ev.startDate).toLocaleDateString('en-NG') : 'TBC'} · {ev._count?.attendees || 0} registered
               </Text>
             </TouchableOpacity>
           ))}

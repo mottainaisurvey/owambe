@@ -74,9 +74,16 @@ api.interceptors.response.use(
       }
     }
 
-    // Show error toast for non-401 errors
+    // Show error toast for non-401 errors, but suppress for:
+    // 1. Silent background auth calls (refresh, me, logout)
+    // 2. All errors on auth pages (login, register, forgot-password)
+    const silentEndpoints = ['/auth/refresh', '/auth/me', '/auth/logout'];
+    const requestUrl = error.config?.url || '';
+    const isSilent = silentEndpoints.some(ep => requestUrl.includes(ep));
+    const isAuthPage = typeof window !== 'undefined' &&
+      ['/login', '/register', '/forgot-password'].includes(window.location.pathname);
     const message = error.response?.data?.error || error.message || 'Something went wrong';
-    if (error.response?.status !== 401) {
+    if (error.response?.status !== 401 && !isSilent && !isAuthPage) {
       toast.error(message);
     }
 

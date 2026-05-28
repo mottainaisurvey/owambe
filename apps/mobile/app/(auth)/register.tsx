@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, KeyboardAvoidingView,
-  Platform, ScrollView, Alert,
+  Platform, ScrollView, Alert, Image, StyleSheet,
 } from 'react-native';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { LinearGradient } from 'expo-linear-gradient';
 import { api } from '../../src/services/api';
 import { Button, Input } from '../../src/components/ui';
 import { COLORS, SPACING, TYPOGRAPHY, RADIUS } from '../../src/utils/theme';
@@ -49,22 +50,47 @@ export default function RegisterScreen() {
       style={{ flex: 1, backgroundColor: COLORS.surface }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
-        <View style={{
-          backgroundColor: COLORS.primary, paddingTop: 80,
-          paddingBottom: SPACING.xl, paddingHorizontal: SPACING.xl,
-        }}>
-          <TouchableOpacity onPress={() => router.back()} style={{ marginBottom: SPACING.md }}>
-            <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14 }}>← Back</Text>
+
+        {/* ── Premium Header ──────────────────────────────────────────── */}
+        <LinearGradient
+          colors={['#1C1528', '#2D1B5E', '#1C1528']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.header}
+        >
+          {/* Glow orb */}
+          <View style={styles.glowOrb} />
+
+          {/* Back button */}
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <Text style={styles.backText}>← Back</Text>
           </TouchableOpacity>
-          <Text style={{ fontSize: 26, fontWeight: '800', color: COLORS.white }}>Create account</Text>
-          <Text style={{ color: 'rgba(255,255,255,0.65)', marginTop: 4, fontSize: 14 }}>
+
+          {/* Logo — correct aspect ratio 2.117:1 */}
+          <Image
+            source={require('../../assets/owambe-logo-auth.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+
+          {/* Headline */}
+          <Text style={styles.headline}>Create account</Text>
+          <Text style={styles.subline}>
             Join 1,000+ event professionals on Owambe
           </Text>
-        </View>
 
-        <View style={{ padding: SPACING.xl }}>
+          {/* Step indicator */}
+          <View style={styles.stepRow}>
+            <View style={[styles.stepDot, step >= 1 && styles.stepDotActive]} />
+            <View style={styles.stepLine} />
+            <View style={[styles.stepDot, step >= 2 && styles.stepDotActive]} />
+          </View>
+        </LinearGradient>
+
+        {/* ── Form ────────────────────────────────────────────────────── */}
+        <View style={styles.form}>
           {step === 1 ? (
             <>
               <Text style={{ ...TYPOGRAPHY.h3, marginBottom: SPACING.sm }}>I am a...</Text>
@@ -74,31 +100,21 @@ export default function RegisterScreen() {
                     key={r.value}
                     onPress={() => setRole(r.value)}
                     activeOpacity={0.85}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: SPACING.md,
-                      padding: SPACING.md,
-                      borderRadius: RADIUS.lg,
-                      borderWidth: 2,
-                      borderColor: role === r.value ? COLORS.primary : COLORS.border,
-                      backgroundColor: role === r.value ? COLORS.primaryLight : COLORS.white,
-                    }}
+                    style={[
+                      styles.roleCard,
+                      role === r.value && styles.roleCardActive,
+                    ]}
                   >
                     <Text style={{ fontSize: 28 }}>{r.emoji}</Text>
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: 15, fontWeight: '700', color: COLORS.dark }}>{r.label}</Text>
                       <Text style={{ fontSize: 13, color: COLORS.muted, marginTop: 2 }}>{r.desc}</Text>
                     </View>
-                    <View style={{
-                      width: 20, height: 20, borderRadius: 10,
-                      borderWidth: 2, borderColor: role === r.value ? COLORS.primary : COLORS.border,
-                      backgroundColor: role === r.value ? COLORS.primary : 'transparent',
-                      alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      {role === r.value && (
-                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.white }} />
-                      )}
+                    <View style={[
+                      styles.radioOuter,
+                      role === r.value && styles.radioOuterActive,
+                    ]}>
+                      {role === r.value && <View style={styles.radioInner} />}
                     </View>
                   </TouchableOpacity>
                 ))}
@@ -151,7 +167,112 @@ export default function RegisterScreen() {
             </Text>
           </TouchableOpacity>
         </View>
+
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
+
+const styles = StyleSheet.create({
+  header: {
+    paddingTop: 72,
+    paddingBottom: SPACING.xl,
+    paddingHorizontal: SPACING.xl,
+    alignItems: 'flex-start',
+    overflow: 'hidden',
+  },
+  glowOrb: {
+    position: 'absolute',
+    top: -40,
+    right: -40,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: COLORS.primary,
+    opacity: 0.15,
+  },
+  backBtn: {
+    marginBottom: SPACING.md,
+  },
+  backText: {
+    color: 'rgba(255,255,255,0.55)',
+    fontSize: 14,
+  },
+  logo: {
+    height: 69,
+    width: 69 * 2.117,
+    marginBottom: SPACING.md,
+  },
+  headline: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
+    marginBottom: 4,
+  },
+  subline: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 13,
+    marginBottom: SPACING.lg,
+  },
+  stepRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  stepDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  stepDotActive: {
+    backgroundColor: COLORS.accent,
+    width: 20,
+    borderRadius: 4,
+  },
+  stepLine: {
+    width: 24,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  form: {
+    flex: 1,
+    padding: SPACING.xl,
+    paddingTop: SPACING.xl,
+  },
+  roleCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    padding: SPACING.md,
+    borderRadius: RADIUS.lg,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.white,
+  },
+  roleCardActive: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primaryLight,
+  },
+  radioOuter: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioOuterActive: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primary,
+  },
+  radioInner: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.white,
+  },
+});

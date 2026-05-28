@@ -280,6 +280,23 @@ export async function updateProfile(req: Request, res: Response, next: NextFunct
   }
 }
 
+// ─── CHANGE PASSWORD ─────────────────────────────────
+export async function changePassword(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = (req as any).userId;
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new AppError('User not found', 404);
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!valid) throw new AppError('Current password is incorrect', 400);
+    const hashed = await bcrypt.hash(newPassword, 12);
+    await prisma.user.update({ where: { id: userId }, data: { passwordHash: hashed } });
+    res.json({ success: true, message: 'Password changed successfully' });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // ─── GOOGLE OAUTH ────────────────────────────────────
 export async function googleCallback(req: Request, res: Response, next: NextFunction) {
   try {

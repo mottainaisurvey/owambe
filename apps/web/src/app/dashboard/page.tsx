@@ -28,7 +28,7 @@ export default function DashboardPage() {
           label="Live Events"
           value={stats?.liveEvents ?? '—'}
           sub={`of ${stats?.totalEvents ?? 0} total`}
-          accent="#2D6A4F"
+          accent="#6C2BD9"
           icon={<Calendar size={16} className="text-[var(--accent)]" />}
           positive
         />
@@ -36,7 +36,7 @@ export default function DashboardPage() {
           label="Registrations"
           value={stats?.totalAttendees ?? '—'}
           sub={`↑ ${stats?.registrationGrowth ?? 0}% this month`}
-          accent="#E76F2A"
+          accent="#C9A227"
           icon={<Users size={16} className="text-[var(--accent2)]" />}
           positive={(stats?.registrationGrowth ?? 0) >= 0}
         />
@@ -52,7 +52,7 @@ export default function DashboardPage() {
           label="Avg Fill Rate"
           value={stats ? `${stats.fillRate ?? 0}%` : '—'}
           sub="across all events"
-          accent="#E63946"
+          accent="#DC2626"
           icon={<Target size={16} className="text-red-500" />}
           positive={(stats?.fillRate ?? 0) >= 60}
         />

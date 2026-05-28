@@ -131,7 +131,7 @@ export default function BookingDetailScreen() {
             {[
               ['Reference', b.reference],
               ['Category', VENDOR_LABELS[b.vendor?.category] || b.vendor?.category],
-              ['Event Date', new Date(b.eventDate).toLocaleDateString('en-NG', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })],
+              ['Event Date', b.eventDate ? new Date(b.eventDate).toLocaleDateString('en-NG', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : 'TBC'],
               ['Guests', b.guestCount ? `${b.guestCount} guests` : '—'],
               ['Booking Type', b.bookingType],
             ].map(([l, v]) => (
@@ -221,7 +221,7 @@ export default function BookingDetailScreen() {
                       {m.body}
                     </Text>
                     <Text style={{ fontSize: 10, color: isMe ? 'rgba(255,255,255,0.6)' : COLORS.muted, marginTop: 4 }}>
-                      {new Date(m.createdAt).toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' })}
+                      {m.createdAt ? new Date(m.createdAt).toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' }) : ''}
                     </Text>
                   </View>
                 </View>
