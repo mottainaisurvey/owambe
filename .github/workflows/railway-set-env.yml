@@ -1,0 +1,33 @@
+name: Railway Set Env Vars
+on:
+  workflow_dispatch:
+jobs:
+  set-env:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+      - name: Update NEXT_PUBLIC_APP_URL on owambe-web
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          echo "=== Setting NEXT_PUBLIC_APP_URL on owambe-web ==="
+          railway variables set NEXT_PUBLIC_APP_URL=https://owambe.com --service owambe-web 2>&1
+          echo "Done"
+      - name: Update NEXT_PUBLIC_APP_URL and APP_URL on owambe-api
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_API }}
+        run: |
+          echo "=== Setting NEXT_PUBLIC_APP_URL on owambe-api ==="
+          railway variables set NEXT_PUBLIC_APP_URL=https://owambe.com --service owambe-api 2>&1
+          echo "=== Setting APP_URL on owambe-api ==="
+          railway variables set APP_URL=https://owambe.com --service owambe-api 2>&1
+          echo "Done"
+      - name: Verify updated values
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          echo "=== Verify web service ==="
+          railway variables --service owambe-web 2>&1 | grep -E "NEXT_PUBLIC_APP_URL|APP_URL" || true
+        continue-on-error: true
