@@ -8,19 +8,21 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install Railway CLI
         run: npm install -g @railway/cli
-      - name: Check web service env vars (NEXT_PUBLIC_APP_URL)
+      - name: Set NEXT_PUBLIC_APP_URL on owambe-web
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
-          echo "=== WEB SERVICE ENV VARS ==="
-          railway variables --service owambe-web 2>&1 | grep -E "NEXT_PUBLIC_APP_URL|NEXT_PUBLIC_API_URL|NODE_ENV|APP_URL" || true
-          echo "--- Full list (redacted) ---"
-          railway variables --service owambe-web 2>&1 | grep -v "SECRET\|PASSWORD\|KEY\|TOKEN\|DATABASE\|REDIS" | head -40
-      - name: Check API service env vars (NEXT_PUBLIC_APP_URL)
+          echo "=== Setting NEXT_PUBLIC_APP_URL=https://owambe.com on owambe-web ==="
+          railway variables set NEXT_PUBLIC_APP_URL=https://owambe.com --service owambe-web 2>&1
+          echo "=== Verifying ==="
+          railway variables --service owambe-web 2>&1 | grep -E "NEXT_PUBLIC_APP_URL|APP_URL" || true
+      - name: Set NEXT_PUBLIC_APP_URL and APP_URL on owambe-api
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_API }}
         run: |
-          echo "=== API SERVICE ENV VARS ==="
-          railway variables --service owambe-api 2>&1 | grep -E "NEXT_PUBLIC_APP_URL|NEXT_PUBLIC_API_URL|NODE_ENV|APP_URL|FRONTEND_URL" || true
-          echo "--- Full list (redacted) ---"
-          railway variables --service owambe-api 2>&1 | grep -v "SECRET\|PASSWORD\|KEY\|TOKEN\|DATABASE\|REDIS" | head -40
+          echo "=== Setting NEXT_PUBLIC_APP_URL=https://owambe.com on owambe-api ==="
+          railway variables set NEXT_PUBLIC_APP_URL=https://owambe.com --service owambe-api 2>&1
+          echo "=== Setting APP_URL=https://owambe.com on owambe-api ==="
+          railway variables set APP_URL=https://owambe.com --service owambe-api 2>&1
+          echo "=== Verifying ==="
+          railway variables --service owambe-api 2>&1 | grep -E "NEXT_PUBLIC_APP_URL|APP_URL" || true
