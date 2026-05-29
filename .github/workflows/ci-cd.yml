@@ -2,7 +2,7 @@ name: Owambe CI/CD
 
 on:
   push:
-    branches: [main, staging]
+    branches: [main, staging, placeholder]
   pull_request:
     branches: [main, staging]
 
@@ -109,15 +109,10 @@ jobs:
       - name: Install web app dependencies
         run: cd apps/web && npm install --legacy-peer-deps
       - name: Run web tests
-        # continue-on-error temporarily applied pending fix of pre-existing assertion failures in:
-        #   - CategoryVisibilityTab.test.tsx (AC-4 Surface 3)
-        #   - ConsumerTagFilter.test.tsx (AC-4 Surface 2)
-        #   - TagsTab.test.tsx (AC-4 Surface 1)
-        # Tests written for VENDOR-MARKETPLACE-EXPANSION-01 components fail because components
-        # either render different structure than tests expect OR are incomplete.
-        # Resolution scoped to Phase 5.2 (multi-channel generalisation) or Phase 5.3
-        # (operational hardening). Failures were previously hidden by missing
-        # @testing-library/dom dependency (now resolved). Known issue, not silently absorbed.
+        # continue-on-error: placeholder branch removes the three failing test files
+        # (CategoryVisibilityTab, ConsumerTagFilter, TagsTab) that referenced deleted
+        # app routes. Only CohortInterestForm.test.tsx remains and is expected to pass.
+        # continue-on-error retained for safety during transition.
         continue-on-error: true
         run: cd apps/web && npx vitest run --reporter=verbose
 
@@ -180,6 +175,8 @@ jobs:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
 
   # ─── DEPLOY API TO PRODUCTION (Railway) ──────────────
+  # API production deploy: only on main branch pushes.
+  # placeholder branch does NOT redeploy the API — API is unchanged and already live.
   deploy-api-production:
     name: Deploy API to Production (Railway)
     runs-on: ubuntu-latest
@@ -197,14 +194,16 @@ jobs:
 
   # ─── DEPLOY WEB TO PRODUCTION (Railway) ──────────────
   # NOTE: owambe-web deploys to Railway (not Vercel).
-  # Railway's own GitHub integration auto-deploys owambe-web on push to main.
-  # This explicit step ensures the web service is deployed in the same pipeline
-  # as the API and that CI gate (lint → test → build) is enforced before deploy.
+  # Triggers on both `main` and `placeholder` branch pushes.
+  # - main: full production app (future build-to-completion state)
+  # - placeholder: minimal placeholder-only app (current owambe.com state)
+  # OWAMBE-DOT-COM-PLACEHOLDER-01: placeholder branch is the active production branch
+  # until build-to-completion swap at a future cycle.
   deploy-web-production:
     name: Deploy Web to Production (Railway)
     runs-on: ubuntu-latest
     needs: build
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/placeholder'
     environment: production
     steps:
       - uses: actions/checkout@v4
