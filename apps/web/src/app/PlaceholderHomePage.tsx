@@ -1,11 +1,9 @@
 'use client';
-// OWAMBE-DOT-COM-PLACEHOLDER-01
+// OWAMBE-DOT-COM-PLACEHOLDER-01 — path-Z dead-link fix
 // Root / — owambe.com placeholder page.
-// Replaces the pre-launch homepage with a substantive identity + interest-capture surface.
-// Sections: Navbar · Hero · What Owambe is becoming (4 modes) · Cohort offer · Interest capture · Footer
-// Copy: developer-drafted per strategy v1.4 §01–§02.5 + brief §2.1; founder refines before DNS cutover.
-// Interest-capture: POST /api/cohort/interest (reused from CC-COHORT-OFFER-SURFACES-01, Option B-simple).
-// No new backend. No DB changes.
+// All CTAs that previously routed to dead routes (/login, /register, /vendors, /stays, etc.)
+// now scroll to #notify (interest-capture form) or link only to live routes.
+// Zero new routes. Zero new API endpoints. Existing /api/cohort/interest reused.
 import { useState } from 'react';
 import Link from 'next/link';
 import {
@@ -13,6 +11,13 @@ import {
   ArrowRight, CheckCircle2, Mail, Clock,
   ChevronRight, Zap,
 } from 'lucide-react';
+
+// ─── Scroll helper ─────────────────────────────────────────────────────────
+function scrollToNotify(e: React.MouseEvent) {
+  e.preventDefault();
+  const el = document.getElementById('notify');
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
 
 // ─── Mode definitions ──────────────────────────────────────────────────────
 const MODES = [
@@ -25,8 +30,7 @@ const MODES = [
     status: 'Available now',
     statusColor: 'var(--success)',
     accent: 'var(--accent)',
-    ctaHref: '/login',
-    ctaLabel: 'Start planning',
+    ctaLabel: 'Notify me as a planner',
   },
   {
     icon: Home,
@@ -37,8 +41,7 @@ const MODES = [
     status: 'Launching soon',
     statusColor: 'var(--accent2)',
     accent: 'var(--accent2)',
-    ctaHref: '/stays',
-    ctaLabel: 'Learn about Stays',
+    ctaLabel: 'Notify me as a host',
   },
   {
     icon: Compass,
@@ -49,8 +52,7 @@ const MODES = [
     status: 'Launching soon',
     statusColor: 'var(--accent2)',
     accent: 'var(--accent3)',
-    ctaHref: '/login',
-    ctaLabel: 'Register interest',
+    ctaLabel: 'Notify me as an operator',
   },
   {
     icon: Store,
@@ -58,11 +60,10 @@ const MODES = [
     tagline: 'Where service businesses get found and hired.',
     description:
       "Photographers, caterers, decorators, AV teams, entertainers, and every other service business that makes Nigerian events, stays, and experiences possible — all in one searchable marketplace. Vendors get discovered and booked; planners, hosts, and operators get the right people for the job without the WhatsApp chaos.",
-    status: 'Available now',
-    statusColor: 'var(--success)',
+    status: 'Available soon',
+    statusColor: 'var(--accent2)',
     accent: 'var(--accent)',
-    ctaHref: '/vendors',
-    ctaLabel: 'Browse vendors',
+    ctaLabel: 'Notify me as a vendor',
   },
 ];
 
@@ -141,24 +142,20 @@ export default function PlaceholderHomePage() {
             <img src="/owambe-logo-nav.png" alt="Owambe" className="h-14 w-auto" />
           </Link>
           <div className="flex-1" />
+          {/* Nav links — anchor-only, no dead routes */}
           <div className="hidden md:flex items-center gap-1">
-            <Link href="/vendors" className="px-3 py-2 text-sm text-[var(--mid)] hover:text-[var(--dark)] transition-colors rounded-lg hover:bg-[var(--bg)]">
-              Browse Vendors
-            </Link>
-            <Link href="/stays" className="px-3 py-2 text-sm text-[var(--mid)] hover:text-[var(--dark)] transition-colors rounded-lg hover:bg-[var(--bg)]">
-              For Hosts
-            </Link>
             <Link href="/coastal-corridor-cohort" className="px-3 py-2 text-sm text-[var(--mid)] hover:text-[var(--dark)] transition-colors rounded-lg hover:bg-[var(--bg)]">
               CC Cohort Offer
             </Link>
           </div>
           <div className="flex items-center gap-2 ml-2">
-            <Link href="/login" className="px-4 py-2 text-sm font-medium text-[var(--mid)] hover:text-[var(--dark)] transition-colors">
-              Sign in
-            </Link>
-            <Link href="/register" className="btn-primary text-sm px-4 py-2">
-              Get started
-            </Link>
+            <a
+              href="#notify"
+              onClick={scrollToNotify}
+              className="btn-primary text-sm px-4 py-2"
+            >
+              Get notified
+            </a>
           </div>
         </div>
       </nav>
@@ -188,12 +185,23 @@ export default function PlaceholderHomePage() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link href="/register" className="btn-primary px-6 py-3 text-base">
+            <a
+              href="#notify"
+              onClick={scrollToNotify}
+              className="btn-primary px-6 py-3 text-base inline-flex items-center gap-2"
+            >
               Get early access <ArrowRight size={16} />
-            </Link>
-            <Link href="/vendors" className="px-6 py-3 text-base font-medium text-[var(--mid)] hover:text-[var(--dark)] border border-[var(--border)] rounded-lg bg-white hover:border-[var(--accent)] transition-all">
-              Browse vendors
-            </Link>
+            </a>
+            <a
+              href="#modes"
+              onClick={(e) => {
+                e.preventDefault();
+                document.getElementById('modes')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              className="px-6 py-3 text-base font-medium text-[var(--mid)] hover:text-[var(--dark)] border border-[var(--border)] rounded-lg bg-white hover:border-[var(--accent)] transition-all"
+            >
+              See what we&apos;re building
+            </a>
           </div>
 
           <div className="mt-10 flex items-center justify-center gap-2 text-sm text-[var(--muted)]">
@@ -204,7 +212,7 @@ export default function PlaceholderHomePage() {
       </section>
 
       {/* ── What Owambe is becoming ──────────────────────────────────────── */}
-      <section className="bg-white border-y border-[var(--border)] py-24">
+      <section id="modes" className="bg-white border-y border-[var(--border)] py-24">
         <div className="max-w-6xl mx-auto px-5">
           <div className="text-center mb-16">
             <div className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--accent2)' }}>
@@ -242,11 +250,15 @@ export default function PlaceholderHomePage() {
                   <p className="text-[var(--mid)] text-sm leading-relaxed mb-5">
                     {mode.description}
                   </p>
-                  <Link href={mode.ctaHref}
+                  {/* CTA scrolls to notify form — no dead route */}
+                  <a
+                    href="#notify"
+                    onClick={scrollToNotify}
                     className="inline-flex items-center gap-1.5 text-sm font-semibold transition-colors group-hover:gap-2.5"
-                    style={{ color: mode.accent }}>
+                    style={{ color: mode.accent }}
+                  >
                     {mode.ctaLabel} <ChevronRight size={14} />
-                  </Link>
+                  </a>
                 </div>
               );
             })}
@@ -279,6 +291,7 @@ export default function PlaceholderHomePage() {
                 <p className="text-[var(--mid)] leading-relaxed mb-6">
                   As a Coastal Corridor cohort member, you get full Growth-tier access to the Owambe mode that matches your business — completely free for your first 12 months. This is the Coastal Corridor × Owambe integration offer per the Owambe Repositioning Strategy.
                 </p>
+                {/* Live route — /coastal-corridor-cohort is a real page */}
                 <Link href="/coastal-corridor-cohort"
                   className="inline-flex items-center gap-2 font-semibold text-sm transition-colors"
                   style={{ color: 'var(--accent)' }}>
@@ -303,7 +316,7 @@ export default function PlaceholderHomePage() {
       </section>
 
       {/* ── Interest capture ─────────────────────────────────────────────── */}
-      <section className="bg-[var(--dark)] py-24 relative overflow-hidden">
+      <section id="notify" className="bg-[var(--dark)] py-24 relative overflow-hidden">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full opacity-[0.06] blur-3xl pointer-events-none"
           style={{ background: 'var(--accent)' }} />
 
@@ -331,6 +344,7 @@ export default function PlaceholderHomePage() {
             <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
               <div className="flex-1">
                 <input
+                  id="homepage-notify-email"
                   type="email"
                   value={email}
                   onChange={(e) => { setEmail(e.target.value); setEmailError(''); }}
@@ -367,8 +381,7 @@ export default function PlaceholderHomePage() {
           </div>
           <div className="flex gap-5 text-xs text-[var(--muted)]">
             <a href="mailto:hello@owambe.com" className="hover:text-[var(--dark)] transition-colors">hello@owambe.com</a>
-            <Link href="/terms" className="hover:text-[var(--dark)] transition-colors">Terms</Link>
-            <Link href="/privacy" className="hover:text-[var(--dark)] transition-colors">Privacy</Link>
+            <Link href="/coastal-corridor-cohort" className="hover:text-[var(--dark)] transition-colors">CC Cohort Offer</Link>
           </div>
         </div>
       </footer>
