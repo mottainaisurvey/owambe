@@ -1,0 +1,28 @@
+name: Railway Env Check
+on:
+  workflow_dispatch:
+jobs:
+  check-env:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+      - name: Check web service env vars
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          echo "=== WEB SERVICE ENV VARS ==="
+          cd apps/web
+          railway variables list 2>&1 | grep -E "NEXT_PUBLIC_APP_URL|NEXT_PUBLIC_API_URL|NODE_ENV|APP_URL" || echo "No matching vars found or error"
+          echo "--- Full list (redacted secrets) ---"
+          railway variables list 2>&1 | grep -v "SECRET\|PASSWORD\|KEY\|TOKEN\|DATABASE\|REDIS" | head -30
+      - name: Check API service env vars
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_API }}
+        run: |
+          echo "=== API SERVICE ENV VARS ==="
+          cd apps/api
+          railway variables list 2>&1 | grep -E "NEXT_PUBLIC_APP_URL|NEXT_PUBLIC_API_URL|NODE_ENV|APP_URL|FRONTEND_URL|CORS" || echo "No matching vars found or error"
+          echo "--- Full list (redacted secrets) ---"
+          railway variables list 2>&1 | grep -v "SECRET\|PASSWORD\|KEY\|TOKEN\|DATABASE\|REDIS" | head -30
