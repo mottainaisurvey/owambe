@@ -16,7 +16,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 export default function CoastalCorridorCohortPage() {
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
-  const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error' | 'rate-limited'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
 
   function validateEmail(value: string): boolean {
@@ -38,11 +38,17 @@ export default function CoastalCorridorCohortPage() {
       const res = await fetch(`${API_URL}/cohort/interest`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim() }),
+        body: JSON.stringify({ email: email.trim(), source: 'owambe-cohort-page' }),
       });
       const data = await res.json();
       if (res.ok && data.success) {
         setStatus('success');
+      } else if (res.status === 429) {
+        setStatus('rate-limited');
+        setErrorMessage('Too many submissions from this network — please wait a moment and try again.');
+      } else if (res.status === 500) {
+        setStatus('error');
+        setErrorMessage('Something went wrong — please try again in a moment.');
       } else {
         setStatus('error');
         setErrorMessage(data.error || 'Something went wrong. Please try again.');
@@ -369,7 +375,7 @@ interface CohortInterestFormProps {
   email: string;
   setEmail: (v: string) => void;
   emailError: string;
-  status: 'idle' | 'submitting' | 'success' | 'error';
+  status: 'idle' | 'submitting' | 'success' | 'error' | 'rate-limited';
   errorMessage: string;
   onSubmit: (e: React.FormEvent) => void;
 }
@@ -416,7 +422,7 @@ function CohortInterestForm({
             {emailError}
           </p>
         )}
-        {status === 'error' && (
+        {(status === 'error' || status === 'rate-limited') && (
           <p className="text-xs text-red-500 text-left" role="alert">
             {errorMessage}
           </p>

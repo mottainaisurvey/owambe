@@ -93,7 +93,7 @@ const COHORT_ITEMS = [
 export default function PlaceholderHomePage() {
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
-  const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error' | 'rate-limited'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
 
   function validateEmail(value: string): boolean {
@@ -115,12 +115,18 @@ export default function PlaceholderHomePage() {
       const res = await fetch('/api/cohort/interest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim() }),
+        body: JSON.stringify({ email: email.trim(), source: 'owambe-homepage' }),
       });
       const data = await res.json();
       if (res.ok && data.success) {
         setStatus('success');
         setEmail('');
+      } else if (res.status === 429) {
+        setStatus('rate-limited');
+        setErrorMessage('Too many submissions from this network — please wait a moment and try again.');
+      } else if (res.status === 500) {
+        setStatus('error');
+        setErrorMessage('Something went wrong — please try again in a moment.');
       } else {
         setStatus('error');
         setErrorMessage(data.error || 'Something went wrong. Please try again.');
@@ -342,7 +348,7 @@ export default function PlaceholderHomePage() {
                 {emailError && (
                   <p className="text-xs mt-1.5 text-left" style={{ color: 'var(--danger)' }}>{emailError}</p>
                 )}
-                {status === 'error' && (
+                {(status === 'error' || status === 'rate-limited') && (
                   <p className="text-xs mt-1.5 text-left" style={{ color: 'var(--danger)' }}>{errorMessage}</p>
                 )}
               </div>
@@ -351,7 +357,7 @@ export default function PlaceholderHomePage() {
                 disabled={status === 'submitting'}
                 className="btn-primary px-5 py-3 text-sm whitespace-nowrap disabled:opacity-50"
               >
-                {status === 'submitting' ? 'Sending…' : 'Notify me'}
+                {status === 'submitting' ? 'Sending…' : status === 'rate-limited' ? 'Try again' : 'Notify me'}
               </button>
             </form>
           )}

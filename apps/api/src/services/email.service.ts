@@ -195,11 +195,29 @@ const templates: Record<string, (data: any) => string> = {
         <table style="width:100%;border-collapse:collapse;margin:16px 0">
           <tr><td style="padding:8px 12px;background:#F5F0FF;font-weight:bold;width:140px">Email</td><td style="padding:8px 12px;background:#F5F0FF">${d.submittedEmail}</td></tr>
           <tr><td style="padding:8px 12px;font-weight:bold">Submitted at</td><td style="padding:8px 12px">${d.submittedAt}</td></tr>
-          <tr><td style="padding:8px 12px;background:#F5F0FF;font-weight:bold">Source</td><td style="padding:8px 12px;background:#F5F0FF">/coastal-corridor-cohort landing page</td></tr>
+          <tr><td style="padding:8px 12px;background:#F5F0FF;font-weight:bold">Source</td><td style="padding:8px 12px;background:#F5F0FF">${d.source || 'unknown'}</td></tr>
         </table>
         <p style="color:#374151;font-size:14px">This lead submitted interest in the Coastal Corridor cohort bundled offer (free Owambe Stays Growth + Experiences Growth for 12 months). Follow up manually until the cohort onboarding brief ships.</p>
         <hr style="margin:24px 0;border:none;border-top:1px solid #e5e7eb">
         <p style="color:#9CA3AF;font-size:12px">Forwarded automatically by Owambe · /api/cohort/interest</p>
+      </div>
+    </div>`,
+
+  // ─── OWAMBE-INTEREST-CAPTURE-HARDENING-01 ─────────
+  'cohort-interest-ack': (d) => `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+      <div style="background:#6C2BD9;padding:24px;border-radius:8px 8px 0 0;text-align:center">
+        <h1 style="color:#fff;margin:0;font-size:22px">Owambe</h1>
+      </div>
+      <div style="padding:32px;background:#fff;border:1px solid #e5e7eb;border-radius:0 0 8px 8px">
+        <p style="color:#374151;font-size:16px">Hi,</p>
+        <p style="color:#374151;font-size:15px">Thanks for signing up to hear about Owambe.</p>
+        <p style="color:#374151;font-size:15px">We're building Owambe in public — Nigeria's platform for events, stays, experiences, and the vendor marketplace that connects them all. Right now we're heads-down getting each mode to a real shipping state, and we'll reach out when the mode that matches your business is ready for onboarding.</p>
+        <p style="color:#374151;font-size:15px">No spam. No pressure. Just a note when there's something real for you.</p>
+        <p style="color:#374151;font-size:15px">— The Owambe team</p>
+        <hr style="margin:24px 0;border:none;border-top:1px solid #e5e7eb">
+        <p style="color:#9CA3AF;font-size:13px">P.S. Visit <a href="https://owambe.com" style="color:#6C2BD9">owambe.com</a> anytime to see what we're building.</p>
+        <p style="color:#9CA3AF;font-size:11px">You're receiving this because you signed up at owambe.com. No further emails unless there's something real for you.</p>
       </div>
     </div>`,
 

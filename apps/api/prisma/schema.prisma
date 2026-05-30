@@ -1779,3 +1779,20 @@ model Channel {
   @@index([state])
   @@map("channels")
 }
+
+// ─── OWAMBE-INTEREST-CAPTURE-HARDENING-01 ────────────────────────────────────
+// v2 lead infrastructure: DB persistence for cohort interest submissions
+model CohortInterestSubmission {
+  id                  String    @id @default(cuid())
+  email               String    @db.VarChar(255)
+  source              String    @db.VarChar(50)   // owambe-homepage | owambe-cohort-page | cc-for-operators | unknown
+  submittedAt         DateTime  @default(now()) @map("submitted_at")
+  ipAddress           String?   @db.VarChar(45)   @map("ip_address")
+  userAgent           String?   @db.VarChar(500)  @map("user_agent")
+  emailForwardStatus  String?   @db.VarChar(20)   @map("email_forward_status")  // 'sent' | 'failed' | null
+  ackEmailStatus      String?   @db.VarChar(20)   @map("ack_email_status")      // 'sent' | 'failed' | null
+
+  @@index([email, source])
+  @@index([submittedAt])
+  @@map("cohort_interest_submissions")
+}

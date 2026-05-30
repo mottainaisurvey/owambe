@@ -14,7 +14,7 @@ import {
   DollarSign, BarChart2, Shield, Loader2, Eye, Bell, LogOut, KeyRound
 } from 'lucide-react';
 
-const TABS = ['Overview', 'Vendor Queue', 'Users', 'Disputes', 'Commission', 'Portals', 'Contracts', 'Tags', 'Categories'];
+const TABS = ['Overview', 'Vendor Queue', 'Users', 'Disputes', 'Commission', 'Portals', 'Contracts', 'Tags', 'Categories', 'Interest Captures'];
 
 export default function AdminPage() {
   const { user, logout, _hasHydrated } = useAuthStore();
@@ -96,6 +96,7 @@ export default function AdminPage() {
         {activeTab === 'Contracts' && <ContractsAdminTab />}
         {activeTab === 'Tags' && <TagManagementTab />}
         {activeTab === 'Categories' && <CategoryVisibilityTab />}
+        {activeTab === 'Interest Captures' && <InterestCapturesTab />}
       </div>
     </div>
   );
@@ -862,6 +863,203 @@ function CategoryVisibilityTab() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ─── InterestCapturesTab (OWAMBE-INTEREST-CAPTURE-HARDENING-01) ──────────────
+interface InterestSubmission {
+  id: string;
+  email: string;
+  source: string;
+  emailForwardStatus: string | null;
+  ackEmailStatus: string | null;
+  submittedAt: string;
+}
+
+interface InterestCapturesResponse {
+  success: boolean;
+  total: number;
+  page: number;
+  limit: number;
+  pages: number;
+  submissions: InterestSubmission[];
+}
+
+const SOURCE_LABELS: Record<string, string> = {
+  'owambe-homepage': 'Homepage',
+  'owambe-cohort-page': 'Cohort Page',
+  'cc-for-operators': 'CC For Operators',
+  'unknown': 'Unknown',
+};
+
+function InterestCapturesTab() {
+  const [page, setPage] = useState(1);
+  const [sourceFilter, setSourceFilter] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
+
+  const { data, isLoading, isError } = useQuery<InterestCapturesResponse>({
+    queryKey: ['cohort-interest', page, sourceFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams({ page: String(page), limit: '50' });
+      if (sourceFilter) params.set('source', sourceFilter);
+      const res = await api.get(`/admin/cohort-interest?${params}`);
+      return res.data;
+    },
+  });
+
+  async function handleExportCSV() {
+    setIsExporting(true);
+    try {
+      const params = new URLSearchParams();
+      if (sourceFilter) params.set('source', sourceFilter);
+      const res = await api.get(`/admin/cohort-interest/export.csv?${params}`, {
+        responseType: 'blob',
+      });
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'text/csv' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `cohort-interest-submissions${sourceFilter ? `-${sourceFilter}` : ''}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('CSV downloaded');
+    } catch {
+      toast.error('Export failed — please try again');
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* Header row */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div>
+          <h2 className="text-lg font-bold text-[var(--dark)]">Interest Captures</h2>
+          <p className="text-xs text-[var(--muted)] mt-0.5">
+            All cohort interest form submissions across all surfaces.
+            {data && (
+              <span className="ml-1 font-semibold text-[var(--dark)]">
+                {data.total.toLocaleString()} total
+              </span>
+            )}
+          </p>
+        </div>
+        <div className="flex-1" />
+        <div className="flex items-center gap-2">
+          <select
+            value={sourceFilter}
+            onChange={(e) => { setSourceFilter(e.target.value); setPage(1); }}
+            className="text-xs border border-[var(--border)] rounded-lg px-3 py-2 bg-white text-[var(--dark)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+          >
+            <option value="">All sources</option>
+            <option value="owambe-homepage">Homepage</option>
+            <option value="owambe-cohort-page">Cohort Page</option>
+            <option value="cc-for-operators">CC For Operators</option>
+            <option value="unknown">Unknown</option>
+          </select>
+          <button
+            onClick={handleExportCSV}
+            disabled={isExporting || !data || data.total === 0}
+            className="flex items-center gap-1.5 text-xs bg-[var(--dark)] text-white px-3 py-2 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {isExporting ? <Loader2 size={12} className="animate-spin" /> : <BarChart2 size={12} />}
+            Export CSV
+          </button>
+        </div>
+      </div>
+
+      {/* Table */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 size={24} className="animate-spin text-[var(--muted)]" />
+        </div>
+      ) : isError ? (
+        <div className="text-center py-16 text-[var(--danger)] text-sm">
+          Failed to load submissions. Please refresh.
+        </div>
+      ) : !data || data.total === 0 ? (
+        <div className="text-center py-16 text-[var(--muted)] text-sm">
+          No interest submissions yet.
+        </div>
+      ) : (
+        <>
+          <div className="bg-white border border-[var(--border)] rounded-xl overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-[var(--bg)] border-b border-[var(--border)]">
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--muted)] uppercase tracking-wide">Email</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--muted)] uppercase tracking-wide">Source</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--muted)] uppercase tracking-wide">Forward</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--muted)] uppercase tracking-wide">Ack</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--muted)] uppercase tracking-wide">Submitted</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--border)]">
+                {data.submissions.map((s) => (
+                  <tr key={s.id} className="hover:bg-[var(--bg)] transition-colors">
+                    <td className="px-4 py-3 font-mono text-xs text-[var(--dark)]">{s.email}</td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[var(--pill)] text-[var(--accent)]">
+                        {SOURCE_LABELS[s.source] ?? s.source}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {s.emailForwardStatus === 'sent' ? (
+                        <CheckCircle size={14} className="text-[var(--success)]" />
+                      ) : s.emailForwardStatus === 'failed' ? (
+                        <XCircle size={14} className="text-[var(--danger)]" />
+                      ) : (
+                        <span className="text-xs text-[var(--muted)]">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {s.ackEmailStatus === 'sent' ? (
+                        <CheckCircle size={14} className="text-[var(--success)]" />
+                      ) : s.ackEmailStatus === 'failed' ? (
+                        <XCircle size={14} className="text-[var(--danger)]" />
+                      ) : (
+                        <span className="text-xs text-[var(--muted)]">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-[var(--muted)]">
+                      {new Date(s.submittedAt).toLocaleString('en-GB', {
+                        day: '2-digit', month: 'short', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit',
+                      })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          {data.pages > 1 && (
+            <div className="flex items-center justify-between text-xs text-[var(--muted)]">
+              <span>
+                Page {data.page} of {data.pages} · {data.total.toLocaleString()} submissions
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="px-3 py-1.5 rounded-lg border border-[var(--border)] hover:bg-[var(--bg)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setPage((p) => Math.min(data.pages, p + 1))}
+                  disabled={page === data.pages}
+                  className="px-3 py-1.5 rounded-lg border border-[var(--border)] hover:bg-[var(--bg)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

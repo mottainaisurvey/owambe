@@ -770,3 +770,85 @@ adminRouter.patch('/categories/vendor/:id/visibility', async (req, res, next) =>
     res.json({ success: true, category });
   } catch (err) { next(err); }
 });
+
+
+// ─── OWAMBE-INTEREST-CAPTURE-HARDENING-01 ────────────
+// GET /api/admin/cohort-interest
+// Returns paginated list of cohort interest submissions.
+// Query params: page (default 1), limit (default 50, max 200), source (filter)
+adminRouter.get('/cohort-interest', async (req, res, next) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string) || 50));
+    const source = req.query.source as string | undefined;
+    const skip = (page - 1) * limit;
+
+    const where = source ? { source } : {};
+
+    const [total, submissions] = await Promise.all([
+      prisma.cohortInterestSubmission.count({ where }),
+      prisma.cohortInterestSubmission.findMany({
+        where,
+        orderBy: { submittedAt: 'desc' },
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          email: true,
+          source: true,
+          emailForwardStatus: true,
+          ackEmailStatus: true,
+          submittedAt: true,
+        },
+      }),
+    ]);
+
+    res.json({
+      success: true,
+      total,
+      page,
+      limit,
+      pages: Math.ceil(total / limit),
+      submissions,
+    });
+  } catch (err) { next(err); }
+});
+
+// GET /api/admin/cohort-interest/export.csv
+// Returns all submissions as a CSV file.
+adminRouter.get('/cohort-interest/export.csv', async (req, res, next) => {
+  try {
+    const source = req.query.source as string | undefined;
+    const where = source ? { source } : {};
+
+    const submissions = await prisma.cohortInterestSubmission.findMany({
+      where,
+      orderBy: { submittedAt: 'desc' },
+      select: {
+        id: true,
+        email: true,
+        source: true,
+        emailForwardStatus: true,
+        ackEmailStatus: true,
+        submittedAt: true,
+      },
+    });
+
+    const header = 'id,email,source,emailForwardStatus,ackEmailStatus,submittedAt';
+    const rows = submissions.map((s) =>
+      [
+        s.id,
+        `"${s.email}"`,
+        s.source,
+        s.emailForwardStatus,
+        s.ackEmailStatus,
+        s.submittedAt.toISOString(),
+      ].join(',')
+    );
+    const csv = [header, ...rows].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="cohort-interest-submissions.csv"');
+    res.send(csv);
+  } catch (err) { next(err); }
+});
