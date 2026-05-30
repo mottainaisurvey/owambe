@@ -1,10 +1,9 @@
-import sgMail from '@sendgrid/mail';
+import * as postmark from 'postmark';
 import { logger } from '../utils/logger';
 
-const sgKey = process.env.SENDGRID_API_KEY;
-if (sgKey) {
-  sgMail.setApiKey(sgKey);
-}
+const pmClient = new postmark.ServerClient(
+  process.env.POSTMARK_API_KEY || ''
+);
 
 interface EmailOptions {
   to: string;
@@ -424,15 +423,16 @@ export async function sendEmail(options: EmailOptions) {
   const html = htmlTemplate(data);
 
   try {
-    await sgMail.send({
-      to,
-      from: { email: process.env.EMAIL_FROM!, name: process.env.EMAIL_FROM_NAME || 'Owambe' },
-      subject,
-      html,
+    await pmClient.sendEmail({
+      To: to,
+      From: `${process.env.EMAIL_FROM_NAME || 'Owambe'} <${process.env.EMAIL_FROM || 'hello@owambe.com'}>`,
+      Subject: subject,
+      HtmlBody: html,
+      MessageStream: 'outbound',
     });
     logger.info(`Email sent: ${template} → ${to}`);
   } catch (err: any) {
-    logger.error(`Email failed: ${template} → ${to}`, err?.response?.body || err.message);
+    logger.error(`Email failed: ${template} → ${to}`, err?.message || err);
     // Don't throw — email failures should not break the main flow
   }
 }
