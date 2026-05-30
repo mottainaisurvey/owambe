@@ -1,9 +1,8 @@
 'use client';
-// CC-COHORT-OFFER-SURFACES-01 — Surface 2 — path-Z dead-link fix
+// CC-COHORT-OFFER-SURFACES-01 — Surface 2
 // /coastal-corridor-cohort — dedicated landing page for the CC cohort bundled offer.
 // Publicly accessible, no auth gate, search-engine indexable (no noindex).
 // Email-capture form posts to POST /api/cohort/interest (Option B-lite per Amendment 01).
-// path-Z: Nav Sign in / Get started removed (dead routes). Footer dead links removed.
 
 import { useState } from 'react';
 import Link from 'next/link';
@@ -12,10 +11,12 @@ import {
   Users, RefreshCw, Globe, BarChart2, Mail, Clock,
 } from 'lucide-react';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+
 export default function CoastalCorridorCohortPage() {
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
-  const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error' | 'rate-limited'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
 
   function validateEmail(value: string): boolean {
@@ -34,14 +35,20 @@ export default function CoastalCorridorCohortPage() {
 
     setStatus('submitting');
     try {
-      const res = await fetch('/api/cohort/interest', {
+      const res = await fetch(`${API_URL}/cohort/interest`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim() }),
+        body: JSON.stringify({ email: email.trim(), source: 'owambe-cohort-page' }),
       });
       const data = await res.json();
       if (res.ok && data.success) {
         setStatus('success');
+      } else if (res.status === 429) {
+        setStatus('rate-limited');
+        setErrorMessage('Too many submissions from this network — please wait a moment and try again.');
+      } else if (res.status === 500) {
+        setStatus('error');
+        setErrorMessage('Something went wrong — please try again in a moment.');
       } else {
         setStatus('error');
         setErrorMessage(data.error || 'Something went wrong. Please try again.');
@@ -61,7 +68,14 @@ export default function CoastalCorridorCohortPage() {
             <img src="/owambe-logo-nav.png" alt="Owambe" className="h-14 w-auto" />
           </Link>
           <div className="flex-1" />
-          {/* Sign in / Get started removed — /login and /register are 404 on placeholder branch */}
+          <div className="flex gap-2 ml-1">
+            <Link href="/login" className="hidden sm:inline-flex btn-secondary text-sm px-4 py-2">
+              Sign in
+            </Link>
+            <Link href="/register" className="btn-primary text-sm px-4 py-2">
+              Get started
+            </Link>
+          </div>
         </div>
       </nav>
 
@@ -97,7 +111,7 @@ export default function CoastalCorridorCohortPage() {
 
       {/* ── What's included ────────────────────────────────────────────── */}
       <section className="max-w-4xl mx-auto px-5 pb-14">
-        <h2 className="text-2xl font-bold text-[var(--dark)] mb-2 text-center">What&apos;s included</h2>
+        <h2 className="text-2xl font-bold text-[var(--dark)] mb-2 text-center">What's included</h2>
         <p className="text-sm text-[var(--muted)] text-center mb-8">
           Everything in the Growth tier, free for 12 months.
         </p>
@@ -170,7 +184,7 @@ export default function CoastalCorridorCohortPage() {
       {/* ── Who it's for ───────────────────────────────────────────────── */}
       <section className="bg-white border-y border-[var(--border)]">
         <div className="max-w-4xl mx-auto px-5 py-14">
-          <h2 className="text-2xl font-bold text-[var(--dark)] mb-2 text-center">Who it&apos;s for</h2>
+          <h2 className="text-2xl font-bold text-[var(--dark)] mb-2 text-center">Who it's for</h2>
           <p className="text-sm text-[var(--muted)] text-center mb-8">
             This offer is exclusively for members of the Coastal Corridor cohort.
           </p>
@@ -254,7 +268,7 @@ export default function CoastalCorridorCohortPage() {
         <div className="max-w-4xl mx-auto px-5 py-14">
           <h2 className="text-2xl font-bold text-[var(--dark)] mb-2 text-center">Why this offer exists</h2>
           <p className="text-sm text-[var(--muted)] text-center mb-8 max-w-2xl mx-auto">
-            Owambe and Coastal Corridor are sister ventures. This isn&apos;t a discount — it&apos;s operational tooling.
+            Owambe and Coastal Corridor are sister ventures. This isn't a discount — it's operational tooling.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="card">
@@ -338,14 +352,16 @@ export default function CoastalCorridorCohortPage() {
       </section>
 
       {/* ── Footer ─────────────────────────────────────────────────────── */}
-      {/* Dead links removed: /privacy, /terms, /contact, /stays — all 404 on placeholder branch */}
       <footer className="border-t border-[var(--border)] bg-white">
         <div className="max-w-6xl mx-auto px-5 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <Link href="/" className="flex-shrink-0">
             <img src="/owambe-logo-nav.png" alt="Owambe" className="h-10 w-auto" />
           </Link>
           <div className="flex flex-wrap gap-4 text-sm text-[var(--muted)]">
-            <a href="mailto:hello@owambe.com" className="hover:text-[var(--dark)]">hello@owambe.com</a>
+            <Link href="/privacy" className="hover:text-[var(--dark)]">Privacy</Link>
+            <Link href="/terms" className="hover:text-[var(--dark)]">Terms</Link>
+            <Link href="/contact" className="hover:text-[var(--dark)]">Contact</Link>
+            <Link href="/stays" className="hover:text-[var(--dark)]">Stays</Link>
           </div>
           <p className="text-xs text-[var(--muted)]">© 2026 Owambe. All rights reserved.</p>
         </div>
@@ -359,7 +375,7 @@ interface CohortInterestFormProps {
   email: string;
   setEmail: (v: string) => void;
   emailError: string;
-  status: 'idle' | 'submitting' | 'success' | 'error';
+  status: 'idle' | 'submitting' | 'success' | 'error' | 'rate-limited';
   errorMessage: string;
   onSubmit: (e: React.FormEvent) => void;
 }
@@ -372,10 +388,10 @@ function CohortInterestForm({
       <div className="inline-flex flex-col items-center gap-3 bg-[var(--pill)] border border-[var(--accent)]/30 rounded-xl px-8 py-6 max-w-md mx-auto">
         <CheckCircle2 size={32} className="text-[var(--accent)]" />
         <p className="font-semibold text-[var(--dark)] text-center">
-          You&apos;re on the list.
+          You're on the list.
         </p>
         <p className="text-sm text-[var(--muted)] text-center">
-          We&apos;ll be in touch with your cohort onboarding details within 24 hours.
+          We'll be in touch with your cohort onboarding details within 24 hours.
         </p>
       </div>
     );
@@ -406,7 +422,7 @@ function CohortInterestForm({
             {emailError}
           </p>
         )}
-        {status === 'error' && (
+        {(status === 'error' || status === 'rate-limited') && (
           <p className="text-xs text-red-500 text-left" role="alert">
             {errorMessage}
           </p>
@@ -419,8 +435,8 @@ function CohortInterestForm({
       >
         {status === 'submitting' ? (
           <>
-            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            Submitting…
+            <RefreshCw size={14} className="animate-spin" />
+            Sending…
           </>
         ) : (
           <>
