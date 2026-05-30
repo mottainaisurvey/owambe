@@ -196,21 +196,17 @@ jobs:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_API }}
 
   # ─── DEPLOY WEB TO PRODUCTION (Railway) ──────────────
-  # NOTE: owambe-web deploys to Railway (not Vercel).
-  # Railway's own GitHub integration auto-deploys owambe-web on push to main.
-  # This explicit step ensures the web service is deployed in the same pipeline
-  # as the API and that CI gate (lint → test → build) is enforced before deploy.
-  deploy-web-production:
-    name: Deploy Web to Production (Railway)
-    runs-on: ubuntu-latest
-    needs: build
-    if: github.ref == 'refs/heads/main'
-    environment: production
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
-      - name: Deploy Web to Railway production
-        run: railway up --service owambe-web --environment production --detach
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+  # DEPLOYMENT TARGET DISCIPLINE GATE (path-α)
+  # owambe.com web deployment is EXCLUSIVELY owned by the placeholder branch.
+  # The placeholder branch ci-cd.yml triggers deploy-web-production on
+  # refs/heads/placeholder pushes. The main branch MUST NOT deploy owambe-web
+  # to production — doing so overwrites the placeholder build at owambe.com.
+  #
+  # FOUNDER AUTHORISATION REQUIRED before re-enabling this job or changing
+  # the owambe.com deployment source branch.
+  #
+  # To verify main branch web changes, use the Railway preview URL:
+  #   owambe-web-production.up.railway.app (after placeholder re-deploy)
+  # or deploy to a distinct Railway service (owambe-web-main) on a separate domain.
+  #
+  # deploy-web-production: DISABLED — placeholder branch owns owambe.com
