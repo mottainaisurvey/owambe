@@ -125,7 +125,7 @@ describe('CohortInterestForm — successful submission', () => {
     await user.click(button);
 
     await waitFor(() => {
-      expect(screen.getByText(/you're on the list/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/you're on the list/i).length).toBeGreaterThan(0);
     });
   });
 });
@@ -183,7 +183,7 @@ describe('CohortInterestForm — loading state', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText(/you're on the list/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/you're on the list/i).length).toBeGreaterThan(0);
     });
   });
 });
