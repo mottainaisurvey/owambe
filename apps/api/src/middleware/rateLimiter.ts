@@ -9,7 +9,10 @@ export function rateLimiter(options: { windowMs: number; max: number }) {
     standardHeaders: true,
     legacyHeaders: false,
     message: { success: false, error: 'Too many requests. Please try again later.' },
-    skip: (req) => req.ip === '127.0.0.1',
+    skip: (req) => {
+      const ip = req.ip || '';
+      return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+    },
   });
 }
 

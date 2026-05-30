@@ -1,9 +1,15 @@
 import * as postmark from 'postmark';
 import { logger } from '../utils/logger';
 
-const pmClient = new postmark.ServerClient(
-  process.env.POSTMARK_API_KEY || ''
-);
+let _pmClient: postmark.ServerClient | null = null;
+function getPmClient(): postmark.ServerClient {
+  if (!_pmClient) {
+    _pmClient = new postmark.ServerClient(
+      process.env.POSTMARK_API_KEY || ''
+    );
+  }
+  return _pmClient;
+}
 
 interface EmailOptions {
   to: string;
@@ -441,7 +447,7 @@ export async function sendEmail(options: EmailOptions) {
   const html = htmlTemplate(data);
 
   try {
-    await pmClient.sendEmail({
+    await getPmClient().sendEmail({
       To: to,
       From: `${process.env.EMAIL_FROM_NAME || 'Owambe'} <${process.env.EMAIL_FROM || 'hello@owambe.com'}>`,
       Subject: subject,
