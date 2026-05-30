@@ -1,7 +1,7 @@
 // ─── cohort.ts ───────────────────────────────────────
-// CC-COHORT-OFFER-SURFACES-01 (Amendment 01)
+// CC-COHORT-OFFER-SURFACES-01 (Amendment 02)
 // POST /api/cohort/interest — forwards cohort interest submissions to
-// hello@owambe.com via the existing sendEmail() service.
+// info@owambe.com via the existing sendEmail() service.
 // No DB schema changes; no PII written to application logs.
 
 import { Router, Request, Response, NextFunction } from 'express';
@@ -38,7 +38,7 @@ cohortRouter.post(
     const { email } = req.body as { email: string };
     const submittedAt = new Date().toISOString();
 
-    // Forward to hello@owambe.com via existing sendEmail() service.
+    // Forward to info@owambe.com via existing sendEmail() service.
     // PII note: the email address is included in the forwarded email body
     // (that is the purpose of the endpoint) but is NOT written to application
     // logs here. sendEmail() logs "Email sent: cohort-interest-forward → <to>"
@@ -50,7 +50,7 @@ cohortRouter.post(
     // received; the forward failure is non-fatal and logged server-side only.
     try {
       await sendEmail({
-        to: 'hello@owambe.com',
+        to: 'info@owambe.com',
         subject: `[CC Cohort Interest] New submission — ${submittedAt}`,
         template: 'cohort-interest-forward',
         data: {
