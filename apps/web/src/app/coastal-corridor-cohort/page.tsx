@@ -1,8 +1,10 @@
 'use client';
-// CC-COHORT-OFFER-SURFACES-01 — Surface 2
+// CC-COHORT-OFFER-SURFACES-01 — Surface 2 — path-Z dead-link fix
 // /coastal-corridor-cohort — dedicated landing page for the CC cohort bundled offer.
 // Publicly accessible, no auth gate, search-engine indexable (no noindex).
 // Email-capture form posts to POST /api/cohort/interest (Option B-lite per Amendment 01).
+// path-Z: Nav Sign in / Get started removed (dead routes). Footer dead links removed.
+// HARDENING-01: API_URL env var, source field, 429/500 handling, rate-limited status.
 
 import { useState } from 'react';
 import Link from 'next/link';
@@ -68,14 +70,7 @@ export default function CoastalCorridorCohortPage() {
             <img src="/owambe-logo-nav.png" alt="Owambe" className="h-14 w-auto" />
           </Link>
           <div className="flex-1" />
-          <div className="flex gap-2 ml-1">
-            <Link href="/login" className="hidden sm:inline-flex btn-secondary text-sm px-4 py-2">
-              Sign in
-            </Link>
-            <Link href="/register" className="btn-primary text-sm px-4 py-2">
-              Get started
-            </Link>
-          </div>
+          {/* Sign in / Get started removed — /login and /register are 404 on placeholder branch */}
         </div>
       </nav>
 
@@ -358,10 +353,7 @@ export default function CoastalCorridorCohortPage() {
             <img src="/owambe-logo-nav.png" alt="Owambe" className="h-10 w-auto" />
           </Link>
           <div className="flex flex-wrap gap-4 text-sm text-[var(--muted)]">
-            <Link href="/privacy" className="hover:text-[var(--dark)]">Privacy</Link>
-            <Link href="/terms" className="hover:text-[var(--dark)]">Terms</Link>
-            <Link href="/contact" className="hover:text-[var(--dark)]">Contact</Link>
-            <Link href="/stays" className="hover:text-[var(--dark)]">Stays</Link>
+            <a href="mailto:hello@owambe.com" className="hover:text-[var(--dark)]">hello@owambe.com</a>
           </div>
           <p className="text-xs text-[var(--muted)]">© 2026 Owambe. All rights reserved.</p>
         </div>
