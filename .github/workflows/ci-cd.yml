@@ -9,6 +9,26 @@ on:
 env:
   NODE_VERSION: '20'
 
+# ─── BRANCH DISCIPLINE GATE ──────────────────────────────────────────────────
+# STAGING-FIRST DISCIPLINE (codified 2026-06-07, OWB-VENDOR-CATEGORY-DROPDOWN-DISPLAY-GAP-01)
+#
+# Mandatory workflow:
+#   1. New work branches → merged to `staging` → staging CI/CD deploys + verifies
+#   2. After staging verification + founder authorisation → merge staging → main
+#   3. main CI/CD deploys to production
+#
+# Direct pushes to main are PROHIBITED unless explicitly authorised by founder.
+# The staging branch MUST always track ahead of or equal to main.
+#
+# GitHub default branch is `master` (legacy). Railway GitHub integration watches
+# `master` for auto-deploys. The CI/CD pipeline (this file) is the authoritative
+# deploy mechanism for staging and production. Do NOT rely on Railway's GitHub
+# auto-deploy for production code — it will deploy stale `master` code.
+#
+# RAILWAY_TOKEN_API  → owambe-api production environment
+# RAILWAY_TOKEN_STAGING → owambe-api + owambe-web staging environment
+# ─────────────────────────────────────────────────────────────────────────────
+
 jobs:
   # ─── LINT & TYPE CHECK ──────────────────────────────
   lint:
@@ -144,6 +164,9 @@ jobs:
           NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
 
   # ─── DEPLOY API TO STAGING (Railway) ─────────────────
+  # STAGING-FIRST GATE: staging deploys on push to `staging` branch only.
+  # Verify at owambe-api-staging.up.railway.app before authorising production deploy.
+  # --detach removed: CI waits for Railway build completion and reports success/failure.
   deploy-api-staging:
     name: Deploy API to Staging (Railway)
     runs-on: ubuntu-latest
@@ -155,7 +178,10 @@ jobs:
       - name: Install Railway CLI
         run: npm install -g @railway/cli
       - name: Deploy API to Railway staging
-        run: cd apps/api && railway up --service owambe-api --environment staging --detach
+        # Run from monorepo root — railway.json in apps/api sets rootDirectory, so
+        # running `cd apps/api && railway up` causes double-nesting (apps/api/apps/api).
+        # The CLI must be invoked from the repo root and let railway.json scope the build.
+        run: railway up --service owambe-api --environment staging
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
 
@@ -164,6 +190,7 @@ jobs:
   # Railway's own GitHub integration auto-deploys owambe-web on push to the
   # configured branch. This explicit step is retained for parity with the API
   # staging step and to ensure the web service is deployed in the same pipeline.
+  # --detach removed: CI waits for Railway build completion and reports success/failure.
   deploy-web-staging:
     name: Deploy Web to Staging (Railway)
     runs-on: ubuntu-latest
@@ -175,11 +202,15 @@ jobs:
       - name: Install Railway CLI
         run: npm install -g @railway/cli
       - name: Deploy Web to Railway staging
-        run: railway up --service owambe-web --environment staging --detach
+        run: railway up --service owambe-web --environment staging
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
 
   # ─── DEPLOY API TO PRODUCTION (Railway) ──────────────
+  # STAGING-FIRST GATE: production deploys on push to `main` branch only.
+  # main should only receive merges from `staging` after staging verification
+  # and explicit founder authorisation.
+  # --detach removed: CI waits for Railway build completion and reports success/failure.
   deploy-api-production:
     name: Deploy API to Production (Railway)
     runs-on: ubuntu-latest
@@ -191,7 +222,8 @@ jobs:
       - name: Install Railway CLI
         run: npm install -g @railway/cli
       - name: Deploy API to Railway production
-        run: cd apps/api && railway up --service owambe-api --environment production --detach
+        # Run from monorepo root — railway.json in apps/api sets rootDirectory.
+        run: railway up --service owambe-api --environment production
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_API }}
 
