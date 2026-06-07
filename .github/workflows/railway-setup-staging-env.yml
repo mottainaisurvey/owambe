@@ -1,0 +1,90 @@
+name: Railway Setup Staging Environment (One-shot)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup-staging-env:
+    name: Create staging environment for owambe-api
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query Railway project and service info
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_API }}
+        run: |
+          echo "=== Querying Railway project info ==="
+          # Get project info via GraphQL
+          RESPONSE=$(curl -s -X POST https://backboard.railway.com/graphql/v2 \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "{ me { projects { edges { node { id name environments { edges { node { id name } } } services { edges { node { id name } } } } } } } }"
+            }')
+          echo "Project info response:"
+          echo "$RESPONSE" | python3 -m json.tool 2>/dev/null || echo "$RESPONSE"
+
+      - name: Create staging environment for owambe-api service
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_API }}
+        run: |
+          PROJECT_ID="c57d784c-0f16-4855-8adf-dfa37eaf3738"
+          SERVICE_ID="3cc8cf6c-4fd0-4021-9473-5a4e569965be"
+          
+          echo "=== Checking existing environments ==="
+          ENV_RESPONSE=$(curl -s -X POST https://backboard.railway.com/graphql/v2 \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"query\": \"{ project(id: \\\"$PROJECT_ID\\\") { id name environments { edges { node { id name } } } services { edges { node { id name } } } } }\"
+            }")
+          echo "Environments:"
+          echo "$ENV_RESPONSE" | python3 -m json.tool 2>/dev/null || echo "$ENV_RESPONSE"
+          
+          # Extract staging environment ID if it exists
+          STAGING_ENV_ID=$(echo "$ENV_RESPONSE" | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          envs = data.get('data', {}).get('project', {}).get('environments', {}).get('edges', [])
+          for e in envs:
+              if e['node']['name'] == 'staging':
+                  print(e['node']['id'])
+                  break
+          " 2>/dev/null)
+          
+          if [ -n "$STAGING_ENV_ID" ]; then
+            echo "Staging environment already exists with ID: $STAGING_ENV_ID"
+          else
+            echo "=== Creating staging environment ==="
+            CREATE_RESPONSE=$(curl -s -X POST https://backboard.railway.com/graphql/v2 \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"query\": \"mutation { environmentCreate(input: { projectId: \\\"$PROJECT_ID\\\", name: \\\"staging\\\" }) { id name } }\"
+              }")
+            echo "Create environment response:"
+            echo "$CREATE_RESPONSE" | python3 -m json.tool 2>/dev/null || echo "$CREATE_RESPONSE"
+            
+            STAGING_ENV_ID=$(echo "$CREATE_RESPONSE" | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          env = data.get('data', {}).get('environmentCreate', {})
+          print(env.get('id', ''))
+          " 2>/dev/null)
+            echo "Created staging environment ID: $STAGING_ENV_ID"
+          fi
+          
+          echo "STAGING_ENV_ID=$STAGING_ENV_ID" >> $GITHUB_ENV
+
+      - name: Verify staging environment is accessible for owambe-api
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_API }}
+        run: |
+          PROJECT_ID="c57d784c-0f16-4855-8adf-dfa37eaf3738"
+          echo "=== Final environment list ==="
+          FINAL_RESPONSE=$(curl -s -X POST https://backboard.railway.com/graphql/v2 \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"query\": \"{ project(id: \\\"$PROJECT_ID\\\") { id name environments { edges { node { id name } } } } }\"
+            }")
+          echo "$FINAL_RESPONSE" | python3 -m json.tool 2>/dev/null || echo "$FINAL_RESPONSE"
