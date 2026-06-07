@@ -300,8 +300,14 @@ export async function getVendorsByMode(query: VendorDiscoveryQuery) {
  * Only returns categories where vendor count >= SUPPLY_DENSITY_THRESHOLD.
  * AC-6: supply density gate
  * AC-7: mode-affinity grouping
+ *
+ * @param mode     Optional mode affinity filter (e.g. 'EVENTS', 'STAYS', 'EXPERIENCES', 'TRANSPORT')
+ * @param context  Optional consumption context. When 'registration', supply-density gate is bypassed
+ *                 so all 41 active categories are returned regardless of vendor count.
+ *                 Discovery default behaviour is unchanged (gate applies when context is absent).
+ *                 Fix for OWB-VENDOR-CATEGORY-DROPDOWN-DISPLAY-GAP-01.
  */
-export async function getCategoryDiscovery(mode?: string) {
+export async function getCategoryDiscovery(mode?: string, context?: string) {
   const categoryWhere: any = { isActive: true, isPublicVisible: true };
   if (mode) {
     categoryWhere.modeAffinities = { has: mode };
@@ -315,10 +321,11 @@ export async function getCategoryDiscovery(mode?: string) {
     },
   });
 
-  // Apply supply density filter
-  const visibleCategories = categories.filter(
-    (c) => c._count.vendors >= SUPPLY_DENSITY_THRESHOLD,
-  );
+  // Apply supply density filter — bypassed when context=registration so vendors see all 41 categories
+  const isRegistrationContext = context === 'registration';
+  const visibleCategories = isRegistrationContext
+    ? categories
+    : categories.filter((c) => c._count.vendors >= SUPPLY_DENSITY_THRESHOLD);
 
   // Group by mode affinity
   const grouped: Record<string, any[]> = {};
@@ -333,12 +340,28 @@ export async function getCategoryDiscovery(mode?: string) {
         iconName: cat.iconName,
         vendorCount: cat._count.vendors,
         modeAffinities: cat.modeAffinities,
+        isPublicVisible: cat.isPublicVisible,
       });
     }
   }
 
+  // For registration context, also return a flat list of all categories (not grouped)
+  const allCategories = isRegistrationContext
+    ? visibleCategories.map((cat) => ({
+        id: cat.id,
+        key: cat.key,
+        label: cat.label,
+        description: cat.description,
+        iconName: cat.iconName,
+        vendorCount: cat._count.vendors,
+        modeAffinities: cat.modeAffinities,
+        isPublicVisible: cat.isPublicVisible,
+      }))
+    : undefined;
+
   return {
     grouped,
+    ...(allCategories !== undefined && { allCategories }),
     supplyDensityThreshold: SUPPLY_DENSITY_THRESHOLD,
     totalVisible: visibleCategories.length,
     totalCategories: categories.length,

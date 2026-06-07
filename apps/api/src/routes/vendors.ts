@@ -59,12 +59,19 @@ vendorsRouter.get('/discover', async (req, res, next) => {
  * GET /api/v1/vendors/categories
  * Returns all visible categories grouped by mode affinity, with supply density filtering.
  * AC-6 (supply density gate), AC-7 (mode-affinity grouping), AC-10 (visibility toggle)
- * Query params: mode (optional filter)
+ * Query params:
+ *   mode     — optional mode affinity filter (EVENTS | STAYS | EXPERIENCES | TRANSPORT)
+ *   context  — optional context flag; when 'registration', supply-density gate is bypassed
+ *              and response includes allCategories[] flat list (all 41 active categories).
+ *              Fix for OWB-VENDOR-CATEGORY-DROPDOWN-DISPLAY-GAP-01.
  */
 vendorsRouter.get('/categories', async (req, res, next) => {
   try {
-    const { mode } = req.query;
-    const result = await getCategoryDiscovery(mode ? String(mode) : undefined);
+    const { mode, context } = req.query;
+    const result = await getCategoryDiscovery(
+      mode ? String(mode) : undefined,
+      context ? String(context) : undefined,
+    );
     res.json({ success: true, ...result });
   } catch (err) { next(err); }
 });

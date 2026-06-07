@@ -4,9 +4,23 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { vendorsApi, api } from '@/lib/api';
-import { VENDOR_CATEGORY_LABELS, NIGERIAN_CITIES, NIGERIAN_STATES } from '@/lib/utils';
+import { NIGERIAN_CITIES, NIGERIAN_STATES } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import { Loader2, CheckCircle, AlertCircle, Upload, Sparkles, X, Plus } from 'lucide-react';
+
+// ─── Registration categories (OWB-VENDOR-CATEGORY-DROPDOWN-DISPLAY-GAP-01) ────
+// Fetches all 41 active categories from the API using context=registration,
+// bypassing the supply-density gate that is only appropriate for consumer discovery.
+function useRegistrationCategories() {
+  return useQuery({
+    queryKey: ['vendor-categories-registration'],
+    queryFn: () =>
+      api
+        .get('/vendors/categories', { params: { context: 'registration' } })
+        .then((r) => (r.data.allCategories ?? []) as Array<{ id: string; key: string; label: string }>),
+    staleTime: 5 * 60 * 1000, // 5 min — category list is stable
+  });
+}
 
 const TABS = ['Profile', 'Portfolio', 'Bank Account', 'Verification', 'Tags'];
 
@@ -90,6 +104,7 @@ export default function VendorSettingsPage() {
 
 function ProfileTab({ vendor, onSave }: any) {
   const [isAiGenerating, setIsAiGenerating] = useState(false);
+  const { data: registrationCategories = [], isLoading: categoriesLoading } = useRegistrationCategories();
   const { register, handleSubmit, setValue, formState: { isSubmitting } } = useForm({
     defaultValues: {
       businessName: vendor?.businessName || '',
@@ -145,10 +160,10 @@ function ProfileTab({ vendor, onSave }: any) {
           </div>
           <div>
             <label className="label">Category *</label>
-            <select id="category" className="input" {...register('category')}>
-              <option value="">Select category</option>
-              {Object.entries(VENDOR_CATEGORY_LABELS).map(([k, v]) => (
-                <option key={k} value={k}>{v}</option>
+            <select id="category" className="input" {...register('category')} disabled={categoriesLoading}>
+              <option value="">{categoriesLoading ? 'Loading categories…' : 'Select category'}</option>
+              {registrationCategories.map((cat) => (
+                <option key={cat.key} value={cat.key}>{cat.label}</option>
               ))}
             </select>
           </div>
