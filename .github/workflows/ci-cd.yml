@@ -178,7 +178,10 @@ jobs:
       - name: Install Railway CLI
         run: npm install -g @railway/cli
       - name: Deploy API to Railway staging
-        run: cd apps/api && railway up --service owambe-api --environment staging
+        # Run from monorepo root — railway.json in apps/api sets rootDirectory, so
+        # running `cd apps/api && railway up` causes double-nesting (apps/api/apps/api).
+        # The CLI must be invoked from the repo root and let railway.json scope the build.
+        run: railway up --service owambe-api --environment staging
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
 
@@ -219,7 +222,8 @@ jobs:
       - name: Install Railway CLI
         run: npm install -g @railway/cli
       - name: Deploy API to Railway production
-        run: cd apps/api && railway up --service owambe-api --environment production
+        # Run from monorepo root — railway.json in apps/api sets rootDirectory.
+        run: railway up --service owambe-api --environment production
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_API }}
 
