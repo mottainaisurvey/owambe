@@ -308,7 +308,12 @@ export async function getVendorsByMode(query: VendorDiscoveryQuery) {
  *                 Fix for OWB-VENDOR-CATEGORY-DROPDOWN-DISPLAY-GAP-01.
  */
 export async function getCategoryDiscovery(mode?: string, context?: string) {
-  const categoryWhere: any = { isActive: true, isPublicVisible: true };
+  const isRegistrationContext = context === 'registration';
+  // For registration context, omit isPublicVisible filter so vendors see all 41 active categories
+  // regardless of admin-controlled public visibility state.
+  const categoryWhere: any = isRegistrationContext
+    ? { isActive: true }
+    : { isActive: true, isPublicVisible: true };
   if (mode) {
     categoryWhere.modeAffinities = { has: mode };
   }
@@ -322,7 +327,6 @@ export async function getCategoryDiscovery(mode?: string, context?: string) {
   });
 
   // Apply supply density filter — bypassed when context=registration so vendors see all 41 categories
-  const isRegistrationContext = context === 'registration';
   const visibleCategories = isRegistrationContext
     ? categories
     : categories.filter((c) => c._count.vendors >= SUPPLY_DENSITY_THRESHOLD);
