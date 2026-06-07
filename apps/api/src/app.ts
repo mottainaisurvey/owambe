@@ -82,7 +82,7 @@ app.use(requestLogger);
 
 // Health check
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString(), service: 'owambe-api', version: '1.0.0', environment: process.env.NODE_ENV || 'development', build: (process.env.RAILWAY_GIT_COMMIT_SHA || 'local').slice(0, 8), canary: 'brief-c-rev2-canonical-route-v2' });
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), service: 'owambe-api', version: '1.0.0', environment: process.env.NODE_ENV || 'development', build: (process.env.RAILWAY_GIT_COMMIT_SHA || 'local').slice(0, 8), canary: 'owb-vendor-cat-fix-641b9f4' });
 });
 
 // Rate limits
