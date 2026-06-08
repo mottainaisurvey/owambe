@@ -38,12 +38,27 @@ export default function VendorSettingsPage() {
   const { data: profileData, isLoading } = useQuery({
     queryKey: ['vendor-profile'],
     queryFn: () => vendorsApi.getMyProfile().then(r => r.data),
+    // B1-vendor-not-found: API now returns 200 with vendor:null for new vendors.
+    // No error boundary needed; vendor===null is handled in each tab component.
+    retry: false,
   });
 
-  const vendor = profileData?.vendor;
+  const vendor = profileData?.vendor ?? null;
+  const isNewVendor = profileData?.isNewVendor ?? (!isLoading && profileData !== undefined && !vendor);
 
   return (
     <div className="p-6 animate-fade-up">
+      {/* New vendor onboarding banner (B1-vendor-not-found) */}
+      {!isLoading && isNewVendor && (
+        <div className="mb-5 p-4 rounded-xl flex items-center gap-3 bg-[var(--pill)] border border-[rgba(108,43,217,0.2)]">
+          <Sparkles size={18} className="text-[var(--accent)] shrink-0" />
+          <div className="text-sm">
+            <strong className="text-[var(--accent)]">Welcome to your Vendor Portal!</strong>{' '}
+            Complete your business profile below to go live and start receiving bookings.
+          </div>
+        </div>
+      )}
+
       {/* Verification banner */}
       {vendor && vendor.status !== 'VERIFIED' && (
         <div className={`mb-5 p-4 rounded-xl flex items-center gap-3 ${
@@ -234,6 +249,17 @@ function PortfolioTab({ vendor }: any) {
   const [uploading, setUploading] = useState(false);
   const photos = vendor?.portfolioItems || [];
 
+  // B1-vendor-not-found: guard for new vendors who have not yet created a profile
+  if (!vendor) {
+    return (
+      <div className="form-card flex flex-col items-center py-10 text-center">
+        <AlertCircle size={28} className="text-[var(--muted)] mb-3" />
+        <div className="text-sm font-semibold text-[var(--dark)] mb-1">Profile required</div>
+        <p className="text-xs text-[var(--muted)]">Complete and save your Profile tab first before adding portfolio photos.</p>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="form-card">
@@ -277,6 +303,17 @@ function PortfolioTab({ vendor }: any) {
 function BankTab({ vendor }: any) {
   const [isVerifying, setIsVerifying] = useState(false);
   const { register, handleSubmit, formState: { isSubmitting } } = useForm();
+
+  // B1-vendor-not-found: guard for new vendors who have not yet created a profile
+  if (!vendor) {
+    return (
+      <div className="form-card flex flex-col items-center py-10 text-center">
+        <AlertCircle size={28} className="text-[var(--muted)] mb-3" />
+        <div className="text-sm font-semibold text-[var(--dark)] mb-1">Profile required</div>
+        <p className="text-xs text-[var(--muted)]">Complete and save your Profile tab first before connecting a bank account.</p>
+      </div>
+    );
+  }
 
   async function onSubmit(data: any) {
     setIsVerifying(true);
@@ -382,6 +419,17 @@ function TagsTab({ vendor, onSave }: { vendor: any; onSave: () => void }) {
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const queryClient = useQueryClient();
+
+  // B1-vendor-not-found: guard for new vendors who have not yet created a profile
+  if (!vendor) {
+    return (
+      <div className="form-card flex flex-col items-center py-10 text-center">
+        <AlertCircle size={28} className="text-[var(--muted)] mb-3" />
+        <div className="text-sm font-semibold text-[var(--dark)] mb-1">Profile required</div>
+        <p className="text-xs text-[var(--muted)]">Complete and save your Profile tab first before adding service tags.</p>
+      </div>
+    );
+  }
 
   const currentTags: any[] = vendor?.tags || [];
 
