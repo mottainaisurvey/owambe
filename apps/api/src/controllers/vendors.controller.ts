@@ -181,8 +181,10 @@ export async function getMyVendorProfile(req: Request, res: Response, next: Next
         tags: { select: { id: true, label: true, normalised: true } },
       }
     });
-    if (!vendor) throw new AppError('Vendor profile not found', 404);
-    res.json({ success: true, vendor });
+    // Return null vendor for new VENDOR-role users who have not yet completed
+    // profile setup (B1-vendor-not-found). The frontend settings page handles
+    // vendor === null by rendering the profile form in create mode.
+    res.json({ success: true, vendor: vendor ?? null, isNewVendor: !vendor });
   } catch (err) {
     next(err);
   }

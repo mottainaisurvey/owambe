@@ -338,7 +338,22 @@ analyticsRouter.get('/vendor/revenue', requireRole('VENDOR'), async (req: Reques
   try {
     const userId = (req as any).userId;
     const vendor = await prisma.vendor.findFirst({ where: { userId } });
-    if (!vendor) throw new AppError('Vendor not found', 404);
+    // B1-vendor-not-found: return zero stats for new vendors who have not yet
+    // created a profile, instead of throwing a 404 that breaks the overview page.
+    if (!vendor) {
+      return res.json({
+        success: true,
+        isNewVendor: true,
+        stats: {
+          totalBookings: 0,
+          confirmedBookings: 0,
+          totalRevenue: 0,
+          pendingPayout: 0,
+          rating: 0,
+          reviewCount: 0,
+        }
+      });
+    }
 
     const [
       totalBookings, confirmedBookings,
