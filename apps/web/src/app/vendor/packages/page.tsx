@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { vendorsApi } from '@/lib/api';
 import { formatNGN } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -18,6 +18,17 @@ export default function VendorPackagesPage() {
   });
 
   const packages = data?.vendor?.packages || [];
+
+  async function handleDelete(packageId: string, packageName: string) {
+    if (!confirm(`Delete "${packageName}"? This cannot be undone.`)) return;
+    try {
+      await vendorsApi.deletePackage(packageId);
+      queryClient.invalidateQueries({ queryKey: ['my-vendor-profile'] });
+      toast.success('Package deleted');
+    } catch {
+      toast.error('Failed to delete package');
+    }
+  }
 
   return (
     <div className="p-6 animate-fade-up">
@@ -57,6 +68,10 @@ export default function VendorPackagesPage() {
                   <button onClick={() => { setEditPkg(pkg); setShowModal(true); }}
                     className="p-1.5 rounded-lg hover:bg-[var(--bg)] text-[var(--muted)] hover:text-[var(--dark)] transition-colors">
                     <Edit2 size={13} />
+                  </button>
+                  <button onClick={() => handleDelete(pkg.id, pkg.name)}
+                    className="p-1.5 rounded-lg hover:bg-red-50 text-[var(--muted)] hover:text-red-600 transition-colors">
+                    <Trash2 size={13} />
                   </button>
                 </div>
               </div>
@@ -119,11 +134,12 @@ function PackageModal({ pkg, onClose, onSave }: any) {
     setIsSubmitting(true);
     try {
       const includes = form.includes.split('\n').map((s: string) => s.trim()).filter(Boolean);
-      await vendorsApi.addPackage({
-        ...form,
-        price: Number(form.price),
-        includes,
-      });
+      const payload = { ...form, price: Number(form.price), includes };
+      if (pkg) {
+        await vendorsApi.updatePackage(pkg.id, payload);
+      } else {
+        await vendorsApi.addPackage(payload);
+      }
       onSave();
     } finally { setIsSubmitting(false); }
   }

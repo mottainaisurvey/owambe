@@ -334,3 +334,56 @@ export async function addPackage(req: Request, res: Response, next: NextFunction
     next(err);
   }
 }
+
+// ─── UPDATE PACKAGE ──────────────────────────────────
+export async function updatePackage(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = (req as any).userId;
+    const { packageId } = req.params;
+    const vendor = await prisma.vendor.findFirst({ where: { userId } });
+    if (!vendor) throw new AppError('Vendor not found', 404);
+
+    // Ownership enforcement: package must belong to this vendor
+    const existing = await prisma.vendorPackage.findFirst({
+      where: { id: packageId, vendorId: vendor.id },
+    });
+    if (!existing) throw new AppError('Package not found', 404);
+
+    const { name, description, price, duration, includes, isActive } = req.body;
+    const updated = await prisma.vendorPackage.update({
+      where: { id: packageId },
+      data: {
+        ...(name !== undefined && { name }),
+        ...(description !== undefined && { description }),
+        ...(price !== undefined && { price }),
+        ...(duration !== undefined && { duration }),
+        ...(includes !== undefined && { includes }),
+        ...(isActive !== undefined && { isActive }),
+      },
+    });
+    res.json({ success: true, package: updated });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─── DELETE PACKAGE ──────────────────────────────────
+export async function deletePackage(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = (req as any).userId;
+    const { packageId } = req.params;
+    const vendor = await prisma.vendor.findFirst({ where: { userId } });
+    if (!vendor) throw new AppError('Vendor not found', 404);
+
+    // Ownership enforcement: package must belong to this vendor
+    const existing = await prisma.vendorPackage.findFirst({
+      where: { id: packageId, vendorId: vendor.id },
+    });
+    if (!existing) throw new AppError('Package not found', 404);
+
+    await prisma.vendorPackage.delete({ where: { id: packageId } });
+    res.json({ success: true, message: 'Package deleted' });
+  } catch (err) {
+    next(err);
+  }
+}
