@@ -8,6 +8,7 @@ import {
   searchVendors, getVendorProfile, createVendorProfile,
   updateVendorProfile, getMyVendorProfile, setupBankAccount,
   getAvailability, setAvailability, generateBio, addPackage,
+  updatePackage, deletePackage,
 } from '../controllers/vendors.controller';
 import {
   addTagToVendor, removeTagFromVendor,
@@ -118,6 +119,8 @@ vendorsRouter.post('/me/bank-account',
 
 vendorsRouter.put('/me/availability', authenticate, requireRole('VENDOR'), setAvailability);
 vendorsRouter.post('/me/packages', authenticate, requireRole('VENDOR'), addPackage);
+vendorsRouter.put('/me/packages/:packageId', authenticate, requireRole('VENDOR'), updatePackage);
+vendorsRouter.delete('/me/packages/:packageId', authenticate, requireRole('VENDOR'), deletePackage);
 vendorsRouter.post('/generate-bio', authenticate, generateBio);
 
 // ─── VENDOR-MARKETPLACE-EXPANSION-01: Vendor tag management ──────────────────

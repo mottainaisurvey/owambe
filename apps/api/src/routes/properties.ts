@@ -283,6 +283,41 @@ router.get('/host',
   }
 );
 
+// ─── GET /api/properties/host/:id ─────────────────────
+// HOST only: get one owned property for view/edit dashboard screens
+// NOTE: Must be defined before /:slug to avoid route shadowing
+router.get('/host/:id',
+  authenticate,
+  requireRole('HOST', 'ADMIN'),
+  requireMode('STAYS'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = (req as any).userId;
+      const userRole = (req as any).userRole;
+
+      const property = await prisma.property.findUnique({
+        where: { id: req.params.id },
+        include: {
+          host: { select: { id: true, userId: true, businessName: true, city: true, state: true, country: true, phone: true, isVerified: true } },
+          rooms: {
+            orderBy: { createdAt: 'desc' },
+          },
+          _count: { select: { rooms: true, stayBookings: true, calendarEntries: true } }
+        }
+      });
+
+      if (!property) throw new AppError('Property not found', 404);
+      if (userRole !== 'ADMIN' && property.host.userId !== userId) {
+        throw new AppError('You do not have permission to view this property', 403);
+      }
+
+      res.json({ success: true, data: property });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 // ─── GET /api/properties/calendar-entries ────────────
 // HOST only: flat calendar entries query by roomId + date range
 // NOTE: Must be defined before /:slug to avoid route shadowing

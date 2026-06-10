@@ -123,6 +123,8 @@ export const vendorsApi = {
   getAvailability: (vendorId: string, params: any) => api.get(`/vendors/${vendorId}/availability`, { params }),
   setAvailability: (dates: any[]) => api.put('/vendors/me/availability', { dates }),
   addPackage: (data: any) => api.post('/vendors/me/packages', data),
+  updatePackage: (packageId: string, data: any) => api.put(`/vendors/me/packages/${packageId}`, data),
+  deletePackage: (packageId: string) => api.delete(`/vendors/me/packages/${packageId}`),
   generateBio: (data: any) => api.post('/vendors/generate-bio', data),
   // AC-2 / VENDOR-MARKETPLACE-EXPANSION-01
   discover: (params?: any) => api.get('/vendors/discover', { params }),
