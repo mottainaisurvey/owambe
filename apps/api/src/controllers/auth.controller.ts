@@ -39,6 +39,12 @@ export async function register(req: Request, res: Response, next: NextFunction) 
           lastName,
           role,
           authProvider: 'EMAIL',
+          ...(role === 'HOST'
+            ? {
+                activeMode: 'STAYS',
+                availableModes: ['STAYS'],
+              }
+            : {}),
         }
       });
 
@@ -48,6 +54,8 @@ export async function register(req: Request, res: Response, next: NextFunction) 
         // Vendor completes profile separately
       } else if (role === 'CONSUMER') {
         await tx.consumer.create({ data: { userId: u.id } });
+      } else if (role === 'HOST') {
+        await tx.host.create({ data: { userId: u.id, businessName: companyName } });
       }
 
       return u;
@@ -112,6 +120,8 @@ export async function login(req: Request, res: Response, next: NextFunction) {
       profile = await prisma.vendor.findUnique({ where: { userId: user.id } });
     } else if (user.role === 'CONSUMER') {
       profile = await prisma.consumer.findUnique({ where: { userId: user.id } });
+    } else if (user.role === 'HOST') {
+      profile = await prisma.host.findUnique({ where: { userId: user.id } });
     }
 
     res.cookie('refreshToken', refreshTokenValue, {
@@ -135,6 +145,7 @@ export async function login(req: Request, res: Response, next: NextFunction) {
         activeMode: user.activeMode,
         availableModes: user.availableModes,
         profile,
+        ...(user.role === 'HOST' ? { host: profile } : {}),
       }
     });
   } catch (err) {
@@ -255,7 +266,7 @@ export async function getMe(req: Request, res: Response, next: NextFunction) {
         id: true, email: true, firstName: true, lastName: true,
         role: true, avatarUrl: true, isEmailVerified: true,
         activeMode: true, availableModes: true,
-        planner: true, vendor: true, consumer: true,
+        planner: true, vendor: true, consumer: true, host: true,
       }
     });
     if (!user) throw new AppError('User not found', 404);

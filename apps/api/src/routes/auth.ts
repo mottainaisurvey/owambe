@@ -25,7 +25,7 @@ authRouter.post('/register',
     body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
     body('firstName').trim().notEmpty(),
     body('lastName').trim().notEmpty(),
-    body('role').isIn(['PLANNER', 'VENDOR', 'CONSUMER']),
+    body('role').isIn(['PLANNER', 'VENDOR', 'CONSUMER', 'HOST']),
   ],
   validate,
   register
