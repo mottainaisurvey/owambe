@@ -126,6 +126,7 @@ adminRouter.get('/users', async (req, res, next) => {
           id: true, email: true, firstName: true, lastName: true,
           role: true, isActive: true, isEmailVerified: true,
           createdAt: true, lastLoginAt: true,
+          cohortCode: true, cohortMember: true, cohortType: true,
         },
         orderBy: { createdAt: 'desc' },
         skip,
@@ -640,7 +641,29 @@ adminRouter.get('/commission-audit-logs', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// ─── TEMP: Cohort code management for integration testing ────────────────────
+// ─── Cohort code management (E1 admin surface) ──────────────────────────────────
+// GET /api/admin/cohort-codes
+// Returns paginated list of all cohort codes ordered by createdAt desc.
+// Query params: page (default 1), limit (default 50), isActive (filter)
+adminRouter.get('/cohort-codes', async (req, res, next) => {
+  try {
+    const { page = 1, limit = 50, isActive } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+    const where: any = {};
+    if (isActive !== undefined) where.isActive = isActive === 'true';
+    const [cohorts, total] = await Promise.all([
+      prisma.cohortCode.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: Number(limit),
+      }),
+      prisma.cohortCode.count({ where }),
+    ]);
+    res.json({ success: true, cohorts, total, page: Number(page), limit: Number(limit) });
+  } catch (err) { next(err); }
+});
+
 // POST /api/admin/cohort-codes
 // Body: { code, name?, maxRedemptions?, isActive?, expiresAt?, modes? }
 adminRouter.post('/cohort-codes', async (req, res, next) => {
