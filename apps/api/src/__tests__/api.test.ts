@@ -79,6 +79,32 @@ describe('POST /api/auth/register', () => {
       });
     expect(res.status).toBe(201);
   });
+
+  it('registers a host with Stays mode defaults and host profile', async () => {
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({
+        email: 'host@test.owambe',
+        password: 'Test1234!',
+        firstName: 'Test',
+        lastName: 'Host',
+        role: 'HOST',
+        companyName: 'Test Coastal Host',
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+
+    const user = await prisma.user.findUnique({
+      where: { email: 'host@test.owambe' },
+      include: { host: true },
+    });
+
+    expect(user?.role).toBe('HOST');
+    expect(user?.activeMode).toBe('STAYS');
+    expect(user?.availableModes).toEqual(['STAYS']);
+    expect(user?.host?.businessName).toBe('Test Coastal Host');
+  });
 });
 
 describe('POST /api/auth/login', () => {
@@ -116,6 +142,24 @@ describe('POST /api/auth/login', () => {
 
     expect(res.status).toBe(200);
     vendorToken = res.body.accessToken;
+  });
+
+  it('logs in host with Stays mode and host hydration', async () => {
+    await prisma.user.update({
+      where: { email: 'host@test.owambe' },
+      data: { isEmailVerified: true },
+    });
+
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'host@test.owambe', password: 'Test1234!' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.accessToken).toBeDefined();
+    expect(res.body.user.role).toBe('HOST');
+    expect(res.body.user.activeMode).toBe('STAYS');
+    expect(res.body.user.availableModes).toEqual(['STAYS']);
+    expect(res.body.user.host.businessName).toBe('Test Coastal Host');
   });
 
   it('rejects wrong password', async () => {

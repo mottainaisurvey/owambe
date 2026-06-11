@@ -14,7 +14,7 @@ import {
   DollarSign, BarChart2, Shield, Loader2, Eye, Bell, LogOut, KeyRound
 } from 'lucide-react';
 
-const TABS = ['Overview', 'Vendor Queue', 'Users', 'Disputes', 'Commission', 'Portals', 'Contracts', 'Tags', 'Categories', 'Interest Captures'];
+const TABS = ['Overview', 'Vendor Queue', 'Users', 'Cohorts', 'Disputes', 'Commission', 'Portals', 'Contracts', 'Tags', 'Categories', 'Interest Captures'];
 
 export default function AdminPage() {
   const { user, logout, _hasHydrated } = useAuthStore();
@@ -94,6 +94,7 @@ export default function AdminPage() {
         {activeTab === 'Commission' && <CommissionTab />}
         {activeTab === 'Portals' && <TenantsAdminPanel />}
         {activeTab === 'Contracts' && <ContractsAdminTab />}
+        {activeTab === 'Cohorts' && <CohortsTab />}
         {activeTab === 'Tags' && <TagManagementTab />}
         {activeTab === 'Categories' && <CategoryVisibilityTab />}
         {activeTab === 'Interest Captures' && <InterestCapturesTab />}
@@ -369,6 +370,10 @@ function VendorQueueTab() {
 // ─── USERS ───────────────────────────────────────────
 function UsersTab() {
   const [roleFilter, setRoleFilter] = useState('');
+  const [assignCohortUserId, setAssignCohortUserId] = useState<string | null>(null);
+  const [cohortCodeInput, setCohortCodeInput] = useState('');
+  const [cohortTypeInput, setCohortTypeInput] = useState('COASTAL_CORRIDOR_HOST');
+  const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-users', roleFilter],
@@ -377,15 +382,27 @@ function UsersTab() {
 
   const suspendMutation = useMutation({
     mutationFn: (id: string) => api.put(`/admin/users/${id}/suspend`),
-    onSuccess: () => toast.success('User suspended'),
+    onSuccess: () => { toast.success('User suspended'); queryClient.invalidateQueries({ queryKey: ['admin-users'] }); },
+  });
+
+  const assignCohortMutation = useMutation({
+    mutationFn: ({ email, cohortCode, cohortType }: { email: string; cohortCode: string; cohortType: string }) =>
+      api.post('/admin/users/set-cohort-code', { email, cohortCode, cohortType }),
+    onSuccess: () => {
+      toast.success('Cohort code assigned');
+      setAssignCohortUserId(null);
+      setCohortCodeInput('');
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+    },
+    onError: () => toast.error('Assignment failed'),
   });
 
   const users = data?.users || [];
 
   return (
     <div className="animate-fade-up">
-      <div className="flex gap-2 mb-4">
-        {['', 'PLANNER', 'VENDOR', 'CONSUMER', 'ADMIN'].map(r => (
+      <div className="flex gap-2 mb-4 flex-wrap">
+        {['', 'PLANNER', 'VENDOR', 'CONSUMER', 'HOST', 'OPERATOR', 'ADMIN'].map(r => (
           <button key={r} onClick={() => setRoleFilter(r)}
             className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
               roleFilter === r ? 'bg-[var(--dark)] text-white border-[var(--dark)]' : 'border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)]'
@@ -436,13 +453,185 @@ function UsersTab() {
                     {u.lastLoginAt ? formatTimeAgo(u.lastLoginAt) : 'Never'}
                   </td>
                   <td className="table-cell">
-                    {u.isActive && u.role !== 'ADMIN' && (
+                    <div className="flex flex-col gap-1">
+                      {u.isActive && u.role !== 'ADMIN' && (
+                        <button
+                          onClick={() => { if (confirm('Suspend this user?')) suspendMutation.mutate(u.id); }}
+                          className="text-xs text-[var(--danger)] hover:underline font-semibold">
+                          Suspend
+                        </button>
+                      )}
                       <button
-                        onClick={() => { if (confirm('Suspend this user?')) suspendMutation.mutate(u.id); }}
-                        className="text-xs text-[var(--danger)] hover:underline font-semibold">
-                        Suspend
+                        onClick={() => { setAssignCohortUserId(u.id === assignCohortUserId ? null : u.id); setCohortCodeInput(u.cohortCode || ''); }}
+                        className="text-xs text-[var(--accent)] hover:underline font-semibold">
+                        {u.cohortCode ? `Cohort: ${u.cohortCode}` : 'Assign Cohort'}
                       </button>
-                    )}
+                      {assignCohortUserId === u.id && (
+                        <div className="flex flex-col gap-1 mt-1 p-2 bg-[var(--bg)] rounded-lg border border-[var(--border)]">
+                          <input
+                            className="input text-xs py-1 px-2"
+                            placeholder="Cohort code"
+                            value={cohortCodeInput}
+                            onChange={e => setCohortCodeInput(e.target.value)}
+                          />
+                          <select
+                            className="input text-xs py-1 px-2"
+                            value={cohortTypeInput}
+                            onChange={e => setCohortTypeInput(e.target.value)}
+                          >
+                            <option value="COASTAL_CORRIDOR_HOST">COASTAL_CORRIDOR_HOST</option>
+                            <option value="COASTAL_CORRIDOR_OPERATOR">COASTAL_CORRIDOR_OPERATOR</option>
+                            <option value="INTERNAL">INTERNAL</option>
+                          </select>
+                          <button
+                            disabled={!cohortCodeInput.trim() || assignCohortMutation.isPending}
+                            onClick={() => assignCohortMutation.mutate({ email: u.email, cohortCode: cohortCodeInput.trim(), cohortType: cohortTypeInput })}
+                            className="btn-primary text-xs py-1 flex items-center justify-center gap-1">
+                            {assignCohortMutation.isPending && <Loader2 size={10} className="animate-spin" />}
+                            Save
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── COHORTS ─────────────────────────────────────────
+function CohortsTab() {
+  const [newCode, setNewCode] = useState('');
+  const [newName, setNewName] = useState('');
+  const [newMaxRedemptions, setNewMaxRedemptions] = useState('');
+  const [newExpiresAt, setNewExpiresAt] = useState('');
+  const [newModes, setNewModes] = useState<string[]>(['STAYS']);
+  const queryClient = useQueryClient();
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['admin-cohort-codes'],
+    queryFn: () => api.get('/admin/cohort-codes').then(r => r.data),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (payload: object) => api.post('/admin/cohort-codes', payload),
+    onSuccess: () => {
+      toast.success('Cohort code created');
+      setNewCode(''); setNewName(''); setNewMaxRedemptions(''); setNewExpiresAt(''); setNewModes(['STAYS']);
+      queryClient.invalidateQueries({ queryKey: ['admin-cohort-codes'] });
+    },
+    onError: () => toast.error('Failed to create cohort code'),
+  });
+
+  const cohorts: any[] = data?.cohorts || [];
+
+  const MODES = ['EVENTS', 'STAYS', 'EXPERIENCES'];
+
+  function toggleMode(m: string) {
+    setNewModes(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m]);
+  }
+
+  return (
+    <div className="animate-fade-up space-y-5">
+      {/* Create form */}
+      <div className="form-card">
+        <div className="text-sm font-bold mb-4">Create Cohort Code</div>
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          <div>
+            <label className="label">Code <span className="text-[var(--danger)]">*</span></label>
+            <input className="input text-sm" placeholder="e.g. CC-COHORT-1" value={newCode} onChange={e => setNewCode(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">Name</label>
+            <input className="input text-sm" placeholder="e.g. Coastal Corridor Cohort 1" value={newName} onChange={e => setNewName(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">Max Redemptions</label>
+            <input className="input text-sm" type="number" placeholder="Leave blank for unlimited" value={newMaxRedemptions} onChange={e => setNewMaxRedemptions(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">Expires At</label>
+            <input className="input text-sm" type="datetime-local" value={newExpiresAt} onChange={e => setNewExpiresAt(e.target.value)} />
+          </div>
+        </div>
+        <div className="mb-4">
+          <label className="label">Platform Modes</label>
+          <div className="flex gap-2">
+            {MODES.map(m => (
+              <button key={m} type="button"
+                onClick={() => toggleMode(m)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                  newModes.includes(m) ? 'bg-[var(--dark)] text-white border-[var(--dark)]' : 'border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)]'
+                }`}>{m}</button>
+            ))}
+          </div>
+        </div>
+        <button
+          disabled={!newCode.trim() || newModes.length === 0 || createMutation.isPending}
+          onClick={() => createMutation.mutate({
+            code: newCode.trim(),
+            name: newName.trim() || undefined,
+            maxRedemptions: newMaxRedemptions ? Number(newMaxRedemptions) : undefined,
+            expiresAt: newExpiresAt || undefined,
+            modes: newModes,
+          })}
+          className="btn-primary flex items-center gap-2">
+          {createMutation.isPending && <Loader2 size={14} className="animate-spin" />}
+          Create Cohort Code
+        </button>
+      </div>
+
+      {/* List */}
+      <div className="card overflow-hidden">
+        <div className="px-5 py-3 border-b border-[var(--border)] flex items-center justify-between">
+          <span className="text-sm font-bold">All Cohort Codes</span>
+          <span className="text-xs text-[var(--muted)]">{cohorts.length} codes</span>
+        </div>
+        {isLoading ? (
+          <div className="flex justify-center py-10"><Loader2 size={20} className="animate-spin text-[var(--muted)]" /></div>
+        ) : isError ? (
+          <div className="text-center py-8 text-[var(--danger)] text-sm">Failed to load cohort codes.</div>
+        ) : cohorts.length === 0 ? (
+          <div className="text-center py-10 text-[var(--muted)] text-sm">No cohort codes yet. Create one above.</div>
+        ) : (
+          <table className="w-full">
+            <thead>
+              <tr className="border-b-2 border-[var(--border)]">
+                <th className="table-header">Code</th>
+                <th className="table-header">Name</th>
+                <th className="table-header">Modes</th>
+                <th className="table-header">Uses</th>
+                <th className="table-header">Max</th>
+                <th className="table-header">Expires</th>
+                <th className="table-header">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {cohorts.map((c: any) => (
+                <tr key={c.id} className="table-row">
+                  <td className="table-cell font-mono text-xs font-semibold">{c.code}</td>
+                  <td className="table-cell text-sm">{c.name}</td>
+                  <td className="table-cell">
+                    <div className="flex gap-1 flex-wrap">
+                      {(c.modes || []).map((m: string) => (
+                        <span key={m} className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{m}</span>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="table-cell text-sm text-center">{c.redemptionCount ?? 0}</td>
+                  <td className="table-cell text-sm text-center">{c.maxRedemptions ?? '∞'}</td>
+                  <td className="table-cell text-xs text-[var(--muted)]">
+                    {c.expiresAt ? new Date(c.expiresAt).toLocaleDateString('en-GB') : '—'}
+                  </td>
+                  <td className="table-cell">
+                    <span className={c.isActive ? 'badge-live' : 'badge-cancelled'}>
+                      {c.isActive ? 'Active' : 'Inactive'}
+                    </span>
                   </td>
                 </tr>
               ))}
@@ -713,12 +902,12 @@ function TagManagementTab() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-tags'],
-    queryFn: () => api.get('/admin/vendors/tags').then(r => r.data),
+    queryFn: () => api.get('/admin/tags').then(r => r.data),
   });
 
   const mergeMutation = useMutation({
     mutationFn: (payload: { fromTagId: string; intoTagId: string }) =>
-      api.post('/admin/vendors/tags/merge', payload),
+      api.post('/admin/tags/merge', payload),
     onSuccess: () => {
       toast.success('Tags merged');
       setMergeFrom('');
