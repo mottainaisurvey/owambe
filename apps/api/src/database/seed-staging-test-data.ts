@@ -76,6 +76,27 @@ function futureDate(daysFromNow: number, hour = 12) {
   return date;
 }
 
+// Convention-C.1: deterministic slot dates anchored to a fixed reference date.
+// These constants replace futureDate() for ExperienceSlot startTime/endTime so
+// that re-running the seed script produces the same slot rows (idempotent).
+// Dates are set far enough in the future that they remain valid for bilateral
+// end-to-end testing through 2027.
+const SLOT_ANCHOR_DATES: Record<string, { start: Date; end: Date }> = {
+  't1-lagos-food-culture-walk': {
+    start: new Date('2027-03-01T15:00:00Z'),
+    end:   new Date('2027-03-01T18:00:00Z'),
+  },
+  't1-private-afrobeats-nightlife': {
+    start: new Date('2027-03-08T15:00:00Z'),
+    end:   new Date('2027-03-08T18:00:00Z'),
+  },
+  // Coordinated 2-set: USD fixture experience slot
+  't1-diaspora-cooking-masterclass': {
+    start: new Date('2027-03-15T15:00:00Z'),
+    end:   new Date('2027-03-15T18:00:00Z'),
+  },
+};
+
 function dateOnly(daysFromNow: number) {
   const date = new Date();
   date.setUTCDate(date.getUTCDate() + daysFromNow);
@@ -351,6 +372,7 @@ async function main() {
       roomType: RoomType.FAMILY,
       capacity: 6,
       pricePerNight: '85000',
+      currency: 'NGN',
       blockedOffset: 21,
       calendarStatus: CalendarEntryStatus.AVAILABLE,
     },
@@ -366,6 +388,7 @@ async function main() {
       roomType: RoomType.EXECUTIVE,
       capacity: 3,
       pricePerNight: '120000',
+      currency: 'NGN',
       blockedOffset: 28,
       calendarStatus: CalendarEntryStatus.BLOCKED,
     },
@@ -381,8 +404,26 @@ async function main() {
       roomType: RoomType.PRESIDENTIAL,
       capacity: 4,
       pricePerNight: '180000',
+      currency: 'NGN',
       blockedOffset: 35,
       calendarStatus: CalendarEntryStatus.MAINTENANCE,
+    },
+    // ── Coordinated 2-set: USD fixture property ───────────────────────────────
+    {
+      slug: 't1-diaspora-waterfront-suite',
+      name: 'T1 Diaspora Waterfront Suite',
+      description: `${SEED_MARKER}: USD-priced property for diaspora/international bilateral test fixture.`,
+      propertyType: PropertyType.SERVICED_APARTMENT,
+      city: 'Victoria Island',
+      state: 'Lagos',
+      address: '1 Test Waterfront Drive, Victoria Island, Lagos',
+      roomName: 'Waterfront Studio',
+      roomType: RoomType.STANDARD,
+      capacity: 2,
+      pricePerNight: '120',   // USD 120 per night
+      currency: 'USD',
+      blockedOffset: 42,
+      calendarStatus: CalendarEntryStatus.AVAILABLE,
     },
   ];
 
@@ -446,7 +487,7 @@ async function main() {
             bedCount: Math.max(1, Math.ceil(spec.capacity / 2)),
             bathCount: 2,
             pricePerNight: spec.pricePerNight,
-            currency: 'NGN',
+            currency: spec.currency,
             amenities: ['Breakfast available', 'Workspace', 'Smart TV'],
             imageUrls: PLACEHOLDER_IMAGES,
             isActive: true,
@@ -462,7 +503,7 @@ async function main() {
             bedCount: Math.max(1, Math.ceil(spec.capacity / 2)),
             bathCount: 2,
             pricePerNight: spec.pricePerNight,
-            currency: 'NGN',
+            currency: spec.currency,
             amenities: ['Breakfast available', 'Workspace', 'Smart TV'],
             imageUrls: PLACEHOLDER_IMAGES,
             isActive: true,
@@ -475,7 +516,7 @@ async function main() {
         propertyId: property.id,
         status: spec.calendarStatus,
         rateOverride: spec.pricePerNight,
-        currency: 'NGN',
+        currency: spec.currency,
         minimumStay: 1,
         maximumStay: 14,
         closedReason: spec.calendarStatus === CalendarEntryStatus.AVAILABLE ? null : `${SEED_MARKER}: mixed availability sample.`,
@@ -487,7 +528,7 @@ async function main() {
         date: dateOnly(spec.blockedOffset),
         status: spec.calendarStatus,
         rateOverride: spec.pricePerNight,
-        currency: 'NGN',
+        currency: spec.currency,
         minimumStay: 1,
         maximumStay: 14,
         closedReason: spec.calendarStatus === CalendarEntryStatus.AVAILABLE ? null : `${SEED_MARKER}: mixed availability sample.`,
@@ -545,6 +586,7 @@ async function main() {
       name: 'T1 Lagos Food & Culture Walk',
       type: ExperienceType.FOOD_TASTING,
       price: '45000',
+      currency: 'NGN',
       duration: 180,
       maxGroupSize: 12,
     },
@@ -553,8 +595,19 @@ async function main() {
       name: 'T1 Private Afrobeats Nightlife',
       type: ExperienceType.NIGHTLIFE,
       price: '95000',
+      currency: 'NGN',
       duration: 240,
       maxGroupSize: 8,
+    },
+    // ── Coordinated 2-set: USD fixture experience ──────────────────────────────
+    {
+      slug: 't1-diaspora-cooking-masterclass',
+      name: 'T1 Diaspora Cooking Masterclass',
+      type: ExperienceType.FOOD_TASTING,
+      price: '55',          // USD 55 per person
+      currency: 'USD',
+      duration: 150,
+      maxGroupSize: 10,
     },
   ];
 
@@ -578,7 +631,7 @@ async function main() {
         maxGroupSize: spec.maxGroupSize,
         minGroupSize: 1,
         pricePerPerson: spec.price,
-        currency: 'NGN',
+        currency: spec.currency,
         includes: ['Guide', 'Refreshments', 'Local transport'],
         requirements: ['Comfortable shoes', 'Staging test use only'],
         languages: ['English'],
@@ -595,13 +648,13 @@ async function main() {
         state: 'Lagos',
         country: 'NG',
         address: '1 Test Marina Road, Lagos',
-        coverImageUrl: PLACEHOLDER_IMAGES[index],
+        coverImageUrl: PLACEHOLDER_IMAGES[index % PLACEHOLDER_IMAGES.length],
         galleryUrls: PLACEHOLDER_IMAGES,
         durationMinutes: spec.duration,
         maxGroupSize: spec.maxGroupSize,
         minGroupSize: 1,
         pricePerPerson: spec.price,
-        currency: 'NGN',
+        currency: spec.currency,
         includes: ['Guide', 'Refreshments', 'Local transport'],
         requirements: ['Comfortable shoes', 'Staging test use only'],
         languages: ['English'],
@@ -610,14 +663,18 @@ async function main() {
       },
     });
 
-    const existingSlot = await prisma.experienceSlot.findFirst({ where: { experienceId: experience.id, startTime: futureDate(18 + index * 7, 15) } });
+    // Convention-C.1: use deterministic anchor dates instead of futureDate() so
+    // that re-running the seed produces the same ExperienceSlot row (idempotent).
+    const anchorDates = SLOT_ANCHOR_DATES[spec.slug];
+    if (!anchorDates) throw new Error(`No SLOT_ANCHOR_DATES entry for experience slug: ${spec.slug}`);
+    const existingSlot = await prisma.experienceSlot.findFirst({ where: { experienceId: experience.id, startTime: anchorDates.start } });
     const slot = existingSlot
       ? await prisma.experienceSlot.update({
           where: { id: existingSlot.id },
-          data: { endTime: futureDate(18 + index * 7, 18), capacity: spec.maxGroupSize, bookedCount: index === 0 ? 2 : 0, isActive: true },
+          data: { endTime: anchorDates.end, capacity: spec.maxGroupSize, bookedCount: index === 0 ? 2 : 0, isActive: true },
         })
       : await prisma.experienceSlot.create({
-          data: { experienceId: experience.id, startTime: futureDate(18 + index * 7, 15), endTime: futureDate(18 + index * 7, 18), capacity: spec.maxGroupSize, bookedCount: index === 0 ? 2 : 0, isActive: true },
+          data: { experienceId: experience.id, startTime: anchorDates.start, endTime: anchorDates.end, capacity: spec.maxGroupSize, bookedCount: index === 0 ? 2 : 0, isActive: true },
         });
 
     experiences.push({ id: experience.id, slug: experience.slug, name: experience.name, slotId: slot.id });
