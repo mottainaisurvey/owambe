@@ -63,10 +63,6 @@ jest.mock('../services/reconciliation.service', () => ({
   dispatchReconciliationNow: jest.fn().mockResolvedValue(undefined),
 }));
 
-jest.mock('../services/channels/adapters/coastal-corridor.adapter', () => ({
-  verifyInboundSignature: jest.fn().mockReturnValue(true),
-}));
-
 // ─── Prisma Mock ──────────────────────────────────────────────────────────────
 
 const MOCK_ROOM_ID = 'aaaaaaaa-0001-0001-0001-000000000001';
