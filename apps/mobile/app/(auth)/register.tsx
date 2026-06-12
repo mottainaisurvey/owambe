@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   View, Text, TouchableOpacity, KeyboardAvoidingView,
   Platform, ScrollView, Alert, Image, StyleSheet,
@@ -10,32 +10,57 @@ import { api } from '../../src/services/api';
 import { Button, Input } from '../../src/components/ui';
 import { COLORS, SPACING, TYPOGRAPHY, RADIUS } from '../../src/utils/theme';
 
-const ROLES = [
+type RegistrationRole = 'PLANNER' | 'VENDOR' | 'CONSUMER' | 'HOST';
+
+const ROLES: { value: RegistrationRole; emoji: string; label: string; desc: string }[] = [
   { value: 'PLANNER', emoji: '📋', label: 'Event Planner', desc: 'I manage events for clients' },
   { value: 'VENDOR', emoji: '🏢', label: 'Vendor / Business', desc: 'I offer services for events' },
   { value: 'CONSUMER', emoji: '🎉', label: 'Planning My Event', desc: 'I want to plan with AI' },
+  { value: 'HOST', emoji: '🏨', label: 'Host / Property Manager', desc: 'I list stays and manage guest bookings' },
 ];
 
 export default function RegisterScreen() {
   const [step, setStep] = useState(1);
-  const [role, setRole] = useState('PLANNER');
+  const [role, setRole] = useState<RegistrationRole>('PLANNER');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [companyName, setCompanyName] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const needsCompanyName = role === 'PLANNER' || role === 'HOST';
+  const companyLabel = role === 'HOST' ? 'Property business name' : 'Company name';
+  const companyPlaceholder = role === 'HOST' ? 'Owambe Stays Lagos' : 'Adaeze Events Co.';
 
   async function handleRegister() {
     if (!firstName || !lastName || !email || password.length < 8) {
       Alert.alert('Missing details', 'Please fill in all fields. Password must be 8+ characters.');
       return;
     }
+
+    if (needsCompanyName && !companyName.trim()) {
+      Alert.alert('Missing details', `Please enter your ${companyLabel.toLowerCase()}.`);
+      return;
+    }
+
     setLoading(true);
     try {
-      await api.post('/auth/register', { firstName, lastName, email: email.toLowerCase(), password, role });
+      const payload = {
+        firstName,
+        lastName,
+        email: email.toLowerCase(),
+        password,
+        role,
+        ...(needsCompanyName ? { companyName: companyName.trim() } : {}),
+      };
+
+      await api.post('/auth/register', payload);
       Alert.alert(
         '✅ Account Created!',
-        'Check your email to verify your account, then sign in.',
+        role === 'HOST'
+          ? 'Your host account is ready. Sign in to open your Stays dashboard.'
+          : 'Check your email to verify your account, then sign in.',
         [{ text: 'Sign In', onPress: () => router.replace('/(auth)/login') }]
       );
     } catch (err: any) {
@@ -78,7 +103,7 @@ export default function RegisterScreen() {
           {/* Headline */}
           <Text style={styles.headline}>Create account</Text>
           <Text style={styles.subline}>
-            Join 1,000+ event professionals on Owambe
+            Join 1,000+ event professionals and stay hosts on Owambe
           </Text>
 
           {/* Step indicator */}
@@ -147,6 +172,14 @@ export default function RegisterScreen() {
                 onChangeText={setPassword}
                 secureTextEntry
               />
+              {needsCompanyName && (
+                <Input
+                  label={companyLabel}
+                  placeholder={companyPlaceholder}
+                  value={companyName}
+                  onChangeText={setCompanyName}
+                />
+              )}
               <View style={{ flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.sm }}>
                 <Button title="← Back" variant="secondary" onPress={() => setStep(1)} />
                 <Button title="Create Account" onPress={handleRegister} loading={loading} style={{ flex: 1 }} />

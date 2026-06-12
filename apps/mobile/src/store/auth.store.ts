@@ -2,14 +2,28 @@ import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 import { api } from '../services/api';
 
+type UserRole = 'PLANNER' | 'VENDOR' | 'CONSUMER' | 'ADMIN' | 'HOST';
+type UserMode = 'EVENTS' | 'STAYS';
+
+interface HostProfile {
+  id: string;
+  businessName?: string | null;
+  isVerified?: boolean;
+  rating?: number | null;
+  createdAt?: string;
+}
+
 interface User {
   id: string;
   email: string;
   firstName: string;
   lastName: string;
-  role: 'PLANNER' | 'VENDOR' | 'CONSUMER' | 'ADMIN';
+  role: UserRole;
   avatarUrl?: string;
   isEmailVerified: boolean;
+  activeMode?: UserMode;
+  availableModes?: UserMode[];
+  host?: HostProfile | null;
   profile?: any;
 }
 

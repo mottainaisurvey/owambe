@@ -1,7 +1,7 @@
 import { Tabs, Redirect } from 'expo-router';
 import { View, Text, StyleSheet } from 'react-native';
 import { useAuthStore } from '../../src/store/auth.store';
-import { COLORS, RADIUS } from '../../src/utils/theme';
+import { COLORS } from '../../src/utils/theme';
 
 function TabIcon({ emoji, label, focused }: { emoji: string; label: string; focused: boolean }) {
   return (
@@ -20,6 +20,7 @@ export default function TabsLayout() {
 
   if (!isAuthenticated) return <Redirect href="/(auth)/welcome" />;
   if (user?.role === 'VENDOR') return <Redirect href="/(vendor)/" />;
+  if (user?.role === 'HOST') return <Redirect href="/(host)/" />;
 
   return (
     <Tabs
