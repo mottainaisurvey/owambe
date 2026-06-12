@@ -63,6 +63,13 @@ jest.mock('../services/reconciliation.service', () => ({
   dispatchReconciliationNow: jest.fn().mockResolvedValue(undefined),
 }));
 
+// Mock properties route to prevent CoastalCorridorAdapter module-scope instantiation
+jest.mock('../routes/properties', () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const express = require('express');
+  return express.Router();
+});
+
 // ─── Prisma Mock ──────────────────────────────────────────────────────────────
 
 const MOCK_ROOM_ID = 'aaaaaaaa-0001-0001-0001-000000000001';
