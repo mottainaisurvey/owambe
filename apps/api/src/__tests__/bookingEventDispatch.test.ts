@@ -43,6 +43,17 @@ jest.mock('../services/notification.service', () => ({
   notifyOperatorNewBooking: jest.fn().mockResolvedValue(undefined),
 }));
 
+jest.mock('../services/channels/adapters/coastal-corridor.adapter', () => ({
+  verifyInboundSignature: jest.fn().mockReturnValue(true),
+  CoastalCorridorAdapter: jest.fn().mockImplementation(() => ({
+    isConfigured: jest.fn().mockReturnValue(false),
+    createListing: jest.fn(),
+    updateListing: jest.fn(),
+    deleteListing: jest.fn(),
+    getStatus: jest.fn(),
+  })),
+}));
+
 jest.mock('../services/cache.service', () => ({
   cacheGet: jest.fn().mockResolvedValue(null),
   cacheSet: jest.fn().mockResolvedValue(undefined),
