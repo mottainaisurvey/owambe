@@ -62,8 +62,9 @@ jest.mock('../services/reconciliation.service', () => ({
 import { dispatchWebhookEvent } from '../services/webhookDispatcher.service';
 const mockDispatch = dispatchWebhookEvent as jest.MockedFunction<typeof dispatchWebhookEvent>;
 
-/** Flush all pending setImmediate callbacks */
+/** Flush all pending setImmediate callbacks (two passes to handle nested async setImmediates) */
 async function flushSetImmediate(): Promise<void> {
+  await new Promise<void>((resolve) => setImmediate(resolve));
   await new Promise<void>((resolve) => setImmediate(resolve));
 }
 
@@ -173,14 +174,21 @@ describe('OWB-F1-NEW AC-8: Booking Event Dispatch', () => {
   // ─── AC-2: booking.created ─────────────────────────────────────────────────
 
   describe('AC-2: booking.created dispatch on POST /stays/reservations', () => {
+    // Each ccId gets unique non-overlapping dates to avoid availability conflicts.
+    // F1-DISPATCH-001: Sep 01-05, F1-DISPATCH-002: Sep 10-14, F1-DISPATCH-003: Sep 01-05 (conflict test)
+    const DATE_MAP: Record<string, { checkIn: string; checkOut: string }> = {
+      'F1-DISPATCH-001': { checkIn: '2026-09-01', checkOut: '2026-09-05' },
+      'F1-DISPATCH-002': { checkIn: '2026-09-10', checkOut: '2026-09-14' },
+      'F1-DISPATCH-003': { checkIn: '2026-09-01', checkOut: '2026-09-05' }, // intentional conflict
+    };
     const makePayload = (ccId: string) => ({
       cc_reservation_id: ccId,
       owambe_room_id: testRoomId,
       guest_first_name: 'Test',
       guest_last_name: 'Guest',
       guest_email: 'guest@coastal.test',
-      check_in_date: '2026-09-01',
-      check_out_date: '2026-09-05',
+      check_in_date: DATE_MAP[ccId]?.checkIn ?? '2026-09-01',
+      check_out_date: DATE_MAP[ccId]?.checkOut ?? '2026-09-05',
       number_of_guests: 2,
       total_amount: 200000,
       currency: 'NGN',
@@ -320,7 +328,10 @@ describe('OWB-F1-NEW AC-8: Booking Event Dispatch', () => {
 
       await flushSetImmediate();
 
-      expect(mockDispatch).toHaveBeenCalledTimes(1);
+      // Two dispatch calls are expected for CANCELLED:
+      //   1. booking.cancelled (F1-new outbound lifecycle event)
+      //   2. reservation.cancelled (existing inbound status-change webhook)
+      expect(mockDispatch).toHaveBeenCalledTimes(2);
       expect(mockDispatch).toHaveBeenCalledWith(
         expect.objectContaining({
           eventType: 'booking.cancelled',
@@ -367,7 +378,12 @@ describe('OWB-F1-NEW AC-8: Booking Event Dispatch', () => {
 
       await flushSetImmediate();
 
-      const callArgs = mockDispatch.mock.calls[0][0];
+      // Find the booking.cancelled call specifically (there are 2 calls: booking.cancelled + reservation.cancelled)
+      const bookingCancelledCall = mockDispatch.mock.calls.find(
+        (call) => call[0]?.eventType === 'booking.cancelled'
+      );
+      expect(bookingCancelledCall).toBeDefined();
+      const callArgs = bookingCancelledCall![0];
       const data = callArgs.data as Record<string, unknown>;
 
       expect(data).toMatchObject({
@@ -435,7 +451,10 @@ describe('OWB-F1-NEW AC-8: Booking Event Dispatch', () => {
 
       await flushSetImmediate();
 
-      expect(mockDispatch).toHaveBeenCalledTimes(1);
+      // Two dispatch calls are expected for REFUNDED:
+      //   1. booking.refunded (F1-new outbound lifecycle event)
+      //   2. reservation.status_changed (existing inbound status-change webhook — REFUNDED not in eventTypeMap)
+      expect(mockDispatch).toHaveBeenCalledTimes(2);
       expect(mockDispatch).toHaveBeenCalledWith(
         expect.objectContaining({
           eventType: 'booking.refunded',
@@ -489,13 +508,18 @@ describe('OWB-F1-NEW AC-8: Booking Event Dispatch', () => {
 
       await flushSetImmediate();
 
-      const callArgs = mockDispatch.mock.calls[0][0];
+      // Find the booking.refunded call specifically (there are 2 calls: booking.refunded + reservation.status_changed)
+      const bookingRefundedCall = mockDispatch.mock.calls.find(
+        (call) => call[0]?.eventType === 'booking.refunded'
+      );
+      expect(bookingRefundedCall).toBeDefined();
+      const callArgs = bookingRefundedCall![0];
       const data = callArgs.data as Record<string, unknown>;
 
       expect(data).toMatchObject({
         owambe_reservation_id: freshId,
         booking_type: 'stay',
-        previous_status: 'CONFIRMED',
+        previous_status: 'CANCELLED',  // CONFIRMED → CANCELLED → REFUNDED; previous is CANCELLED
         new_status: 'REFUNDED',
         refund_amount: 150000,
         refund_currency: 'NGN',

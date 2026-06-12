@@ -492,6 +492,7 @@ router.patch('/stays/reservations/:cc_reservation_id', async (req: Request, res:
       CHECKED_OUT: StayBookingStatus.CHECKED_OUT,
       CANCELLED: StayBookingStatus.CANCELLED,
       NO_SHOW: StayBookingStatus.NO_SHOW,
+      REFUNDED: StayBookingStatus.REFUNDED,
     };
 
     const owambeStatus = statusMap[status];
