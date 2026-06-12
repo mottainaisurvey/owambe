@@ -38,9 +38,18 @@ jest.mock('../middleware/channelRateLimiter', () => ({
   channelRateLimiter: () => (_req: any, _res: any, next: any) => next(),
 }));
 
-jest.mock('../routes/properties', () => ({
-  default: require('express').Router(),
-}));
+jest.mock('../routes/properties', () => {
+  // Return a no-op Express-compatible router function as the default export.
+  // This prevents `new CoastalCorridorAdapter()` from being called at module
+  // scope when properties.ts is loaded via app.ts.
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const express = require('express');
+  const router = express.Router();
+  // Ensure ts-jest's esModuleInterop resolves `import propertiesRouter from ...`
+  // to the router function (not the module object).
+  router.__esModule = true;
+  return router;
+});
 
 jest.mock('../services/reconciliation.service', () => ({
   dispatchReconciliationNow: jest.fn().mockResolvedValue(undefined),
