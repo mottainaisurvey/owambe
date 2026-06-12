@@ -6,7 +6,7 @@
 
 ## 1. Executive Summary
 
-This report details the implementation and verification of the F1-new outbound booking event dispatch mechanism for the Coastal Corridor integration. The implementation instruments the canonical `/stays/reservations` endpoint to dispatch `booking.created`, `booking.cancelled`, and `booking.refunded` events to the channel partner via the existing `dispatchWebhookEvent` infrastructure.
+This report details the implementation and verification of the F1-new outbound booking event dispatch mechanism for the Coastal Corridor integration. The implementation instruments the canonical `/stays/reservations` endpoint to dispatch `booking.created`, `booking.cancelled`, and `booking.refunded` events to the channel cohort member via the existing `dispatchWebhookEvent` infrastructure.
 
 The implementation successfully passes all automated CI tests and has been verified against the live Railway staging environment.
 
@@ -19,7 +19,7 @@ The `apps/api/src/routes/channel.ts` file was updated to dispatch the required e
 2. **`booking.cancelled`**: Dispatched when a reservation is updated to `CANCELLED` status via the `PATCH /stays/reservations/:id` endpoint.
 3. **`booking.refunded`**: Dispatched when a reservation is updated to `REFUNDED` status via the `PATCH /stays/reservations/:id` endpoint.
 
-All dispatches are executed asynchronously via `setImmediate` to ensure they do not block the HTTP response to the channel partner, adhering to the fire-and-forget pattern established in the codebase.
+All dispatches are executed asynchronously via `setImmediate` to ensure they do not block the HTTP response to the channel cohort member, adhering to the fire-and-forget pattern established in the codebase.
 
 ### 2.2 Payload Construction
 A new `buildBookingEventPayload` helper function was implemented to construct the standardized event payload. The payload maps internal Owambe fields to the required snake_case format expected by Coastal Corridor:
