@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   Home, Bed, Calendar, Star, BarChart2, Plus, ArrowRight,
-  TrendingUp, Users, CheckCircle, Clock, RefreshCw
+  TrendingUp, Users, CheckCircle, Clock, RefreshCw, AlertCircle
 } from 'lucide-react';
 import { api } from '@/lib/api';
 
@@ -54,12 +54,24 @@ const CHANNEL_LABELS: Record<string, string> = {
 export default function StaysDashboard() {
   const [stats, setStats] = useState<StaysDashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const fetchStats = async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const { data } = await api.get('/properties/host/dashboard-stats');
+      setStats(data.data);
+    } catch {
+      setStats(null);
+      setLoadError('We could not load your Stays dashboard stats. Please retry, or contact support if this continues.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    api.get('/properties/host/dashboard-stats')
-      .then(({ data }) => setStats(data.data))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    fetchStats();
   }, []);
 
   return (
@@ -90,6 +102,17 @@ export default function StaysDashboard() {
           {[1, 2, 3, 4].map(i => (
             <div key={i} className="h-20 bg-[var(--border)] rounded-xl animate-pulse" />
           ))}
+        </div>
+      ) : loadError ? (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6" role="alert">
+          <div className="flex items-start gap-3">
+            <AlertCircle size={18} className="text-red-600 shrink-0 mt-0.5" />
+            <div>
+              <h2 className="font-semibold text-red-900 text-sm mb-1">Unable to load Stays dashboard</h2>
+              <p className="text-sm text-red-700 mb-3">{loadError}</p>
+              <button type="button" onClick={fetchStats} className="text-sm font-medium text-red-700 hover:underline">Retry loading dashboard stats</button>
+            </div>
+          </div>
         </div>
       ) : stats ? (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">

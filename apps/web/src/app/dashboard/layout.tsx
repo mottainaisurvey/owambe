@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore, PlatformMode } from '@/store/auth.store';
+import { getDashboardShellMode, shouldSyncDashboardMode } from '@/lib/dashboardMode';
 import { ModeSwitcher } from '@/components/ModeSwitcher';
 import { ChangePasswordModal } from '@/components/ChangePasswordModal';
 import { cn, initials } from '@/lib/utils';
@@ -169,7 +170,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // which fires after localStorage data has been loaded into the store.
   // This reliably prevents the race condition where isAuthenticated is false
   // on first render before hydration has completed.
-  const { user, isAuthenticated, logout, activeMode, _hasHydrated } = useAuthStore();
+  const { user, isAuthenticated, logout, activeMode, setActiveMode, _hasHydrated } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
   const [showChangePwd, setShowChangePwd] = useState(false);
@@ -178,9 +179,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (_hasHydrated && !isAuthenticated) router.replace('/login');
   }, [_hasHydrated, isAuthenticated, router]);
 
+  useEffect(() => {
+    if (_hasHydrated && user && shouldSyncDashboardMode(pathname, activeMode)) {
+      setActiveMode(getDashboardShellMode(pathname, activeMode));
+    }
+  }, [_hasHydrated, user, pathname, activeMode, setActiveMode]);
+
   if (!_hasHydrated || !user) return null;
 
-  const navSections = MODE_NAV[activeMode] ?? EVENTS_NAV;
+  const shellMode = getDashboardShellMode(pathname, activeMode);
+  const navSections = MODE_NAV[shellMode] ?? EVENTS_NAV;
 
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--bg)]">
@@ -279,6 +287,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 function TopBar() {
   const pathname = usePathname();
   const { activeMode } = useAuthStore();
+  const shellMode = getDashboardShellMode(pathname, activeMode);
 
   const title = PAGE_TITLES[pathname] ||
     (pathname.includes('/events/') ? 'Event Details' :
@@ -291,7 +300,7 @@ function TopBar() {
     STAYS: { href: '/dashboard/stays/properties/new', label: 'Add Property' },
     EXPERIENCES: { href: '/dashboard/experiences/new', label: 'Add Experience' },
   };
-  const cta = ctaMap[activeMode];
+  const cta = ctaMap[shellMode];
 
   return (
     <header className="bg-[var(--surface)] border-b border-[var(--border)] h-[52px] px-6 flex items-center gap-3 flex-shrink-0 sticky top-0 z-10">
