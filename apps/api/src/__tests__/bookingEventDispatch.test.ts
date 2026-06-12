@@ -39,16 +39,15 @@ jest.mock('../middleware/channelRateLimiter', () => ({
 }));
 
 jest.mock('../routes/properties', () => {
-  // Return a no-op Express-compatible router function as the default export.
-  // This prevents `new CoastalCorridorAdapter()` from being called at module
-  // scope when properties.ts is loaded via app.ts.
+  // Prevent `new CoastalCorridorAdapter()` at module scope in properties.ts.
+  // ts-jest with esModuleInterop compiles `import propertiesRouter from '...'`
+  // to: const _mod = require('...'); const propertiesRouter = _mod.__esModule ? _mod.default : _mod;
+  // So we must return { __esModule: true, default: <router> }.
+  // The router must be a function (Express Router IS a function).
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const express = require('express');
   const router = express.Router();
-  // Ensure ts-jest's esModuleInterop resolves `import propertiesRouter from ...`
-  // to the router function (not the module object).
-  router.__esModule = true;
-  return router;
+  return { __esModule: true, default: router };
 });
 
 jest.mock('../services/reconciliation.service', () => ({
