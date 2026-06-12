@@ -21,7 +21,16 @@
  */
 
 import request from 'supertest';
-import { app } from '../app';
+import express from 'express';
+
+// Build a minimal test app that only mounts the channel router.
+// This avoids loading app.ts (which loads properties.ts, which instantiates
+// CoastalCorridorAdapter at module scope — causing a circular-dep error in Jest).
+import channelRouter from '../routes/channel';
+
+const app = express();
+app.use(express.json());
+app.use('/api/v1/channel', channelRouter);
 
 // ─── Module Mocks ─────────────────────────────────────────────────────────────
 
@@ -62,13 +71,6 @@ jest.mock('../services/cache.service', () => ({
 jest.mock('../services/reconciliation.service', () => ({
   dispatchReconciliationNow: jest.fn().mockResolvedValue(undefined),
 }));
-
-// Mock properties route to prevent CoastalCorridorAdapter module-scope instantiation
-jest.mock('../routes/properties', () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const express = require('express');
-  return express.Router();
-});
 
 // ─── Prisma Mock ──────────────────────────────────────────────────────────────
 
