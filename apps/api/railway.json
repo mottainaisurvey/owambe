@@ -4,7 +4,7 @@
     "buildCommand": "npm install --legacy-peer-deps && DATABASE_URL=postgresql://placeholder:placeholder@localhost:5432/placeholder npm run db:generate && rm -rf dist && npm run build"
   },
   "deploy": {
-    "startCommand": "npx prisma migrate deploy && node dist/index.js",
+    "startCommand": "npx prisma migrate deploy && npm run db:seed && node dist/index.js",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 60,
     "restartPolicyType": "ON_FAILURE",
