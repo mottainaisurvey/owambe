@@ -875,3 +875,17 @@ adminRouter.get('/cohort-interest/export.csv', async (req, res, next) => {
     res.send(csv);
   } catch (err) { next(err); }
 });
+
+
+// ─── TEMP: PROD SMOKE PROBE SUPPORT (OWB-F1-NEW-REFACTOR-01) ─────────────────
+// One-time endpoint to retrieve coastal-corridor hmacSecret for production smoke probe.
+// MUST be removed immediately after smoke probe execution.
+adminRouter.get('/temp/channel-hmac', async (req, res, next) => {
+  try {
+    const channel = await prisma.channel.findUnique({
+      where: { slug: 'coastal-corridor' },
+      select: { slug: true, hmacSecret: true, state: true, supportsStays: true },
+    });
+    res.json({ success: true, channel });
+  } catch (err) { next(err); }
+});
