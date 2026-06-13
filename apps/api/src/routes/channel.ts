@@ -372,46 +372,23 @@ router.post('/stays/reservations', async (req: Request, res: Response): Promise<
     // TODO: Trigger contract generation — Phase C contract service
     // await contractService.generateBookingContract(reservation);
 
-    // ─── F1-new AC-2: Dispatch booking.created outbound event ─────────────────
+    // ─── A012-REFACTOR AC-1/AC-3: Dispatch reservation.created outbound event ──
+    // Amendment 012 canonical: reservation.created with minimum-scope payload
+    // per § 3.3 (reservation_id only at reservation.created scope).
     // Fired asynchronously (fire-and-forget) so the 201 response is not delayed
-    // by delivery latency. The feature flag gate is inside dispatchWebhookEvent.
+    // by delivery latency. reservation.* events are not gated by feature flag.
     setImmediate(async () => {
       try {
         await dispatchWebhookEvent({
-          eventType: 'booking.created',
-          idempotencyKey: `booking.created.${reservation.id}`,
+          eventType: 'reservation.created',
+          idempotencyKey: `reservation.created.${reservation.id}`,
           data: {
-            // Amendment 009 Rev 3 §3.1 — booking.created payload
-            owambe_reservation_id: reservation.id,
-            cc_reservation_id: coastalCorridorReservationId,
-            booking_type: 'stay',
-            status: reservation.status,
-            property_id: reservation.propertyId,
-            room_id: reservation.roomId,
-            guest_name: reservation.guestName,
-            guest_email: reservation.guestEmail,
-            check_in_date: reservation.checkInDate.toISOString(),
-            check_out_date: reservation.checkOutDate.toISOString(),
-            nights: reservation.nights,
-            number_of_guests: reservation.numberOfGuests ?? null,
-            total_amount: parseFloat(reservation.totalAmount.toString()),
-            currency: reservation.currency,
-            channel_commission_amount: reservation.channelCommissionAmount
-              ? parseFloat(reservation.channelCommissionAmount.toString())
-              : null,
-            channel_commission_percent: reservation.channelCommissionPercent
-              ? parseFloat(reservation.channelCommissionPercent.toString())
-              : null,
-            net_to_host: reservation.netToHost
-              ? parseFloat(reservation.netToHost.toString())
-              : null,
-            payment_status: reservation.paymentStatus,
-            channel_origin: reservation.channelOrigin,
-            created_at: reservation.createdAt.toISOString(),
+            // Amendment 012 § 3.3 — reservation.created minimum-scope payload
+            reservation_id: reservation.id,
           },
         });
       } catch (dispatchErr) {
-        logger.error('[Channel] booking.created dispatch error (non-fatal)', {
+        logger.error('[Channel] reservation.created dispatch error (non-fatal)', {
           reservationId: reservation.id,
           error: dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr),
         });
@@ -735,40 +712,48 @@ router.patch('/stays/reservations/:cc_reservation_id', async (req: Request, res:
       coastalCorridorReservationId,
     });
 
-    // ─── F1-new AC-3/4: Dispatch booking.cancelled / booking.refunded ───────────
+    // ─── A012-REFACTOR AC-1/AC-3: Dispatch reservation.cancelled / reservation.refunded ─
+    // Amendment 012 canonical: per-event-type payloads per § 2.4 mapping table.
     // Fired asynchronously after the DB update so the response is not delayed.
-    // The feature flag gate is inside dispatchWebhookEvent.
-    if (owambeStatus === StayBookingStatus.CANCELLED || owambeStatus === StayBookingStatus.REFUNDED) {
+    // reservation.* events are not gated by feature flag.
+    if (owambeStatus === StayBookingStatus.CANCELLED) {
       setImmediate(async () => {
         try {
-          const bookingEventType = owambeStatus === StayBookingStatus.REFUNDED
-            ? 'booking.refunded'
-            : 'booking.cancelled';
           await dispatchWebhookEvent({
-            eventType: bookingEventType,
-            idempotencyKey: `${bookingEventType}.${updated.id}`,
+            eventType: 'reservation.cancelled',
+            idempotencyKey: `reservation.cancelled.${updated.id}`,
             data: {
-              // Amendment 009 Rev 3 §3.2 (cancelled) / §3.3 (refunded) payload
-              owambe_reservation_id: updated.id,
-              cc_reservation_id: coastalCorridorReservationId,
-              booking_type: 'stay',
-              previous_status: reservation.status,
-              new_status: updated.status,
-              payment_status: updated.paymentStatus,
-              cancellation_reason: cancellationReason ?? null,
-              cancelled_by: cancellationInitiatedBy ?? null,
-              refund_amount: refundAmount ?? null,
-              refund_currency: refundCurrency ?? null,
-              total_amount: parseFloat(reservation.totalAmount.toString()),
-              currency: reservation.currency,
-              channel_origin: reservation.channelOrigin,
-              updated_at: updated.cancelledAt?.toISOString() ?? new Date().toISOString(),
+              // Amendment 012 § 3.4 — reservation.cancelled payload
+              reservation_id: updated.id,
+              ...(cancellationReason ? { reason: cancellationReason } : {}),
+              ...(updated.paystackReference ? { paystack_reference: updated.paystackReference } : {}),
             },
           });
         } catch (dispatchErr) {
-          logger.error('[Channel] booking lifecycle dispatch error (non-fatal)', {
+          logger.error('[Channel] reservation.cancelled dispatch error (non-fatal)', {
             reservationId: updated.id,
-            owambeStatus,
+            error: dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr),
+          });
+        }
+      });
+    }
+    if (owambeStatus === StayBookingStatus.REFUNDED) {
+      setImmediate(async () => {
+        try {
+          await dispatchWebhookEvent({
+            eventType: 'reservation.refunded',
+            idempotencyKey: `reservation.refunded.${updated.id}`,
+            data: {
+              // Amendment 012 § 3.5 — reservation.refunded payload
+              reservation_id: updated.id,
+              ...(refundAmount !== undefined && refundAmount !== null
+                ? { refund_amount: Number(refundAmount) }
+                : {}),
+            },
+          });
+        } catch (dispatchErr) {
+          logger.error('[Channel] reservation.refunded dispatch error (non-fatal)', {
+            reservationId: updated.id,
             error: dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr),
           });
         }

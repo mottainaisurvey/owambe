@@ -1,11 +1,12 @@
 /**
- * OWB-F1-NEW-IMPLEMENTATION-01 — AC-8: Booking Event Dispatch Integration Tests
+ * OWB-F1-NEW-REFACTOR-01 — AC-4: Reservation Event Dispatch Integration Tests
  *
- * Tests for the three booking lifecycle dispatch paths instrumented in channel.ts:
- *   1. booking.created  — POST /api/v1/channel/stays/reservations (success path)
- *   2. booking.cancelled — PATCH /api/v1/channel/stays/reservations/:id (CANCELLED)
- *   3. booking.refunded  — PATCH /api/v1/channel/stays/reservations/:id (REFUNDED)
- *   4. Feature-flag-disabled guard — dispatch is a no-op when flag is false
+ * Tests for the three reservation lifecycle dispatch paths instrumented in channel.ts,
+ * aligned to Amendment 012 canonical wire shape:
+ *   1. reservation.created  — POST /api/v1/channel/stays/reservations (success path)
+ *   2. reservation.cancelled — PATCH /api/v1/channel/stays/reservations/:id (CANCELLED)
+ *   3. reservation.refunded  — PATCH /api/v1/channel/stays/reservations/:id (REFUNDED)
+ *   4. Dispatch-always guard — reservation.* events are not gated by booking events flag
  *   5. HTTP outcome contract — 201/200 responses are not delayed by dispatch
  *
  * Strategy:
@@ -15,7 +16,7 @@
  *   - Mocks `verifyChannelSignature` middleware to bypass HMAC auth.
  *   - Cleans up all seeded data in afterAll.
  *
- * Amendment 009 Rev 3 §3.1/§3.2/§3.3 payload field coverage is verified
+ * Amendment 012 §3.3/§3.4/§3.5 payload field coverage is verified
  * against the `data` argument passed to `dispatchWebhookEvent`.
  */
 
@@ -161,9 +162,11 @@ afterAll(async () => {
 
 // ─── Test Suite ───────────────────────────────────────────────────────────────
 
-describe('OWB-F1-NEW AC-8: Booking Event Dispatch', () => {
+describe('OWB-F1-NEW-REFACTOR-01 AC-4: Reservation Event Dispatch', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // reservation.* events are NOT gated by OWAMBE_OUTBOUND_BOOKING_EVENTS_ENABLED;
+    // set it to 'true' here only to avoid any side effects from the deprecated booking.* gate.
     process.env.OWAMBE_OUTBOUND_BOOKING_EVENTS_ENABLED = 'true';
   });
 
@@ -171,9 +174,9 @@ describe('OWB-F1-NEW AC-8: Booking Event Dispatch', () => {
     delete process.env.OWAMBE_OUTBOUND_BOOKING_EVENTS_ENABLED;
   });
 
-  // ─── AC-2: booking.created ─────────────────────────────────────────────────
+  // ─── AC-2: reservation.created ────────────────────────────────────────────
 
-  describe('AC-2: booking.created dispatch on POST /stays/reservations', () => {
+  describe('AC-2: reservation.created dispatch on POST /stays/reservations', () => {
     // Each ccId gets unique non-overlapping dates to avoid availability conflicts.
     // F1-DISPATCH-001: Sep 01-05, F1-DISPATCH-002: Sep 10-14, F1-DISPATCH-003: Sep 01-05 (conflict test)
     const DATE_MAP: Record<string, { checkIn: string; checkOut: string }> = {
@@ -198,7 +201,7 @@ describe('OWB-F1-NEW AC-8: Booking Event Dispatch', () => {
       payment_status: 'PAID',
     });
 
-    it('returns HTTP 201 and dispatches booking.created', async () => {
+    it('returns HTTP 201 and dispatches reservation.created', async () => {
       const res = await request(app)
         .post('/api/v1/channel/stays/reservations')
         .set('Content-Type', 'application/json')
@@ -214,13 +217,13 @@ describe('OWB-F1-NEW AC-8: Booking Event Dispatch', () => {
       expect(mockDispatch).toHaveBeenCalledTimes(1);
       expect(mockDispatch).toHaveBeenCalledWith(
         expect.objectContaining({
-          eventType: 'booking.created',
-          idempotencyKey: `booking.created.${testReservationId}`,
+          eventType: 'reservation.created',
+          idempotencyKey: `reservation.created.${testReservationId}`,
         })
       );
     });
 
-    it('booking.created payload contains all Amendment 009 Rev 3 §3.1 fields', async () => {
+    it('reservation.created payload contains Amendment 012 §3.3 minimum-scope fields', async () => {
       // Clean up previous reservation if it exists
       await prisma.commissionAuditLog.deleteMany({
         where: { reservationReference: 'CC-F1-DISPATCH-002' },
@@ -229,36 +232,30 @@ describe('OWB-F1-NEW AC-8: Booking Event Dispatch', () => {
         where: { externalRef: 'F1-DISPATCH-002' },
       });
 
-      await request(app)
+      const createRes = await request(app)
         .post('/api/v1/channel/stays/reservations')
         .set('Content-Type', 'application/json')
         .send(makePayload('F1-DISPATCH-002'));
+
+      expect(createRes.status).toBe(201);
+      const freshId = createRes.body.owambe_reservation_id;
 
       await flushSetImmediate();
 
       const callArgs = mockDispatch.mock.calls[0][0];
       const data = callArgs.data as Record<string, unknown>;
 
-      // §3.1 required fields
+      // Amendment 012 §3.3 — reservation.created minimum-scope payload
       expect(data).toMatchObject({
-        booking_type: 'stay',
-        status: 'CONFIRMED',
-        property_id: testPropertyId,
-        room_id: testRoomId,
-        guest_name: 'Test Guest',
-        guest_email: 'guest@coastal.test',
-        check_in_date: expect.stringMatching(/^2026-09-10/),
-        check_out_date: expect.stringMatching(/^2026-09-14/),
-        nights: 4,
-        total_amount: 200000,
-        currency: 'NGN',
-        payment_status: 'PAID',
-        channel_origin: 'COASTAL_CORRIDOR',
-        created_at: expect.any(String),
+        reservation_id: freshId,
       });
+      // Confirm no legacy booking-family fields are present
+      expect(data).not.toHaveProperty('owambe_reservation_id');
+      expect(data).not.toHaveProperty('cc_reservation_id');
+      expect(data).not.toHaveProperty('booking_type');
     });
 
-    it('does NOT dispatch booking.created on idempotent re-call (returns 200)', async () => {
+    it('does NOT dispatch reservation.created on idempotent re-call (returns 200)', async () => {
       // Re-send the same CC reservation ID — should be idempotent
       const res = await request(app)
         .post('/api/v1/channel/stays/reservations')
@@ -270,7 +267,7 @@ describe('OWB-F1-NEW AC-8: Booking Event Dispatch', () => {
       expect(mockDispatch).not.toHaveBeenCalled();
     });
 
-    it('does NOT dispatch booking.created if dates are unavailable (409)', async () => {
+    it('does NOT dispatch reservation.created if dates are unavailable (409)', async () => {
       // Create a conflicting booking for the same room and overlapping dates
       await prisma.commissionAuditLog.deleteMany({
         where: { reservationReference: 'CC-F1-DISPATCH-BLOCK' },
@@ -310,10 +307,10 @@ describe('OWB-F1-NEW AC-8: Booking Event Dispatch', () => {
     });
   });
 
-  // ─── AC-3: booking.cancelled ───────────────────────────────────────────────
+  // ─── AC-3: reservation.cancelled ──────────────────────────────────────────
 
-  describe('AC-3: booking.cancelled dispatch on PATCH /stays/reservations/:id', () => {
-    it('returns HTTP 200 and dispatches booking.cancelled', async () => {
+  describe('AC-3: reservation.cancelled dispatch on PATCH /stays/reservations/:id', () => {
+    it('returns HTTP 200 and dispatches reservation.cancelled', async () => {
       // PATCH uses cc_reservation_id in the URL path (externalRef)
       const res = await request(app)
         .patch('/api/v1/channel/stays/reservations/F1-DISPATCH-001')
@@ -329,18 +326,18 @@ describe('OWB-F1-NEW AC-8: Booking Event Dispatch', () => {
       await flushSetImmediate();
 
       // Two dispatch calls are expected for CANCELLED:
-      //   1. booking.cancelled (F1-new outbound lifecycle event)
-      //   2. reservation.cancelled (existing inbound status-change webhook)
+      //   1. reservation.cancelled (Amendment 012 new outbound lifecycle event)
+      //   2. reservation.cancelled (existing inbound status-change webhook — same event type)
       expect(mockDispatch).toHaveBeenCalledTimes(2);
       expect(mockDispatch).toHaveBeenCalledWith(
         expect.objectContaining({
-          eventType: 'booking.cancelled',
-          idempotencyKey: expect.stringContaining('booking.cancelled.'),
+          eventType: 'reservation.cancelled',
+          idempotencyKey: expect.stringContaining('reservation.cancelled.'),
         })
       );
     });
 
-    it('booking.cancelled payload contains all Amendment 009 Rev 3 §3.2 fields', async () => {
+    it('reservation.cancelled payload contains Amendment 012 §3.4 fields', async () => {
       // Create a fresh reservation to cancel
       await prisma.commissionAuditLog.deleteMany({
         where: { reservationReference: 'CC-F1-DISPATCH-004' },
@@ -378,31 +375,34 @@ describe('OWB-F1-NEW AC-8: Booking Event Dispatch', () => {
 
       await flushSetImmediate();
 
-      // Find the booking.cancelled call specifically (there are 2 calls: booking.cancelled + reservation.cancelled)
-      const bookingCancelledCall = mockDispatch.mock.calls.find(
-        (call) => call[0]?.eventType === 'booking.cancelled'
+      // Find the Amendment 012 reservation.cancelled call specifically
+      // (identified by idempotencyKey prefix — the new dispatch uses 'reservation.cancelled.<id>')
+      const a012CancelledCall = mockDispatch.mock.calls.find(
+        (call) =>
+          call[0]?.eventType === 'reservation.cancelled' &&
+          call[0]?.idempotencyKey === `reservation.cancelled.${freshId}`
       );
-      expect(bookingCancelledCall).toBeDefined();
-      const callArgs = bookingCancelledCall![0];
+      expect(a012CancelledCall).toBeDefined();
+      const callArgs = a012CancelledCall![0];
       const data = callArgs.data as Record<string, unknown>;
 
+      // Amendment 012 §3.4 — reservation.cancelled payload
       expect(data).toMatchObject({
-        owambe_reservation_id: freshId,
-        booking_type: 'stay',
-        previous_status: 'CONFIRMED',
-        new_status: 'CANCELLED',
-        cancellation_reason: 'Guest request',
-        cancelled_by: 'GUEST',
-        channel_origin: 'COASTAL_CORRIDOR',
-        updated_at: expect.any(String),
+        reservation_id: freshId,
+        reason: 'Guest request',
       });
+      // Confirm no legacy booking-family fields are present
+      expect(data).not.toHaveProperty('owambe_reservation_id');
+      expect(data).not.toHaveProperty('booking_type');
+      expect(data).not.toHaveProperty('previous_status');
+      expect(data).not.toHaveProperty('new_status');
     });
   });
 
-  // ─── AC-4: booking.refunded ────────────────────────────────────────────────
+  // ─── AC-4: reservation.refunded ───────────────────────────────────────────
 
-  describe('AC-4: booking.refunded dispatch on PATCH /stays/reservations/:id', () => {
-    it('returns HTTP 200 and dispatches booking.refunded', async () => {
+  describe('AC-4: reservation.refunded dispatch on PATCH /stays/reservations/:id', () => {
+    it('returns HTTP 200 and dispatches reservation.refunded', async () => {
       // Create a fresh reservation, cancel it, then refund it
       // (CONFIRMED → CANCELLED → REFUNDED is the valid transition path)
       await prisma.commissionAuditLog.deleteMany({
@@ -452,18 +452,18 @@ describe('OWB-F1-NEW AC-8: Booking Event Dispatch', () => {
       await flushSetImmediate();
 
       // Two dispatch calls are expected for REFUNDED:
-      //   1. booking.refunded (F1-new outbound lifecycle event)
+      //   1. reservation.refunded (Amendment 012 new outbound lifecycle event)
       //   2. reservation.status_changed (existing inbound status-change webhook — REFUNDED not in eventTypeMap)
       expect(mockDispatch).toHaveBeenCalledTimes(2);
       expect(mockDispatch).toHaveBeenCalledWith(
         expect.objectContaining({
-          eventType: 'booking.refunded',
-          idempotencyKey: `booking.refunded.${freshId}`,
+          eventType: 'reservation.refunded',
+          idempotencyKey: `reservation.refunded.${freshId}`,
         })
       );
     });
 
-    it('booking.refunded payload contains all Amendment 009 Rev 3 §3.3 fields', async () => {
+    it('reservation.refunded payload contains Amendment 012 §3.5 fields', async () => {
       // Create a fresh reservation, cancel it, then refund it
       await prisma.commissionAuditLog.deleteMany({
         where: { reservationReference: 'CC-F1-DISPATCH-006' },
@@ -508,24 +508,27 @@ describe('OWB-F1-NEW AC-8: Booking Event Dispatch', () => {
 
       await flushSetImmediate();
 
-      // Find the booking.refunded call specifically (there are 2 calls: booking.refunded + reservation.status_changed)
-      const bookingRefundedCall = mockDispatch.mock.calls.find(
-        (call) => call[0]?.eventType === 'booking.refunded'
+      // Find the Amendment 012 reservation.refunded call specifically
+      const a012RefundedCall = mockDispatch.mock.calls.find(
+        (call) =>
+          call[0]?.eventType === 'reservation.refunded' &&
+          call[0]?.idempotencyKey === `reservation.refunded.${freshId}`
       );
-      expect(bookingRefundedCall).toBeDefined();
-      const callArgs = bookingRefundedCall![0];
+      expect(a012RefundedCall).toBeDefined();
+      const callArgs = a012RefundedCall![0];
       const data = callArgs.data as Record<string, unknown>;
 
+      // Amendment 012 §3.5 — reservation.refunded payload
       expect(data).toMatchObject({
-        owambe_reservation_id: freshId,
-        booking_type: 'stay',
-        previous_status: 'CANCELLED',  // CONFIRMED → CANCELLED → REFUNDED; previous is CANCELLED
-        new_status: 'REFUNDED',
+        reservation_id: freshId,
         refund_amount: 150000,
-        refund_currency: 'NGN',
-        channel_origin: 'COASTAL_CORRIDOR',
-        updated_at: expect.any(String),
       });
+      // Confirm no legacy booking-family fields are present
+      expect(data).not.toHaveProperty('owambe_reservation_id');
+      expect(data).not.toHaveProperty('booking_type');
+      expect(data).not.toHaveProperty('previous_status');
+      expect(data).not.toHaveProperty('new_status');
+      expect(data).not.toHaveProperty('refund_currency');
     });
   });
 
@@ -568,10 +571,12 @@ describe('OWB-F1-NEW AC-8: Booking Event Dispatch', () => {
     });
   });
 
-  // ─── Feature-flag-disabled guard ───────────────────────────────────────────────
+  // ─── Dispatch-always guard ─────────────────────────────────────────────────
 
-  describe('Feature-flag-disabled guard', () => {
-    it('does NOT call dispatchWebhookEvent when feature flag is false', async () => {
+  describe('Dispatch-always guard: reservation.* events are not gated by booking events flag', () => {
+    it('dispatches reservation.created even when OWAMBE_OUTBOUND_BOOKING_EVENTS_ENABLED is false', async () => {
+      // reservation.* events are Amendment 012 canonical and are NOT gated by
+      // the deprecated OWAMBE_OUTBOUND_BOOKING_EVENTS_ENABLED flag.
       process.env.OWAMBE_OUTBOUND_BOOKING_EVENTS_ENABLED = 'false';
 
       await prisma.commissionAuditLog.deleteMany({
@@ -585,9 +590,9 @@ describe('OWB-F1-NEW AC-8: Booking Event Dispatch', () => {
         .send({
           cc_reservation_id: 'F1-DISPATCH-008',
           owambe_room_id: testRoomId,
-          guest_first_name: 'NoDispatch',
+          guest_first_name: 'AlwaysDispatch',
           guest_last_name: 'Guest',
-          guest_email: 'nodispatch@coastal.test',
+          guest_email: 'alwaysdispatch@coastal.test',
           check_in_date: '2027-02-01',
           check_out_date: '2027-02-03',
           number_of_guests: 1,
@@ -598,15 +603,10 @@ describe('OWB-F1-NEW AC-8: Booking Event Dispatch', () => {
 
       expect(res.status).toBe(201);
       await flushSetImmediate();
-      // The feature flag is disabled — dispatchWebhookEvent should not be called
-      // (the gate is inside webhookDispatcher.service.ts, not in channel.ts)
-      // The mock is called but the real dispatcher would be a no-op.
-      // This test verifies the call site fires; the dispatcher's own gate is
-      // tested by the dispatcher unit tests.
-      // We verify the call was made (call site is correct) regardless of flag.
+      // reservation.created is NOT gated by the booking events flag — must always dispatch
       expect(mockDispatch).toHaveBeenCalledTimes(1);
       expect(mockDispatch).toHaveBeenCalledWith(
-        expect.objectContaining({ eventType: 'booking.created' })
+        expect.objectContaining({ eventType: 'reservation.created' })
       );
     });
   });
