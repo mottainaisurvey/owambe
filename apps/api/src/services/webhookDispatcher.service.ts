@@ -28,7 +28,8 @@
 //     timeout before HALF_OPEN probe attempt)
 //   - Declarative header emission: channel.signatureHeader + channel.timestampHeader
 //   - Spec-canonical event naming: reservation.guest_checked_in / _out
-//   - Booking event family: booking.created / booking.cancelled / booking.refunded
+//   - Reservation event family extended (Amendment 012): reservation.created / reservation.refunded
+//   - Booking event family (deprecated): booking.created / booking.cancelled / booking.refunded
 //     gated by OWAMBE_OUTBOUND_BOOKING_EVENTS_ENABLED env var (option iii staged enable)
 //
 // Supported event types (post-Brief-D):
@@ -37,9 +38,11 @@
 //   reservation.guest_checked_in    ← spec-canonical (was reservation.checked_in)
 //   reservation.guest_checked_out   ← spec-canonical (was reservation.checked_out)
 //   reservation.no_show
-//   booking.created                 ← booking family (gated by env var)
-//   booking.cancelled               ← booking family (gated by env var)
-//   booking.refunded                ← booking family (gated by env var)
+//   reservation.created             ← Amendment 012 canonical (replaces booking.created)
+//   reservation.refunded            ← Amendment 012 canonical (replaces booking.refunded)
+//   booking.created                 ← DEPRECATED (booking family, gated by env var)
+//   booking.cancelled               ← DEPRECATED (booking family, gated by env var)
+//   booking.refunded                ← DEPRECATED (booking family, gated by env var)
 //
 // Usage:
 //   import { dispatchWebhookEvent } from './webhookDispatcher.service';
@@ -64,15 +67,21 @@ import { prisma } from '../database/client';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-/** Reservation event family (spec-canonical naming post-Brief-D) */
+/** Reservation event family (spec-canonical naming post-Brief-D + Amendment 012) */
 export type ReservationEventType =
   | 'reservation.status_changed'
+  | 'reservation.created'
   | 'reservation.cancelled'
+  | 'reservation.refunded'
   | 'reservation.guest_checked_in'
   | 'reservation.guest_checked_out'
   | 'reservation.no_show';
 
-/** Booking event family (gated by OWAMBE_OUTBOUND_BOOKING_EVENTS_ENABLED) */
+/**
+ * Booking event family — deprecated post-Amendment 012.
+ * Kept for backward-compatibility with any in-flight BullMQ queue jobs.
+ * New dispatch sites use reservation.* event types per Amendment 012 canonical.
+ */
 export type BookingEventType =
   | 'booking.created'
   | 'booking.cancelled'
