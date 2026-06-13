@@ -911,3 +911,19 @@ adminRouter.get('/temp/channel-hmac', async (req, res, next) => {
     res.json({ success: true, channel, envVarPresent: _ccHmacSecret !== null });
   } catch (err) { next(err); }
 });
+
+// Companion POST: set hmacSecret directly (for smoke probe when env var not set)
+adminRouter.post('/temp/channel-hmac', async (req, res, next) => {
+  try {
+    const { secret } = req.body as { secret: string };
+    if (!secret || typeof secret !== 'string' || secret.length < 32) {
+      return res.status(400).json({ error: 'secret must be a string of at least 32 chars' });
+    }
+    const channel = await prisma.channel.update({
+      where: { slug: 'coastal-corridor' },
+      data: { hmacSecret: secret },
+      select: { slug: true, state: true, supportsStays: true },
+    });
+    res.json({ success: true, channel, secretSet: true });
+  } catch (err) { next(err); }
+});
