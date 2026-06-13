@@ -62,15 +62,20 @@ function StatusBadge({ status }: { status: string }) {
 export default function StaysBookingsPage() {
   const [bookings, setBookings] = useState<StayBooking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [channelFilter, setChannelFilter] = useState('ALL');
 
   const fetchBookings = async () => {
+    setLoading(true);
+    setLoadError(null);
     try {
       const { data } = await api.get('/properties/host/bookings');
       setBookings(data.data ?? []);
     } catch {
+      setBookings([]);
+      setLoadError('We could not load reservations. Existing reservations may still exist; please retry before making operational decisions from this page.');
       toast.error('Failed to load bookings');
     } finally {
       setLoading(false);
@@ -122,8 +127,20 @@ export default function StaysBookingsPage() {
         </div>
       </div>
 
+      {/* Error state */}
+      {loadError && (
+        <div className="text-center py-14 border border-red-200 bg-red-50 rounded-xl mb-6" role="alert">
+          <AlertCircle size={40} className="mx-auto text-red-600 mb-4" />
+          <h2 className="font-semibold text-red-900 mb-2">Unable to load reservations</h2>
+          <p className="text-sm text-red-700 mb-6 max-w-xl mx-auto">{loadError}</p>
+          <button type="button" onClick={fetchBookings} className="btn-primary text-sm px-5 py-2">
+            Retry Loading Reservations
+          </button>
+        </div>
+      )}
+
       {/* Stats row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+      {!loadError && <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         {[
           { label: 'Total Reservations', value: stats.total, color: 'text-[var(--dark)]' },
           { label: 'Confirmed', value: stats.confirmed, color: 'text-green-700' },
@@ -139,10 +156,10 @@ export default function StaysBookingsPage() {
             <div className="text-xs text-[var(--mid)] mt-0.5">{s.label}</div>
           </div>
         ))}
-      </div>
+      </div>}
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-5">
+      {!loadError && <div className="flex flex-wrap gap-3 mb-5">
         <div className="flex-1 min-w-48 relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
           <input
@@ -173,10 +190,10 @@ export default function StaysBookingsPage() {
             <option key={k} value={k}>{v}</option>
           ))}
         </select>
-      </div>
+      </div>}
 
       {/* Empty state */}
-      {filtered.length === 0 && (
+      {!loadError && filtered.length === 0 && (
         <div className="text-center py-14 border border-dashed border-[var(--border)] rounded-xl">
           <Calendar size={36} className="mx-auto text-[var(--muted)] mb-3" />
           <h3 className="font-semibold text-[var(--dark)] mb-1">
@@ -192,7 +209,7 @@ export default function StaysBookingsPage() {
 
       {/* Reservation list */}
       <div className="space-y-3">
-        {filtered.map(booking => (
+        {!loadError && filtered.map(booking => (
           <div
             key={booking.id}
             className="bg-white border border-[var(--border)] rounded-xl p-4 hover:shadow-sm transition-shadow"

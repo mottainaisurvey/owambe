@@ -616,17 +616,17 @@ adminRouter.get('/commission-audit-logs', async (req, res, next) => {
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
     // Count total
-    const countResult = await prisma.$queryRawUnsafe<[{ count: bigint }]>(
+    const countResult = (await prisma.$queryRawUnsafe(
       `SELECT COUNT(*) as count FROM "commission_audit_logs" ${where}`,
       ...params
-    );
+    )) as [{ count: bigint }];
     const total = Number(countResult[0]?.count ?? 0);
 
     // Fetch rows
-    const rows = await prisma.$queryRawUnsafe<any[]>(
+    const rows = (await prisma.$queryRawUnsafe(
       `SELECT * FROM "commission_audit_logs" ${where} ORDER BY "createdAt" DESC LIMIT $${paramIdx++} OFFSET $${paramIdx++}`,
       ...params, limitN, offsetN
-    );
+    )) as any[];
 
     // Serialise BigInt / Decimal fields to strings for JSON
     const serialised = rows.map(r => {

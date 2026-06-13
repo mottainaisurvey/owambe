@@ -372,6 +372,53 @@ router.post('/stays/reservations', async (req: Request, res: Response): Promise<
     // TODO: Trigger contract generation — Phase C contract service
     // await contractService.generateBookingContract(reservation);
 
+    // ─── F1-new AC-2: Dispatch booking.created outbound event ─────────────────
+    // Fired asynchronously (fire-and-forget) so the 201 response is not delayed
+    // by delivery latency. The feature flag gate is inside dispatchWebhookEvent.
+    setImmediate(async () => {
+      try {
+        await dispatchWebhookEvent({
+          eventType: 'booking.created',
+          idempotencyKey: `booking.created.${reservation.id}`,
+          data: {
+            // Amendment 009 Rev 3 §3.1 — booking.created payload
+            owambe_reservation_id: reservation.id,
+            cc_reservation_id: coastalCorridorReservationId,
+            booking_type: 'stay',
+            status: reservation.status,
+            property_id: reservation.propertyId,
+            room_id: reservation.roomId,
+            guest_name: reservation.guestName,
+            guest_email: reservation.guestEmail,
+            check_in_date: reservation.checkInDate.toISOString(),
+            check_out_date: reservation.checkOutDate.toISOString(),
+            nights: reservation.nights,
+            number_of_guests: reservation.numberOfGuests ?? null,
+            total_amount: parseFloat(reservation.totalAmount.toString()),
+            currency: reservation.currency,
+            channel_commission_amount: reservation.channelCommissionAmount
+              ? parseFloat(reservation.channelCommissionAmount.toString())
+              : null,
+            channel_commission_percent: reservation.channelCommissionPercent
+              ? parseFloat(reservation.channelCommissionPercent.toString())
+              : null,
+            net_to_host: reservation.netToHost
+              ? parseFloat(reservation.netToHost.toString())
+              : null,
+            payment_status: reservation.paymentStatus,
+            channel_origin: reservation.channelOrigin,
+            created_at: reservation.createdAt.toISOString(),
+          },
+        });
+      } catch (dispatchErr) {
+        logger.error('[Channel] booking.created dispatch error (non-fatal)', {
+          reservationId: reservation.id,
+          error: dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr),
+        });
+      }
+    });
+    // ─────────────────────────────────────────────────────────────────────────
+
     res.status(201).json({
       owambe_reservation_id: reservation.id,
       cc_reservation_id: coastalCorridorReservationId,
@@ -445,6 +492,7 @@ router.patch('/stays/reservations/:cc_reservation_id', async (req: Request, res:
       CHECKED_OUT: StayBookingStatus.CHECKED_OUT,
       CANCELLED: StayBookingStatus.CANCELLED,
       NO_SHOW: StayBookingStatus.NO_SHOW,
+      REFUNDED: StayBookingStatus.REFUNDED,
     };
 
     const owambeStatus = statusMap[status];
@@ -686,6 +734,47 @@ router.patch('/stays/reservations/:cc_reservation_id', async (req: Request, res:
       to: updated.status,
       coastalCorridorReservationId,
     });
+
+    // ─── F1-new AC-3/4: Dispatch booking.cancelled / booking.refunded ───────────
+    // Fired asynchronously after the DB update so the response is not delayed.
+    // The feature flag gate is inside dispatchWebhookEvent.
+    if (owambeStatus === StayBookingStatus.CANCELLED || owambeStatus === StayBookingStatus.REFUNDED) {
+      setImmediate(async () => {
+        try {
+          const bookingEventType = owambeStatus === StayBookingStatus.REFUNDED
+            ? 'booking.refunded'
+            : 'booking.cancelled';
+          await dispatchWebhookEvent({
+            eventType: bookingEventType,
+            idempotencyKey: `${bookingEventType}.${updated.id}`,
+            data: {
+              // Amendment 009 Rev 3 §3.2 (cancelled) / §3.3 (refunded) payload
+              owambe_reservation_id: updated.id,
+              cc_reservation_id: coastalCorridorReservationId,
+              booking_type: 'stay',
+              previous_status: reservation.status,
+              new_status: updated.status,
+              payment_status: updated.paymentStatus,
+              cancellation_reason: cancellationReason ?? null,
+              cancelled_by: cancellationInitiatedBy ?? null,
+              refund_amount: refundAmount ?? null,
+              refund_currency: refundCurrency ?? null,
+              total_amount: parseFloat(reservation.totalAmount.toString()),
+              currency: reservation.currency,
+              channel_origin: reservation.channelOrigin,
+              updated_at: updated.cancelledAt?.toISOString() ?? new Date().toISOString(),
+            },
+          });
+        } catch (dispatchErr) {
+          logger.error('[Channel] booking lifecycle dispatch error (non-fatal)', {
+            reservationId: updated.id,
+            owambeStatus,
+            error: dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr),
+          });
+        }
+      });
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     const responseBody = {
       owambe_reservation_id: updated.id,

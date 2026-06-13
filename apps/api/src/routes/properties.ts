@@ -31,6 +31,8 @@ import { logger } from '../utils/logger';
 const router = Router();
 const ccAdapter = new CoastalCorridorAdapter();
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 // ─── Helpers ─────────────────────────────────────────
 
 /**
@@ -283,9 +285,133 @@ router.get('/host',
   }
 );
 
+// NOTE: Static /host/* routes must stay above /host/:id so Express does not treat static route names as property IDs.
+// ─── GET /api/properties/host/bookings ──────────────
+// HOST only: list all bookings across host's properties
+router.get('/host/bookings',
+  authenticate,
+  requireRole('HOST', 'ADMIN'),
+  requireMode('STAYS'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = (req as any).userId;
+      const { roomId, status, page = '1', limit = '50' } = req.query;
+
+      const host = await prisma.host.findUnique({ where: { userId } });
+      if (!host) throw new AppError('Host profile not found', 404);
+
+      const pageNum = Math.max(1, parseInt(page as string));
+      const limitNum = Math.min(100, parseInt(limit as string));
+
+      const where: any = {
+        property: { hostId: host.id },
+        ...(roomId && { roomId: roomId as string }),
+        ...(status && status !== 'ALL' && { status: status as any }),
+      };
+
+      const [bookings, total] = await Promise.all([
+        prisma.stayBooking.findMany({
+          where,
+          include: {
+            room: { select: { id: true, name: true, roomType: true } },
+            property: { select: { id: true, name: true, city: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+          skip: (pageNum - 1) * limitNum,
+          take: limitNum,
+        }),
+        prisma.stayBooking.count({ where }),
+      ]);
+
+      res.json({
+        success: true,
+        data: bookings,
+        pagination: { page: pageNum, limit: limitNum, total, pages: Math.ceil(total / limitNum) },
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// ─── GET /api/properties/host/dashboard-stats ────────
+// HOST only: summary stats for the Stays dashboard landing page
+router.get('/host/dashboard-stats',
+  authenticate,
+  requireRole('HOST', 'ADMIN'),
+  requireMode('STAYS'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = (req as any).userId;
+      const host = await prisma.host.findUnique({ where: { userId } });
+      if (!host) throw new AppError('Host profile not found', 404);
+
+      const propertyIds = await prisma.property
+        .findMany({ where: { hostId: host.id }, select: { id: true } })
+        .then(ps => ps.map(p => p.id));
+
+      const [
+        totalProperties,
+        totalRooms,
+        confirmedBookings,
+        checkedInBookings,
+        pendingBookings,
+        coastalCorridorSyncedProperties,
+        revenueAgg,
+        recentBookings,
+      ] = await Promise.all([
+        prisma.property.count({ where: { hostId: host.id } }),
+        prisma.room.count({ where: { propertyId: { in: propertyIds }, isActive: true } }),
+        prisma.stayBooking.count({ where: { propertyId: { in: propertyIds }, status: 'CONFIRMED' } }),
+        prisma.stayBooking.count({ where: { propertyId: { in: propertyIds }, status: 'CHECKED_IN' } }),
+        prisma.stayBooking.count({ where: { propertyId: { in: propertyIds }, status: 'PENDING' } }),
+        prisma.property.count({ where: { hostId: host.id, coastalCorridorPropertyId: { not: null } } }),
+        prisma.stayBooking.aggregate({
+          where: { propertyId: { in: propertyIds }, status: { in: ['CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT'] } },
+          _sum: { netToHost: true, totalAmount: true },
+        }),
+        prisma.stayBooking.findMany({
+          where: { propertyId: { in: propertyIds } },
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+          select: {
+            id: true, reference: true, guestName: true,
+            checkInDate: true, checkOutDate: true, status: true, channelOrigin: true,
+            property: { select: { name: true } },
+          },
+        }),
+      ]);
+
+      const totalNetRevenue = parseFloat(
+        (revenueAgg._sum.netToHost ?? revenueAgg._sum.totalAmount ?? 0).toString()
+      );
+
+      res.json({
+        success: true,
+        data: {
+          totalProperties,
+          totalRooms,
+          confirmedBookings,
+          checkedInBookings,
+          pendingBookings,
+          coastalCorridorSyncedProperties,
+          totalNetRevenue,
+          currency: 'NGN',
+          recentBookings: recentBookings.map(b => ({
+            ...b,
+            propertyName: b.property.name,
+          })),
+        },
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 // ─── GET /api/properties/host/:id ─────────────────────
 // HOST only: get one owned property for view/edit dashboard screens
-// NOTE: Must be defined before /:slug to avoid route shadowing
+// NOTE: Must remain after all static /host/* routes to avoid route shadowing.
 router.get('/host/:id',
   authenticate,
   requireRole('HOST', 'ADMIN'),
@@ -294,9 +420,14 @@ router.get('/host/:id',
     try {
       const userId = (req as any).userId;
       const userRole = (req as any).userRole;
+      const { id } = req.params;
+
+      if (!UUID_REGEX.test(id)) {
+        throw new AppError('Invalid property ID', 400);
+      }
 
       const property = await prisma.property.findUnique({
-        where: { id: req.params.id },
+        where: { id },
         include: {
           host: { select: { id: true, userId: true, businessName: true, city: true, state: true, country: true, phone: true, isVerified: true } },
           rooms: {
@@ -1070,129 +1201,6 @@ router.post('/:id/push-to-cc',
           coastalCorridorListingUrl: updated?.coastalCorridorListingUrl,
           coastalCorridorSyncedAt: updated?.coastalCorridorSyncedAt,
         }
-      });
-    } catch (err) {
-      next(err);
-    }
-  }
-);
-
-// ─── GET /api/properties/host/bookings ──────────────
-// HOST only: list all bookings across host's properties
-router.get('/host/bookings',
-  authenticate,
-  requireRole('HOST', 'ADMIN'),
-  requireMode('STAYS'),
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const userId = (req as any).userId;
-      const { roomId, status, page = '1', limit = '50' } = req.query;
-
-      const host = await prisma.host.findUnique({ where: { userId } });
-      if (!host) throw new AppError('Host profile not found', 404);
-
-      const pageNum = Math.max(1, parseInt(page as string));
-      const limitNum = Math.min(100, parseInt(limit as string));
-
-      const where: any = {
-        property: { hostId: host.id },
-        ...(roomId && { roomId: roomId as string }),
-        ...(status && status !== 'ALL' && { status: status as any }),
-      };
-
-      const [bookings, total] = await Promise.all([
-        prisma.stayBooking.findMany({
-          where,
-          include: {
-            room: { select: { id: true, name: true, roomType: true } },
-            property: { select: { id: true, name: true, city: true } },
-          },
-          orderBy: { createdAt: 'desc' },
-          skip: (pageNum - 1) * limitNum,
-          take: limitNum,
-        }),
-        prisma.stayBooking.count({ where }),
-      ]);
-
-      res.json({
-        success: true,
-        data: bookings,
-        pagination: { page: pageNum, limit: limitNum, total, pages: Math.ceil(total / limitNum) },
-      });
-    } catch (err) {
-      next(err);
-    }
-  }
-);
-
-// ─── GET /api/properties/host/dashboard-stats ────────
-// HOST only: summary stats for the Stays dashboard landing page
-router.get('/host/dashboard-stats',
-  authenticate,
-  requireRole('HOST', 'ADMIN'),
-  requireMode('STAYS'),
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const userId = (req as any).userId;
-      const host = await prisma.host.findUnique({ where: { userId } });
-      if (!host) throw new AppError('Host profile not found', 404);
-
-      const propertyIds = await prisma.property
-        .findMany({ where: { hostId: host.id }, select: { id: true } })
-        .then(ps => ps.map(p => p.id));
-
-      const [
-        totalProperties,
-        totalRooms,
-        confirmedBookings,
-        checkedInBookings,
-        pendingBookings,
-        coastalCorridorSyncedProperties,
-        revenueAgg,
-        recentBookings,
-      ] = await Promise.all([
-        prisma.property.count({ where: { hostId: host.id } }),
-        prisma.room.count({ where: { propertyId: { in: propertyIds }, isActive: true } }),
-        prisma.stayBooking.count({ where: { propertyId: { in: propertyIds }, status: 'CONFIRMED' } }),
-        prisma.stayBooking.count({ where: { propertyId: { in: propertyIds }, status: 'CHECKED_IN' } }),
-        prisma.stayBooking.count({ where: { propertyId: { in: propertyIds }, status: 'PENDING' } }),
-        prisma.property.count({ where: { hostId: host.id, coastalCorridorPropertyId: { not: null } } }),
-        prisma.stayBooking.aggregate({
-          where: { propertyId: { in: propertyIds }, status: { in: ['CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT'] } },
-          _sum: { netToHost: true, totalAmount: true },
-        }),
-        prisma.stayBooking.findMany({
-          where: { propertyId: { in: propertyIds } },
-          orderBy: { createdAt: 'desc' },
-          take: 5,
-          select: {
-            id: true, reference: true, guestName: true,
-            checkInDate: true, checkOutDate: true, status: true, channelOrigin: true,
-            property: { select: { name: true } },
-          },
-        }),
-      ]);
-
-      const totalNetRevenue = parseFloat(
-        (revenueAgg._sum.netToHost ?? revenueAgg._sum.totalAmount ?? 0).toString()
-      );
-
-      res.json({
-        success: true,
-        data: {
-          totalProperties,
-          totalRooms,
-          confirmedBookings,
-          checkedInBookings,
-          pendingBookings,
-          coastalCorridorSyncedProperties,
-          totalNetRevenue,
-          currency: 'NGN',
-          recentBookings: recentBookings.map(b => ({
-            ...b,
-            propertyName: b.property.name,
-          })),
-        },
       });
     } catch (err) {
       next(err);

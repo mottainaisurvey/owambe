@@ -67,14 +67,19 @@ function CCStatusBadge({ property }: { property: Property }) {
 export default function StaysPropertiesPage() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [pushing, setPushing] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
 
   const fetchProperties = async () => {
+    setLoading(true);
+    setLoadError(null);
     try {
       const { data } = await api.get('/properties/host');
       setProperties(data.data ?? []);
     } catch {
+      setProperties([]);
+      setLoadError('We could not load your properties. Your listings may still exist; please retry before adding duplicates.');
       toast.error('Failed to load properties');
     } finally {
       setLoading(false);
@@ -152,8 +157,20 @@ export default function StaysPropertiesPage() {
         </Link>
       </div>
 
+      {/* Error state */}
+      {loadError && (
+        <div className="text-center py-14 border border-red-200 bg-red-50 rounded-xl" role="alert">
+          <AlertCircle size={40} className="mx-auto text-red-600 mb-4" />
+          <h3 className="font-semibold text-red-900 mb-2">Unable to load properties</h3>
+          <p className="text-sm text-red-700 mb-6">{loadError}</p>
+          <button type="button" onClick={fetchProperties} className="btn-primary text-sm px-5 py-2">
+            Retry Loading Properties
+          </button>
+        </div>
+      )}
+
       {/* Empty state */}
-      {properties.length === 0 && (
+      {!loadError && properties.length === 0 && (
         <div className="text-center py-16 border border-dashed border-[var(--border)] rounded-xl">
           <Bed size={40} className="mx-auto text-[var(--muted)] mb-4" />
           <h3 className="font-semibold text-[var(--dark)] mb-2">No properties yet</h3>
@@ -168,7 +185,7 @@ export default function StaysPropertiesPage() {
 
       {/* Property list */}
       <div className="space-y-4">
-        {properties.map(property => (
+        {!loadError && properties.map(property => (
           <div
             key={property.id}
             className="bg-white border border-[var(--border)] rounded-xl overflow-hidden hover:shadow-sm transition-shadow"
