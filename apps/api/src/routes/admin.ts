@@ -893,18 +893,48 @@ adminRouter.get('/temp/smoke-room', async (req, res, next) => {
       select: { id: true },
     });
     if (!host) return res.status(404).json({ error: 'No Host record for smoke user', userId: smokeUser.id });
-    const property = await prisma.property.findFirst({
+    // Find or create a smoke property for this host
+    let property = await prisma.property.findFirst({
       where: { hostId: host.id },
       orderBy: { createdAt: 'desc' },
       select: { id: true, name: true },
     });
-    if (!property) return res.status(404).json({ error: 'No property for smoke host', hostId: host.id });
-    const room = await prisma.room.findFirst({
+    if (!property) {
+      property = await prisma.property.create({
+        data: {
+          hostId: host.id,
+          name: 'Option-Alpha Smoke Test Property',
+          slug: `option-alpha-smoke-${Date.now()}`,
+          propertyType: 'BOUTIQUE_HOTEL',
+          city: 'Lagos',
+          country: 'NG',
+          isActive: true,
+        },
+        select: { id: true, name: true },
+      });
+    }
+    // Find or create a smoke room for this property
+    let room = await prisma.room.findFirst({
       where: { propertyId: property.id },
       orderBy: { createdAt: 'desc' },
       select: { id: true, name: true },
     });
-    if (!room) return res.status(404).json({ error: 'No room for smoke property', propertyId: property.id });
+    if (!room) {
+      room = await prisma.room.create({
+        data: {
+          propertyId: property.id,
+          name: 'Option-Alpha Smoke Test Room',
+          roomType: 'STANDARD',
+          capacity: 2,
+          bedCount: 1,
+          bathCount: 1,
+          pricePerNight: 50000,
+          currency: 'NGN',
+          isActive: true,
+        },
+        select: { id: true, name: true },
+      });
+    }
     res.json({ success: true, smokeUserEmail: smokeUser.email, propertyId: property.id, roomId: room.id, roomName: room.name });
   } catch (err) { next(err); }
 });
