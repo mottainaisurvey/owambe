@@ -877,6 +877,38 @@ adminRouter.get('/cohort-interest/export.csv', async (req, res, next) => {
 });
 
 
+// ─── TEMP: SMOKE ROOM LOOKUP (option-α live probe 2026-06-13) ───────────────
+// Read-only endpoint to retrieve a valid room ID from the existing smoke host.
+// MUST be removed immediately after probe execution.
+adminRouter.get('/temp/smoke-room', async (req, res, next) => {
+  try {
+    const smokeUser = await prisma.user.findFirst({
+      where: { role: 'HOST', email: { contains: 'smoke' } },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, email: true },
+    });
+    if (!smokeUser) return res.status(404).json({ error: 'No smoke HOST user found' });
+    const host = await prisma.host.findUnique({
+      where: { userId: smokeUser.id },
+      select: { id: true },
+    });
+    if (!host) return res.status(404).json({ error: 'No Host record for smoke user', userId: smokeUser.id });
+    const property = await prisma.property.findFirst({
+      where: { hostId: host.id },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, name: true },
+    });
+    if (!property) return res.status(404).json({ error: 'No property for smoke host', hostId: host.id });
+    const room = await prisma.room.findFirst({
+      where: { propertyId: property.id },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, name: true },
+    });
+    if (!room) return res.status(404).json({ error: 'No room for smoke property', propertyId: property.id });
+    res.json({ success: true, smokeUserEmail: smokeUser.email, propertyId: property.id, roomId: room.id, roomName: room.name });
+  } catch (err) { next(err); }
+});
+
 // ─── TEMP: HMAC SECRET UPDATE (option-α ops-fix 2026-06-13) ──────────────────
 // One-time endpoint to update coastal-corridor channel hmacSecret to CC refresh #6 canonical.
 // MUST be removed immediately after update execution.
