@@ -876,3 +876,21 @@ adminRouter.get('/cohort-interest/export.csv', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+
+// ─── TEMP: HMAC SECRET UPDATE (option-α ops-fix 2026-06-13) ──────────────────
+// One-time endpoint to update coastal-corridor channel hmacSecret to CC refresh #6 canonical.
+// MUST be removed immediately after update execution.
+adminRouter.post('/temp/update-channel-hmac', async (req, res, next) => {
+  try {
+    const { secret } = req.body as { secret?: string };
+    if (!secret || typeof secret !== 'string' || secret.length < 32) {
+      return res.status(400).json({ error: 'secret must be a string of at least 32 chars' });
+    }
+    const channel = await prisma.channel.update({
+      where: { slug: 'coastal-corridor' },
+      data: { hmacSecret: secret },
+      select: { slug: true, state: true, supportsStays: true },
+    });
+    res.json({ success: true, channel, updated: true });
+  } catch (err) { next(err); }
+});
