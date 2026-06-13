@@ -878,14 +878,36 @@ adminRouter.get('/cohort-interest/export.csv', async (req, res, next) => {
 
 
 // ─── TEMP: PROD SMOKE PROBE SUPPORT (OWB-F1-NEW-REFACTOR-01) ─────────────────
-// One-time endpoint to retrieve coastal-corridor hmacSecret for production smoke probe.
+// One-time endpoint to upsert coastal-corridor channel and retrieve hmacSecret.
 // MUST be removed immediately after smoke probe execution.
 adminRouter.get('/temp/channel-hmac', async (req, res, next) => {
   try {
-    const channel = await prisma.channel.findUnique({
+    const _ccHmacSecret = process.env.CC_HMAC_SECRET ?? null;
+    const _ccDestUrl = process.env.CC_WEBHOOK_INBOUND_URL ?? null;
+    // Upsert the coastal-corridor channel using env vars (mirrors seed.ts logic)
+    const channel = await prisma.channel.upsert({
       where: { slug: 'coastal-corridor' },
+      create: {
+        slug: 'coastal-corridor',
+        name: 'Coastal Corridor',
+        contactEmail: null,
+        authScheme: 'HMAC_SHA256',
+        hmacSecret: _ccHmacSecret,
+        signatureHeader: 'X-Signature',
+        timestampHeader: 'X-Timestamp',
+        supportsStays: true,
+        supportsExperiences: true,
+        supportsEvents: false,
+        supportsVendors: false,
+        destinationUrl: _ccDestUrl,
+        state: 'ACTIVE',
+      },
+      update: {
+        ...(_ccDestUrl !== null && { destinationUrl: _ccDestUrl }),
+        ...(_ccHmacSecret !== null && { hmacSecret: _ccHmacSecret }),
+      },
       select: { slug: true, hmacSecret: true, state: true, supportsStays: true },
     });
-    res.json({ success: true, channel });
+    res.json({ success: true, channel, envVarPresent: _ccHmacSecret !== null });
   } catch (err) { next(err); }
 });
