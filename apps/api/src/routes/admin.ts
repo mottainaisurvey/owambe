@@ -927,3 +927,91 @@ adminRouter.post('/temp/channel-hmac', async (req, res, next) => {
     res.json({ success: true, channel, secretSet: true });
   } catch (err) { next(err); }
 });
+
+// Temp: create a smoke-test host, property, and room for production channel smoke probe
+adminRouter.post('/temp/smoke-property', async (req, res, next) => {
+  try {
+    // Find the first HOST user to attach the property to
+    const hostUser = await prisma.user.findFirst({
+      where: { role: 'HOST' },
+      select: { id: true },
+    });
+    if (!hostUser) return res.status(404).json({ error: 'No HOST user found in production DB' });
+
+    // Upsert a Host record for this user
+    const host = await prisma.host.upsert({
+      where: { userId: hostUser.id },
+      create: {
+        userId: hostUser.id,
+        businessName: 'F1-Refactor Smoke Test Host',
+        city: 'Lagos',
+        country: 'NG',
+      },
+      update: {},
+      select: { id: true },
+    });
+
+    // Create a smoke test property
+    const property = await prisma.property.create({
+      data: {
+        hostId: host.id,
+        name: 'F1-Refactor Smoke Test Property',
+        slug: `f1-refactor-smoke-${Date.now()}`,
+        propertyType: 'BOUTIQUE_HOTEL',
+        city: 'Lagos',
+        country: 'NG',
+        isActive: true,
+      },
+      select: { id: true, name: true, slug: true },
+    });
+
+    // Create a smoke test room
+    const room = await prisma.room.create({
+      data: {
+        propertyId: property.id,
+        name: 'F1-Refactor Smoke Test Room',
+        roomType: 'STANDARD',
+        capacity: 2,
+        bedCount: 1,
+        bathCount: 1,
+        pricePerNight: 50000,
+        currency: 'NGN',
+        isActive: true,
+      },
+      select: { id: true, name: true },
+    });
+
+    res.json({ success: true, hostId: host.id, property, room });
+  } catch (err) { next(err); }
+});
+
+// Temp: clean up smoke test data (property, rooms, stay bookings) by property slug prefix
+adminRouter.delete('/temp/smoke-property', async (req, res, next) => {
+  try {
+    const properties = await prisma.property.findMany({
+      where: { slug: { startsWith: 'f1-refactor-smoke-' } },
+      select: { id: true },
+    });
+    const propertyIds = properties.map((p: { id: string }) => p.id);
+    // Delete stay bookings first (FK constraint)
+    const deletedBookings = await prisma.stayBooking.deleteMany({
+      where: { propertyId: { in: propertyIds } },
+    });
+    // Delete rooms
+    const deletedRooms = await prisma.room.deleteMany({
+      where: { propertyId: { in: propertyIds } },
+    });
+    // Delete properties
+    const deletedProps = await prisma.property.deleteMany({
+      where: { id: { in: propertyIds } },
+    });
+    res.json({
+      success: true,
+      deleted: {
+        properties: deletedProps.count,
+        rooms: deletedRooms.count,
+        stayBookings: deletedBookings.count,
+      },
+    });
+  } catch (err) { next(err); }
+});
