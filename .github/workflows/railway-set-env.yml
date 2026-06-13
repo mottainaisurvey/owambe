@@ -24,13 +24,6 @@ jobs:
           echo "=== Setting APP_URL on owambe-api ==="
           railway variables set APP_URL=https://owambe.com --service owambe-api 2>&1
           echo "Done"
-      - name: Set CC_HMAC_SECRET on owambe-api production (option-α ops-fix 2026-06-13)
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_API }}
-        run: |
-          echo "=== Setting CC_HMAC_SECRET on owambe-api production ==="
-          railway variables set CC_HMAC_SECRET=8f1d0430fa5dece6d11917140a830719042581c11d1865938bfa1a0b93a51aa7 --service owambe-api 2>&1
-          echo "Done"
       - name: Verify updated values
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
