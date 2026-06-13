@@ -372,9 +372,9 @@ router.post('/stays/reservations', async (req: Request, res: Response): Promise<
     // TODO: Trigger contract generation — Phase C contract service
     // await contractService.generateBookingContract(reservation);
 
-    // ─── A012-REFACTOR AC-1/AC-3: Dispatch reservation.created outbound event ──
-    // Amendment 012 canonical: reservation.created with minimum-scope payload
-    // per § 3.3 (reservation_id only at reservation.created scope).
+    // ─── A012-REFACTOR-02 AC-1: Dispatch reservation.created outbound event ─────
+    // Amendment 012 Rev 2 canonical: reservation.created with 9-field payload
+    // per § 3.3 (expanded from Rev 1 minimum-scope {reservation_id} only).
     // Fired asynchronously (fire-and-forget) so the 201 response is not delayed
     // by delivery latency. reservation.* events are not gated by feature flag.
     setImmediate(async () => {
@@ -383,8 +383,16 @@ router.post('/stays/reservations', async (req: Request, res: Response): Promise<
           eventType: 'reservation.created',
           idempotencyKey: `reservation.created.${reservation.id}`,
           data: {
-            // Amendment 012 § 3.3 — reservation.created minimum-scope payload
+            // Amendment 012 Rev 2 § 3.3 — reservation.created 9-field canonical payload
             reservation_id: reservation.id,
+            property_id: reservation.propertyId,
+            room_id: reservation.roomId,
+            check_in_date: reservation.checkInDate.toISOString().split('T')[0],
+            check_out_date: reservation.checkOutDate.toISOString().split('T')[0],
+            number_of_guests: reservation.numberOfGuests ?? reservation.guestCount,
+            total_amount_kobo: Math.round(parseFloat(reservation.totalAmount.toString()) * 100),
+            currency: reservation.currency ?? 'NGN',
+            guest_owambe_user_id: reservation.guestUserId ?? null,
           },
         });
       } catch (dispatchErr) {

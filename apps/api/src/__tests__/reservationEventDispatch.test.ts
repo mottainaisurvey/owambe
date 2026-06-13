@@ -1,8 +1,8 @@
 /**
- * OWB-F1-NEW-REFACTOR-01 — AC-4: Reservation Event Dispatch Integration Tests
+ * OWB-F1-NEW-REFACTOR-02 — AC-2: Reservation Event Dispatch Integration Tests
  *
  * Tests for the three reservation lifecycle dispatch paths instrumented in channel.ts,
- * aligned to Amendment 012 canonical wire shape:
+ * aligned to Amendment 012 Rev 2 canonical wire shape:
  *   1. reservation.created  — POST /api/v1/channel/stays/reservations (success path)
  *   2. reservation.cancelled — PATCH /api/v1/channel/stays/reservations/:id (CANCELLED)
  *   3. reservation.refunded  — PATCH /api/v1/channel/stays/reservations/:id (REFUNDED)
@@ -16,8 +16,9 @@
  *   - Mocks `verifyChannelSignature` middleware to bypass HMAC auth.
  *   - Cleans up all seeded data in afterAll.
  *
- * Amendment 012 §3.3/§3.4/§3.5 payload field coverage is verified
- * against the `data` argument passed to `dispatchWebhookEvent`.
+ * Amendment 012 Rev 2 §3.3 9-field payload coverage is verified at reservation.created scope.
+ * Amendment 012 Rev 1 §3.4/§3.5 payload field coverage preserved at cancelled/refunded scope.
+ * All assertions verified against the `data` argument passed to `dispatchWebhookEvent`.
  */
 
 import request from 'supertest';
@@ -162,7 +163,7 @@ afterAll(async () => {
 
 // ─── Test Suite ───────────────────────────────────────────────────────────────
 
-describe('OWB-F1-NEW-REFACTOR-01 AC-4: Reservation Event Dispatch', () => {
+describe('OWB-F1-NEW-REFACTOR-02 AC-2: Reservation Event Dispatch', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // reservation.* events are NOT gated by OWAMBE_OUTBOUND_BOOKING_EVENTS_ENABLED;
@@ -223,7 +224,7 @@ describe('OWB-F1-NEW-REFACTOR-01 AC-4: Reservation Event Dispatch', () => {
       );
     });
 
-    it('reservation.created payload contains Amendment 012 §3.3 minimum-scope fields', async () => {
+    it('reservation.created payload contains Amendment 012 Rev 2 §3.3 9-field canonical fields', async () => {
       // Clean up previous reservation if it exists
       await prisma.commissionAuditLog.deleteMany({
         where: { reservationReference: 'CC-F1-DISPATCH-002' },
@@ -245,10 +246,20 @@ describe('OWB-F1-NEW-REFACTOR-01 AC-4: Reservation Event Dispatch', () => {
       const callArgs = mockDispatch.mock.calls[0][0];
       const data = callArgs.data as Record<string, unknown>;
 
-      // Amendment 012 §3.3 — reservation.created minimum-scope payload
+      // Amendment 012 Rev 2 §3.3 — reservation.created 9-field canonical payload
       expect(data).toMatchObject({
         reservation_id: freshId,
+        property_id: testPropertyId,
+        room_id: testRoomId,
+        check_in_date: '2026-09-10',
+        check_out_date: '2026-09-14',
+        number_of_guests: 2,
+        total_amount_kobo: 20000000,  // 200000 NGN × 100 = 20000000 kobo
+        currency: 'NGN',
+        guest_owambe_user_id: null,   // CC-origin guest has no Owambe account
       });
+      // Confirm all 9 fields are present
+      expect(Object.keys(data)).toHaveLength(9);
       // Confirm no legacy booking-family fields are present
       expect(data).not.toHaveProperty('owambe_reservation_id');
       expect(data).not.toHaveProperty('cc_reservation_id');
