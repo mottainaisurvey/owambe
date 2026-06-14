@@ -876,3 +876,23 @@ adminRouter.get('/cohort-interest/export.csv', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+
+// ─── TEMP: AC-9 probe calibration — retrieve channel hmacSecret for staging probe ──────────────
+// OWB-F1-NEW-IMPLEMENTATION-01 AC-9 probe calibration endpoint.
+// Returns the hmacSecret for a given channel slug so the probe script can sign requests correctly.
+// MUST be removed after probe calibration is complete.
+import type { Request, Response, NextFunction } from 'express';
+adminRouter.get('/temp/channel-secret/:slug', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { slug } = req.params as { slug: string };
+    const channel = await prisma.channel.findUnique({
+      where: { slug },
+      select: { slug: true, hmacSecret: true, signatureHeader: true, timestampHeader: true, authScheme: true },
+    });
+    if (!channel) {
+      res.status(404).json({ error: 'CHANNEL_NOT_FOUND' });
+      return;
+    }
+    res.json({ slug: channel.slug, hmacSecret: channel.hmacSecret, signatureHeader: channel.signatureHeader, timestampHeader: channel.timestampHeader, authScheme: channel.authScheme });
+  } catch (err) { next(err); }
+});
