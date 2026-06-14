@@ -876,3 +876,26 @@ adminRouter.get('/cohort-interest/export.csv', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+
+// ─── TEMP: UUID Publication Bounded Cycle ─────────────────────────────────────
+// Retrieves T1 staging entity UUIDs for docs/staging-test-data.md publication.
+// TO BE REMOVED after UUID publication is complete.
+adminRouter.get('/temp/t1-staging-uuids', async (_req, res, next) => {
+  try {
+    const [properties, stayBookings, experienceBookings] = await Promise.all([
+      prisma.property.findMany({
+        where: { slug: { in: ['t1-lekki-family-villa', 't1-ikoyi-serviced-apartment', 't1-victoria-island-boutique-stay'] } },
+        select: { id: true, slug: true, rooms: { select: { id: true, name: true } } },
+      }),
+      prisma.stayBooking.findMany({
+        where: { reference: { in: ['T1-STAY-CONFIRMED-001', 'T1-STAY-PENDING-001', 'T1-STAY-CANCELLED-001'] } },
+        select: { id: true, reference: true, status: true },
+      }),
+      prisma.experienceBooking.findMany({
+        where: { reference: { in: ['T1-EXPERIENCE-CONFIRMED-001'] } },
+        select: { id: true, reference: true, status: true },
+      }),
+    ]);
+    res.json({ success: true, properties, stayBookings, experienceBookings });
+  } catch (err) { next(err); }
+});
