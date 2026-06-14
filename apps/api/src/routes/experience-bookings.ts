@@ -12,6 +12,7 @@ import { requireRole } from '../middleware/requireRole';
 import { requireMode } from '../middleware/requireMode';
 import { AppError } from '../utils/AppError';
 import { logger } from '../utils/logger';
+import { dispatchWebhookEvent } from '../services/webhookDispatcher.service';
 
 const router = Router();
 
@@ -243,6 +244,35 @@ router.post('/:id/cancel', async (req: Request, res: Response, next: NextFunctio
     ]);
 
     logger.info(`Experience booking cancelled: ${booking.reference}`);
+
+    // ─── F1-NEW-IMPLEMENTATION-01 AC-3: Dispatch booking.cancelled outbound event ──
+    // Amendment 009 Rev 3 § 3.2 canonical payload — fired asynchronously (fire-and-forget).
+    // Gated by OWAMBE_OUTBOUND_BOOKING_EVENTS_ENABLED feature flag in dispatchWebhookEvent.
+    // cancellation_initiated_by: GUEST if the cancelling user is the guest, OPERATOR if operator, SYSTEM if admin.
+    const cancelledBy: 'GUEST' | 'OPERATOR' | 'SYSTEM' =
+      isGuest ? 'GUEST' : isOperator ? 'OPERATOR' : 'SYSTEM';
+    setImmediate(async () => {
+      try {
+        await dispatchWebhookEvent({
+          eventType: 'booking.cancelled',
+          idempotencyKey: `booking.cancelled.${updated.id}`,
+          data: {
+            // Amendment 009 Rev 3 § 3.2 — booking.cancelled canonical payload
+            booking_id: updated.id,
+            external_ref: booking.externalRef ?? null,
+            cancellation_reason: 'GUEST_REQUEST',  // Owambe-origin cancellations are always guest-initiated at this endpoint
+            cancellation_initiated_by: cancelledBy,
+            cancelled_at: (updated.cancelledAt ?? new Date()).toISOString(),
+            capacity_restoration_required: true,  // Slot capacity was restored in the transaction above
+          },
+        });
+      } catch (dispatchErr) {
+        logger.error('booking.cancelled dispatch error (non-fatal)', {
+          bookingId: updated.id,
+          error: dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr),
+        });
+      }
+    });
 
     res.json({ success: true, data: updated, message: 'Booking cancelled successfully' });
   } catch (err) {
