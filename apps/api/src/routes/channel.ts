@@ -1047,6 +1047,41 @@ router.post('/experiences/bookings', async (req: Request, res: Response): Promis
       );
     }
 
+    // ─── F1-NEW-IMPLEMENTATION-01 AC-2: Dispatch booking.created outbound event ──
+    // Amendment 009 Rev 3 § 3.1 canonical payload — fired asynchronously (fire-and-forget)
+    // after DB commit so the 201 response is not delayed by delivery latency.
+    // Gated by OWAMBE_OUTBOUND_BOOKING_EVENTS_ENABLED feature flag in dispatchWebhookEvent.
+    setImmediate(async () => {
+      try {
+        await dispatchWebhookEvent({
+          eventType: 'booking.created',
+          idempotencyKey: `booking.created.${booking.id}`,
+          data: {
+            // Amendment 009 Rev 3 § 3.1 — booking.created canonical payload
+            booking_id: booking.id,
+            external_ref: booking.externalRef ?? null,
+            experience_id: booking.experienceId,
+            external_experience_id: booking.externalExperienceId ?? null,
+            time_slot_id: booking.slotId,
+            guest_count: booking.numberOfParticipants ?? booking.guestCount,
+            booking_date: booking.createdAt.toISOString().split('T')[0],
+            guest_details: {
+              primary_guest_name: booking.guestName,
+              primary_guest_email: booking.guestEmail,
+              ...(booking.guestPhone ? { primary_guest_phone: booking.guestPhone } : {}),
+            },
+            total_amount_kobo: Math.round(parseFloat(booking.totalAmount.toString()) * 100),
+            currency: booking.currency ?? 'NGN',
+            created_at: booking.createdAt.toISOString(),
+          },
+        });
+      } catch (dispatchErr) {
+        logger.error('[Channel] booking.created dispatch error (non-fatal)', {
+          bookingId: booking.id,
+          error: dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr),
+        });
+      }
+    });
     res.status(201).json({
       owambe_booking_id: booking.id,
       cc_booking_id: coastalCorridorBookingId,
@@ -1426,6 +1461,35 @@ router.post('/webhooks/inbound', async (req: Request, res: Response): Promise<vo
           },
         });
         logger.info('[Channel] Webhook booking.refunded: processed', { bookingId: bookingRefund.id, ccBookingIdRefund });
+        // ─── F1-NEW-IMPLEMENTATION-01 AC-4: Dispatch booking.refunded outbound event ──
+        // Amendment 009 Rev 3 § 3.3 canonical payload — fired asynchronously (fire-and-forget).
+        // Gated by OWAMBE_OUTBOUND_BOOKING_EVENTS_ENABLED feature flag in dispatchWebhookEvent.
+        setImmediate(async () => {
+          try {
+            const refundAmountKobo = data?.refund_amount_kobo
+              ?? (data?.refund_amount != null ? Math.round(Number(data.refund_amount) * 100) : null);
+            await dispatchWebhookEvent({
+              eventType: 'booking.refunded',
+              idempotencyKey: `booking.refunded.${bookingRefund.id}`,
+              data: {
+                // Amendment 009 Rev 3 § 3.3 — booking.refunded canonical payload
+                booking_id: bookingRefund.id,
+                external_ref: bookingRefund.externalRef ?? null,
+                refund_amount_kobo: refundAmountKobo ?? null,
+                refund_currency: data?.refund_currency ?? 'NGN',
+                refund_type: data?.refund_type ?? 'FULL',
+                refund_reason: data?.refund_reason ?? null,
+                refunded_at: new Date().toISOString(),
+                paystack_refund_reference: data?.paystack_refund_reference ?? null,
+              },
+            });
+          } catch (dispatchErr) {
+            logger.error('[Channel] booking.refunded dispatch error (non-fatal)', {
+              bookingId: bookingRefund.id,
+              error: dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr),
+            });
+          }
+        });
         break;
       }
 
