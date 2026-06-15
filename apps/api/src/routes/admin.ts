@@ -11,18 +11,25 @@ adminRouter.use(authenticate, requireRole('ADMIN'));
 // ─── PLATFORM STATS ──────────────────────────────────
 adminRouter.get('/platform/stats', async (req, res, next) => {
   try {
-    const [totalUsers, totalVendors, pendingVendors, totalEvents, totalBookings, gmv] =
-      await Promise.all([
-        prisma.user.count(),
-        prisma.vendor.count({ where: { status: 'VERIFIED' } }),
-        prisma.vendor.count({ where: { status: { in: ['PENDING', 'IN_REVIEW'] } } }),
-        prisma.event.count(),
-        prisma.booking.count({ where: { status: 'CONFIRMED' } }),
-        prisma.booking.aggregate({
-          where: { status: 'COMPLETED' },
-          _sum: { totalAmount: true, commissionAmount: true },
-        }),
-      ]);
+    const [
+      totalUsers, totalVendors, pendingVendors, totalEvents, totalBookings, gmv,
+      pendingHosts, pendingProperties, pendingOperators, pendingExperiences, disputedBookings,
+    ] = await Promise.all([
+      prisma.user.count(),
+      prisma.vendor.count({ where: { status: 'VERIFIED' } }),
+      prisma.vendor.count({ where: { status: { in: ['PENDING', 'IN_REVIEW'] } } }),
+      prisma.event.count(),
+      prisma.booking.count({ where: { status: 'CONFIRMED' } }),
+      prisma.booking.aggregate({
+        where: { status: 'COMPLETED' },
+        _sum: { totalAmount: true, commissionAmount: true },
+      }),
+      prisma.host.count({ where: { isApproved: false } }),
+      prisma.property.count({ where: { isApproved: false } }),
+      prisma.operator.count({ where: { isApproved: false } }),
+      prisma.experience.count({ where: { isApproved: false } }),
+      prisma.booking.count({ where: { status: 'DISPUTED' } }),
+    ]);
 
     res.json({
       success: true,
@@ -34,6 +41,12 @@ adminRouter.get('/platform/stats', async (req, res, next) => {
         totalBookings,
         totalGMV: Number(gmv._sum.totalAmount || 0),
         totalCommission: Number(gmv._sum.commissionAmount || 0),
+        pendingApprovals: pendingHosts + pendingProperties + pendingOperators + pendingExperiences,
+        pendingHosts,
+        pendingProperties,
+        pendingOperators,
+        pendingExperiences,
+        disputedBookings,
       },
     });
   } catch (err) { next(err); }
@@ -1163,5 +1176,59 @@ adminRouter.post('/experiences/:id/revoke', async (req, res, next) => {
     });
     logger.info(`Experience approval revoked: ${experience.id} — ${experience.name}`);
     res.json({ success: true, experience });
+  } catch (err) { next(err); }
+});
+
+// ─── E2B: ALL VENDORS (for Commission surface) ───────
+adminRouter.get('/vendors', async (req, res, next) => {
+  try {
+    const { status, page = 1, limit = 50, search } = req.query;
+    const where: any = {};
+    if (status) where.status = status;
+    if (search) {
+      where.OR = [
+        { businessName: { contains: String(search), mode: 'insensitive' } },
+        { user: { email: { contains: String(search), mode: 'insensitive' } } },
+      ];
+    }
+    const [vendors, total] = await Promise.all([
+      prisma.vendor.findMany({
+        where,
+        select: {
+          id: true, businessName: true, category: true, city: true,
+          status: true, commissionRate: true, launchBonusActive: true,
+          launchBonusExpiresAt: true, createdAt: true, verifiedAt: true,
+          user: { select: { email: true, firstName: true, lastName: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (Number(page) - 1) * Number(limit),
+        take: Number(limit),
+      }),
+      prisma.vendor.count({ where }),
+    ]);
+    res.json({ success: true, vendors, total });
+  } catch (err) { next(err); }
+});
+
+// ─── E2B: EVENTS LISTING (for Events surface) ────────
+adminRouter.get('/events', async (req, res, next) => {
+  try {
+    const { status, page = 1, limit = 50 } = req.query;
+    const where: any = {};
+    if (status) where.status = status;
+    const [events, total] = await Promise.all([
+      prisma.event.findMany({
+        where,
+        include: {
+          planner: { include: { user: { select: { email: true, firstName: true, lastName: true } } } },
+          _count: { select: { attendees: true, ticketTypes: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (Number(page) - 1) * Number(limit),
+        take: Number(limit),
+      }),
+      prisma.event.count({ where }),
+    ]);
+    res.json({ success: true, events, total });
   } catch (err) { next(err); }
 });
