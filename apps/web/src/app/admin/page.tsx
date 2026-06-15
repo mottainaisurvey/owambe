@@ -14,7 +14,7 @@ import {
   DollarSign, BarChart2, Shield, Loader2, Eye, Bell, LogOut, KeyRound
 } from 'lucide-react';
 
-const TABS = ['Overview', 'Vendor Queue', 'Users', 'Cohorts', 'Disputes', 'Commission', 'Portals', 'Contracts', 'Tags', 'Categories', 'Interest Captures'];
+const TABS = ['Overview', 'Vendor Queue', 'Approvals', 'Users', 'Cohorts', 'Disputes', 'Commission', 'Portals', 'Contracts', 'Tags', 'Categories', 'Interest Captures'];
 
 export default function AdminPage() {
   const { user, logout, _hasHydrated } = useAuthStore();
@@ -89,6 +89,7 @@ export default function AdminPage() {
 
         {activeTab === 'Overview' && <OverviewTab />}
         {activeTab === 'Vendor Queue' && <VendorQueueTab />}
+        {activeTab === 'Approvals' && <ApprovalsTab />}
         {activeTab === 'Users' && <UsersTab />}
         {activeTab === 'Disputes' && <DisputesTab />}
         {activeTab === 'Commission' && <CommissionTab />}
@@ -111,7 +112,14 @@ function OverviewTab() {
     refetchInterval: 30000,
   });
 
+  const { data: eventsData, isLoading: eventsLoading } = useQuery({
+    queryKey: ['admin-events-overview'],
+    queryFn: () => api.get('/admin/events', { params: { limit: 10 } }).then(r => r.data),
+    refetchInterval: 60000,
+  });
+
   const stats = data?.stats;
+  const recentEvents = eventsData?.events || [];
 
   const CARDS = [
     { label: 'Total Users', value: stats?.totalUsers ?? '—', icon: <Users size={16} />, color: '#2D6A4F' },
@@ -121,6 +129,10 @@ function OverviewTab() {
     { label: 'Total GMV', value: stats ? formatNGN(stats.totalGMV, true) : '—', icon: <DollarSign size={16} />, color: '#0EA5E9' },
     { label: 'Commission Earned', value: stats ? formatNGN(stats.totalCommission, true) : '—', icon: <DollarSign size={16} />, color: '#D97706' },
   ];
+
+  const pendingVendors = stats?.pendingVendors ?? 0;
+  const pendingApprovals = stats?.pendingApprovals ?? 0;
+  const disputedBookings = stats?.disputedBookings ?? 0;
 
   return (
     <div className="animate-fade-up">
@@ -138,16 +150,16 @@ function OverviewTab() {
       </div>
 
       {/* Quick health indicators */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4 mb-6">
         <div className="card p-5">
           <div className="text-sm font-bold mb-4">Platform Health</div>
           {[
-            { label: 'API Response Time', value: '< 200ms', status: 'good' },
-            { label: 'Payment Success Rate', value: '98.7%', status: 'good' },
-            { label: 'Vendor Verification Queue', value: `${stats?.pendingVendors ?? 0} pending`, status: (stats?.pendingVendors ?? 0) > 10 ? 'warn' : 'good' },
-            { label: 'Open Disputes', value: '2', status: 'good' },
-            { label: 'Email Deliverability', value: '99.1%', status: 'good' },
-            { label: 'Database Connections', value: 'Healthy', status: 'good' },
+            { label: 'API Response Time', value: '< 200ms', status: 'good' as const },
+            { label: 'Payment Success Rate', value: '98.7%', status: 'good' as const },
+            { label: 'Vendor Verification Queue', value: `${pendingVendors} pending`, status: pendingVendors > 10 ? 'warn' as const : 'good' as const },
+            { label: 'Pending Approvals (Hosts/Props/Ops/Exp)', value: `${pendingApprovals} pending`, status: pendingApprovals > 0 ? 'warn' as const : 'good' as const },
+            { label: 'Open Disputes', value: `${disputedBookings} open`, status: disputedBookings > 0 ? 'warn' as const : 'good' as const },
+            { label: 'Email Deliverability', value: '99.1%', status: 'good' as const },
           ].map(h => (
             <div key={h.label} className="flex justify-between items-center py-2 border-b border-[var(--border)] last:border-0 text-sm">
               <span className="text-[var(--mid)]">{h.label}</span>
@@ -161,24 +173,77 @@ function OverviewTab() {
         </div>
 
         <div className="card p-5">
-          <div className="text-sm font-bold mb-4">Recent Platform Activity</div>
-          <div className="space-y-3 text-sm">
+          <div className="text-sm font-bold mb-4">Approval Queue Summary</div>
+          <div className="space-y-2">
             {[
-              { icon: '✅', text: 'Eko Hotel & Suites verified', time: '5m ago' },
-              { icon: '📋', text: 'New booking: Wedding · ₦2.4M', time: '12m ago' },
-              { icon: '🆕', text: '3 new vendors registered', time: '1h ago' },
-              { icon: '💰', text: 'Payout released: ₦450K → Mama Cass', time: '2h ago' },
-              { icon: '⚠️', text: 'Dispute opened: booking #OWB-338', time: '3h ago' },
-              { icon: '📈', text: '47 registrations today', time: 'Today' },
-            ].map((a, i) => (
-              <div key={i} className="flex items-start gap-2.5 pb-2 border-b border-[var(--border)] last:border-0">
-                <span>{a.icon}</span>
-                <div className="flex-1 text-[var(--mid)]">{a.text}</div>
-                <div className="text-[11px] text-[var(--muted)] whitespace-nowrap">{a.time}</div>
+              { label: 'Pending Hosts', value: stats?.pendingHosts ?? 0, color: '#2D6A4F' },
+              { label: 'Pending Properties', value: stats?.pendingProperties ?? 0, color: '#E76F2A' },
+              { label: 'Pending Operators', value: stats?.pendingOperators ?? 0, color: '#7B61FF' },
+              { label: 'Pending Experiences', value: stats?.pendingExperiences ?? 0, color: '#0EA5E9' },
+              { label: 'Vendor Queue', value: pendingVendors, color: '#D97706' },
+            ].map(item => (
+              <div key={item.label} className="flex justify-between items-center py-1.5 border-b border-[var(--border)] last:border-0">
+                <span className="text-sm text-[var(--mid)]">{item.label}</span>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                  item.value > 0 ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'
+                }`}>{item.value}</span>
               </div>
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Events listing surface (AC-5) */}
+      <div className="card overflow-hidden">
+        <div className="px-5 py-3 border-b border-[var(--border)] flex items-center justify-between">
+          <span className="text-sm font-bold">Recent Events</span>
+          <span className="text-xs text-[var(--muted)]">{eventsData?.total ?? 0} total events</span>
+        </div>
+        {eventsLoading ? (
+          <div className="flex justify-center py-8"><Loader2 size={20} className="animate-spin text-[var(--muted)]" /></div>
+        ) : recentEvents.length === 0 ? (
+          <div className="text-center py-8 text-[var(--muted)] text-sm">No events yet</div>
+        ) : (
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-[var(--border)]">
+                <th className="table-header">Event</th>
+                <th className="table-header">Planner</th>
+                <th className="table-header">Status</th>
+                <th className="table-header">Date</th>
+                <th className="table-header">Attendees</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentEvents.map((e: any) => (
+                <tr key={e.id} className="table-row">
+                  <td className="table-cell">
+                    <div className="font-semibold text-sm">{e.name}</div>
+                    <div className="text-xs text-[var(--muted)]">{e.city || '—'}</div>
+                  </td>
+                  <td className="table-cell text-sm text-[var(--muted)]">
+                    {e.planner?.user?.firstName} {e.planner?.user?.lastName}
+                  </td>
+                  <td className="table-cell">
+                    <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                      e.status === 'LIVE' ? 'bg-green-100 text-green-700' :
+                      e.status === 'PUBLISHED' ? 'bg-blue-100 text-blue-700' :
+                      e.status === 'DRAFT' ? 'bg-gray-100 text-gray-600' :
+                      e.status === 'COMPLETED' ? 'bg-purple-100 text-purple-700' :
+                      'bg-yellow-100 text-yellow-700'
+                    }`}>{e.status}</span>
+                  </td>
+                  <td className="table-cell text-xs text-[var(--muted)]">
+                    {new Date(e.startDate).toLocaleDateString('en-NG')}
+                  </td>
+                  <td className="table-cell text-sm text-center">
+                    {e._count?.attendees ?? 0}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );
@@ -645,10 +710,24 @@ function CohortsTab() {
 
 // ─── DISPUTES ─────────────────────────────────────────
 function DisputesTab() {
-  const MOCK_DISPUTES = [
-    { id: '1', ref: 'OWB-338-FGH', type: 'Vendor Cancellation', planner: 'Adaeze Okonkwo', vendor: 'Eko Hotel & Suites', amount: 2400000, opened: '2h ago', status: 'OPEN' },
-    { id: '2', ref: 'OWB-291-KLM', type: 'Service Quality', planner: 'Emeka Nwosu', vendor: 'Glow Up Studio', amount: 150000, opened: '1d ago', status: 'UNDER_REVIEW' },
-  ];
+  const queryClient = useQueryClient();
+  const { data, isLoading } = useQuery({
+    queryKey: ['admin-bookings-disputed'],
+    queryFn: () => api.get('/admin/bookings', { params: { status: 'DISPUTED', limit: 50 } }).then(r => r.data),
+    refetchInterval: 30000,
+  });
+
+  const refundMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
+      api.post(`/admin/bookings/${id}/refund`, { reason }),
+    onSuccess: () => {
+      toast.success('Refund initiated successfully');
+      queryClient.invalidateQueries({ queryKey: ['admin-bookings-disputed'] });
+    },
+    onError: () => toast.error('Refund failed — please try again'),
+  });
+
+  const disputes = data?.bookings || [];
 
   return (
     <div className="animate-fade-up">
@@ -657,79 +736,113 @@ function DisputesTab() {
           <h2 className="section-title">Dispute Management</h2>
           <p className="text-xs text-[var(--muted)] mt-0.5">Resolve within 24 hours. Full refund if vendor at fault.</p>
         </div>
-        <span className="badge-pending">{MOCK_DISPUTES.length} open</span>
+        {!isLoading && <span className="badge-pending">{disputes.length} open</span>}
       </div>
 
-      <div className="space-y-3">
-        {MOCK_DISPUTES.map(d => (
-          <div key={d.id} className="card p-5">
-            <div className="flex items-start justify-between mb-3">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-mono text-xs text-[var(--muted)]">{d.ref}</span>
-                  <span className="badge-pending text-[10px]">{d.type}</span>
-                  <span className={d.status === 'OPEN' ? 'badge-pending' : 'badge-upcoming'}>{d.status}</span>
+      {isLoading ? (
+        <div className="flex justify-center py-12"><Loader2 size={24} className="animate-spin text-[var(--muted)]" /></div>
+      ) : (
+        <div className="space-y-3">
+          {disputes.map((d: any) => {
+            const bookerName = d.planner?.user?.firstName
+              ? `${d.planner.user.firstName} ${d.planner.user.lastName || ''}`.trim()
+              : d.consumer?.user?.firstName
+              ? `${d.consumer.user.firstName} ${d.consumer.user.lastName || ''}`.trim()
+              : d.bookerName || 'Unknown';
+            return (
+              <div key={d.id} className="card p-5">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-mono text-xs text-[var(--muted)]">{d.reference}</span>
+                      <span className="badge-pending text-[10px]">{d.bookingType}</span>
+                      <span className="badge-pending">{d.status}</span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        d.paymentStatus === 'REFUNDED' ? 'bg-green-100 text-green-700' :
+                        d.paymentStatus === 'PARTIALLY_REFUNDED' ? 'bg-blue-100 text-blue-700' :
+                        'bg-yellow-100 text-yellow-700'
+                      }`}>{d.paymentStatus}</span>
+                    </div>
+                    <div className="text-sm text-[var(--muted)]">
+                      <strong className="text-[var(--dark)]">{bookerName}</strong> vs{' '}
+                      <strong className="text-[var(--dark)]">{d.vendor?.businessName || 'Unknown Vendor'}</strong>
+                    </div>
+                    <div className="text-xs text-[var(--muted)] mt-1">
+                      Event: {new Date(d.eventDate).toLocaleDateString('en-NG')}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-bold text-[var(--accent)]">{formatNGN(Number(d.totalAmount))}</div>
+                    <div className="text-xs text-[var(--muted)]">{formatTimeAgo(d.createdAt)}</div>
+                  </div>
                 </div>
-                <div className="text-sm text-[var(--muted)]">
-                  <strong className="text-[var(--dark)]">{d.planner}</strong> vs{' '}
-                  <strong className="text-[var(--dark)]">{d.vendor}</strong>
+                <div className="flex gap-2">
+                  <button onClick={() => toast('📧 Both parties messaged for evidence')}
+                    className="btn-secondary text-xs flex items-center gap-1.5">
+                    <Bell size={11} /> Request Evidence
+                  </button>
+                  <button
+                    onClick={() => refundMutation.mutate({ id: d.id, reason: 'Full refund — vendor at fault' })}
+                    disabled={refundMutation.isPending}
+                    className="btn-primary text-xs">
+                    Issue Full Refund
+                  </button>
+                  <button onClick={() => toast('✅ Dispute resolved — no refund')}
+                    className="btn-secondary text-xs">
+                    Resolve — No Refund
+                  </button>
                 </div>
               </div>
-              <div className="text-right">
-                <div className="font-bold text-[var(--accent)]">{formatNGN(d.amount)}</div>
-                <div className="text-xs text-[var(--muted)]">Opened {d.opened}</div>
-              </div>
+            );
+          })}
+          {disputes.length === 0 && (
+            <div className="card text-center py-12">
+              <CheckCircle size={32} className="mx-auto mb-3 text-green-400" />
+              <div className="font-bold text-[var(--dark)]">No open disputes</div>
+              <div className="text-sm text-[var(--muted)] mt-1">All bookings are in good standing</div>
             </div>
-            <div className="flex gap-2">
-              <button onClick={() => toast('📧 Both parties messaged for evidence')}
-                className="btn-secondary text-xs flex items-center gap-1.5">
-                <Bell size={11} /> Request Evidence
-              </button>
-              <button onClick={() => toast('💰 Full refund issued to client')}
-                className="btn-primary text-xs">
-                Issue Full Refund
-              </button>
-              <button onClick={() => toast('✅ Dispute resolved — no refund')}
-                className="btn-secondary text-xs">
-                Resolve — No Refund
-              </button>
-              <button onClick={() => toast('⚖️ Partial refund issued')}
-                className="btn-secondary text-xs">
-                Partial Refund
-              </button>
-            </div>
-          </div>
-        ))}
-        {MOCK_DISPUTES.length === 0 && (
-          <div className="card text-center py-12">
-            <CheckCircle size={32} className="mx-auto mb-3 text-green-400" />
-            <div className="font-bold text-[var(--dark)]">No open disputes</div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
 // ─── COMMISSION ───────────────────────────────────────
 function CommissionTab() {
-  const { data } = useQuery({
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editRate, setEditRate] = useState('');
+
+  const { data: statsData } = useQuery({
     queryKey: ['admin-stats'],
     queryFn: () => api.get('/admin/platform/stats').then(r => r.data),
   });
 
-  const stats = data?.stats;
+  const { data: vendorsData, isLoading: vendorsLoading } = useQuery({
+    queryKey: ['admin-vendors-commission', search],
+    queryFn: () => api.get('/admin/vendors', { params: { limit: 100, search: search || undefined } }).then(r => r.data),
+    refetchInterval: 60000,
+  });
 
-  const RATE_PRESETS = [
-    { category: 'Venues', rate: '10-12%', note: 'RFQ only, negotiated' },
-    { category: 'Catering', rate: '8-10%', note: 'Instant + RFQ' },
-    { category: 'Photography & Video', rate: '8%', note: 'Instant book' },
-    { category: 'AV & Production', rate: '8%', note: 'Instant + RFQ' },
-    { category: 'Décor & Florals', rate: '8%', note: 'Instant + RFQ' },
-    { category: 'Entertainment', rate: '8-10%', note: 'Instant + RFQ' },
-    { category: 'Makeup Artists', rate: '8%', note: 'Instant book' },
-    { category: 'Speakers', rate: '10%', note: 'RFQ only' },
-  ];
+  const updateRateMutation = useMutation({
+    mutationFn: ({ id, rate }: { id: string; rate: number }) =>
+      api.put(`/admin/vendors/${id}/commission`, { rate }),
+    onSuccess: (_: any, vars: any) => {
+      toast.success(`Commission rate updated to ${vars.rate}%`);
+      setEditingId(null);
+      queryClient.invalidateQueries({ queryKey: ['admin-vendors-commission'] });
+    },
+    onError: () => toast.error('Failed to update rate'),
+  });
+
+  const stats = statsData?.stats;
+  const vendors = vendorsData?.vendors || [];
+
+  const avgRate = vendors.length > 0
+    ? (vendors.reduce((sum: number, v: any) => sum + Number(v.commissionRate), 0) / vendors.length).toFixed(1)
+    : '—';
 
   return (
     <div className="animate-fade-up">
@@ -749,42 +862,97 @@ function CommissionTab() {
         <div className="stat-card">
           <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-xl bg-[#7B61FF]" />
           <div className="stat-label">Avg Commission Rate</div>
-          <div className="stat-number">8.6%</div>
-          <div className="text-xs text-[var(--muted)] mt-1">Across all categories</div>
+          <div className="stat-number">{avgRate}{avgRate !== '—' ? '%' : ''}</div>
+          <div className="text-xs text-[var(--muted)] mt-1">Across {vendors.length} vendors</div>
         </div>
       </div>
 
       <div className="card overflow-hidden">
-        <div className="px-5 py-3 border-b border-[var(--border)] font-bold text-sm">
-          Commission Rate Structure
+        <div className="px-5 py-3 border-b border-[var(--border)] flex items-center justify-between">
+          <span className="font-bold text-sm">Vendor Commission Rates</span>
+          <input
+            type="text"
+            placeholder="Search vendors..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="text-xs border border-[var(--border)] rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--accent)] w-48"
+          />
         </div>
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-[var(--border)]">
-              <th className="table-header">Category</th>
-              <th className="table-header">Commission Rate</th>
-              <th className="table-header">Booking Type</th>
-              <th className="table-header">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {RATE_PRESETS.map(r => (
-              <tr key={r.category} className="table-row">
-                <td className="table-cell font-semibold text-sm">{r.category}</td>
-                <td className="table-cell">
-                  <span className="badge-live">{r.rate}</span>
-                </td>
-                <td className="table-cell text-xs text-[var(--muted)]">{r.note}</td>
-                <td className="table-cell">
-                  <button onClick={() => toast(`Updated ${r.category} rate`)}
-                    className="text-xs text-[var(--accent)] hover:underline font-semibold">
-                    Edit Rate
-                  </button>
-                </td>
+        {vendorsLoading ? (
+          <div className="flex justify-center py-8"><Loader2 size={20} className="animate-spin text-[var(--muted)]" /></div>
+        ) : (
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-[var(--border)]">
+                <th className="table-header">Vendor</th>
+                <th className="table-header">Category</th>
+                <th className="table-header">Status</th>
+                <th className="table-header">Commission Rate</th>
+                <th className="table-header">Launch Bonus</th>
+                <th className="table-header">Action</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {vendors.map((v: any) => (
+                <tr key={v.id} className="table-row">
+                  <td className="table-cell">
+                    <div className="font-semibold text-sm">{v.businessName}</div>
+                    <div className="text-xs text-[var(--muted)]">{v.user?.email}</div>
+                  </td>
+                  <td className="table-cell text-xs text-[var(--muted)]">{v.category}</td>
+                  <td className="table-cell">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      v.status === 'VERIFIED' ? 'bg-green-100 text-green-700' :
+                      v.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
+                      v.status === 'REJECTED' ? 'bg-red-100 text-red-600' :
+                      'bg-gray-100 text-gray-600'
+                    }`}>{v.status}</span>
+                  </td>
+                  <td className="table-cell">
+                    {editingId === v.id ? (
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="number"
+                          value={editRate}
+                          onChange={e => setEditRate(e.target.value)}
+                          className="w-16 text-xs border border-[var(--border)] rounded px-2 py-1 focus:outline-none"
+                          min="0" max="100" step="0.5"
+                        />
+                        <span className="text-xs">%</span>
+                        <button
+                          onClick={() => updateRateMutation.mutate({ id: v.id, rate: Number(editRate) })}
+                          disabled={updateRateMutation.isPending}
+                          className="text-xs text-green-600 font-bold hover:underline">Save</button>
+                        <button onClick={() => setEditingId(null)} className="text-xs text-[var(--muted)] hover:underline">Cancel</button>
+                      </div>
+                    ) : (
+                      <span className="badge-live">{Number(v.commissionRate).toFixed(1)}%</span>
+                    )}
+                  </td>
+                  <td className="table-cell">
+                    {v.launchBonusActive ? (
+                      <span className="text-xs text-green-600 font-semibold">
+                        Active {v.launchBonusExpiresAt ? `→ ${new Date(v.launchBonusExpiresAt).toLocaleDateString('en-NG')}` : ''}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-[var(--muted)]">None</span>
+                    )}
+                  </td>
+                  <td className="table-cell">
+                    <button
+                      onClick={() => { setEditingId(v.id); setEditRate(String(v.commissionRate)); }}
+                      className="text-xs text-[var(--accent)] hover:underline font-semibold">
+                      Edit Rate
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {vendors.length === 0 && (
+                <tr><td colSpan={6} className="text-center py-8 text-[var(--muted)] text-sm">No vendors found</td></tr>
+              )}
+            </tbody>
+          </table>
+        )}
         <div className="px-5 py-3 border-t border-[var(--border)] bg-[var(--bg)] text-xs text-[var(--muted)]">
           💡 Launch bonus: New vendors pay 0% commission for first 90 days — automatically applied at registration.
         </div>
@@ -792,6 +960,7 @@ function CommissionTab() {
     </div>
   );
 }
+
 
 // ─── CONTRACTS ADMIN TAB ──────────────────────────────
 function ContractsAdminTab() {
@@ -1248,6 +1417,171 @@ function InterestCapturesTab() {
             </div>
           )}
         </>
+      )}
+    </div>
+  );
+}
+
+// ─── E2: APPROVALS TAB ───────────────────────────────────────────────────────
+// OWB-E2-IMPLEMENTATION-01 Rev 1: Explicit isApproved field — admin approval surfaces
+// Four entity queues: Hosts, Properties, Operators, Experiences
+function ApprovalsTab() {
+  const [entity, setEntity] = useState<'hosts' | 'properties' | 'operators' | 'experiences'>('hosts');
+  const queryClient = useQueryClient();
+
+  const { data: hostsData, isLoading: hostsLoading } = useQuery({
+    queryKey: ['admin-hosts-pending'],
+    queryFn: () => api.get('/admin/hosts/pending').then(r => r.data),
+    refetchInterval: 60000,
+  });
+
+  const { data: propertiesData, isLoading: propertiesLoading } = useQuery({
+    queryKey: ['admin-properties-pending'],
+    queryFn: () => api.get('/admin/properties/pending').then(r => r.data),
+    refetchInterval: 60000,
+  });
+
+  const { data: operatorsData, isLoading: operatorsLoading } = useQuery({
+    queryKey: ['admin-operators-pending'],
+    queryFn: () => api.get('/admin/operators/pending').then(r => r.data),
+    refetchInterval: 60000,
+  });
+
+  const { data: experiencesData, isLoading: experiencesLoading } = useQuery({
+    queryKey: ['admin-experiences-pending'],
+    queryFn: () => api.get('/admin/experiences/pending').then(r => r.data),
+    refetchInterval: 60000,
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: ({ entityType, id }: { entityType: string; id: string }) =>
+      api.post(`/admin/${entityType}/${id}/approve`),
+    onSuccess: (_, vars) => {
+      toast.success('✅ Approved and notification sent!');
+      queryClient.invalidateQueries({ queryKey: [`admin-${vars.entityType}-pending`] });
+    },
+    onError: () => toast.error('Approval failed — please try again'),
+  });
+
+  const revokeMutation = useMutation({
+    mutationFn: ({ entityType, id }: { entityType: string; id: string }) =>
+      api.post(`/admin/${entityType}/${id}/revoke`),
+    onSuccess: (_, vars) => {
+      toast.success('Approval revoked');
+      queryClient.invalidateQueries({ queryKey: [`admin-${vars.entityType}-pending`] });
+    },
+    onError: () => toast.error('Revoke failed — please try again'),
+  });
+
+  const hosts = hostsData?.hosts || [];
+  const properties = propertiesData?.properties || [];
+  const operators = operatorsData?.operators || [];
+  const experiences = experiencesData?.experiences || [];
+
+  const ENTITY_TABS: { key: typeof entity; label: string; count: number }[] = [
+    { key: 'hosts', label: 'Hosts', count: hosts.length },
+    { key: 'properties', label: 'Properties', count: properties.length },
+    { key: 'operators', label: 'Operators', count: operators.length },
+    { key: 'experiences', label: 'Experiences', count: experiences.length },
+  ];
+
+  const isLoading = hostsLoading || propertiesLoading || operatorsLoading || experiencesLoading;
+
+  const renderEntityRow = (item: any, entityType: string, nameKey: string, subKey: string) => (
+    <tr key={item.id} className="table-row">
+      <td className="table-cell">
+        <div className="font-semibold text-sm">{item[nameKey] || item.user?.firstName + ' ' + item.user?.lastName}</div>
+        <div className="text-xs text-[var(--muted)]">{item.user?.email || item.host?.user?.email || item.operator?.user?.email}</div>
+      </td>
+      <td className="table-cell text-sm">{item.city || item.host?.city || '—'}</td>
+      <td className="table-cell text-xs text-[var(--muted)]">{formatTimeAgo(item.createdAt)}</td>
+      <td className="table-cell">
+        <div className="flex gap-1.5">
+          <button
+            onClick={() => approveMutation.mutate({ entityType, id: item.id })}
+            disabled={approveMutation.isPending}
+            className="flex items-center gap-1 bg-green-500 text-white text-xs px-2.5 py-1 rounded-lg hover:bg-green-600 transition-colors font-semibold">
+            {approveMutation.isPending ? <Loader2 size={10} className="animate-spin" /> : <CheckCircle size={11} />}
+            Approve
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+
+  const currentItems = entity === 'hosts' ? hosts
+    : entity === 'properties' ? properties
+    : entity === 'operators' ? operators
+    : experiences;
+
+  const currentLoading = entity === 'hosts' ? hostsLoading
+    : entity === 'properties' ? propertiesLoading
+    : entity === 'operators' ? operatorsLoading
+    : experiencesLoading;
+
+  const getNameKey = () => entity === 'properties' ? 'name' : entity === 'experiences' ? 'name' : 'businessName';
+
+  return (
+    <div className="animate-fade-up">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="section-title">Approval Queue</h2>
+          <p className="text-xs text-[var(--muted)] mt-0.5">
+            Review and approve hosts, properties, operators, and experiences. isApproved is independent of isActive.
+          </p>
+        </div>
+        <span className="badge-pending">
+          {hosts.length + properties.length + operators.length + experiences.length} pending total
+        </span>
+      </div>
+
+      {/* Entity sub-tabs */}
+      <div className="flex gap-1 mb-5 bg-[var(--bg)] border border-[var(--border)] rounded-xl p-1 w-fit">
+        {ENTITY_TABS.map(t => (
+          <button
+            key={t.key}
+            onClick={() => setEntity(t.key)}
+            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+              entity === t.key ? 'bg-[var(--dark)] text-white' : 'text-[var(--muted)] hover:text-[var(--dark)]'
+            }`}>
+            {t.label}
+            {t.count > 0 && (
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                entity === t.key ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-600'
+              }`}>{t.count}</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {currentLoading ? (
+        <div className="flex justify-center py-12">
+          <Loader2 size={24} className="animate-spin text-[var(--muted)]" />
+        </div>
+      ) : currentItems.length === 0 ? (
+        <div className="card text-center py-12">
+          <CheckCircle size={32} className="mx-auto mb-3 text-green-400" />
+          <div className="font-bold text-[var(--dark)]">Queue is clear</div>
+          <div className="text-sm text-[var(--muted)]">All {entity} have been reviewed</div>
+        </div>
+      ) : (
+        <div className="card overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b-2 border-[var(--border)]">
+                <th className="table-header">{entity === 'experiences' ? 'Experience' : entity === 'properties' ? 'Property' : 'Profile'}</th>
+                <th className="table-header">City</th>
+                <th className="table-header">Registered</th>
+                <th className="table-header">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {currentItems.map((item: any) =>
+                renderEntityRow(item, entity, getNameKey(), 'email')
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

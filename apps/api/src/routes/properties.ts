@@ -185,6 +185,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 
     const where: any = {
       isActive: true,
+      isApproved: true,  // E2: only surface admin-approved properties to consumers
       ...(city && { city: { contains: city as string, mode: 'insensitive' } }),
       ...(propertyType && { propertyType: propertyType as any }),
       ...(featured === 'true' && { isFeatured: true }),

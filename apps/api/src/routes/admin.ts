@@ -11,18 +11,25 @@ adminRouter.use(authenticate, requireRole('ADMIN'));
 // ─── PLATFORM STATS ──────────────────────────────────
 adminRouter.get('/platform/stats', async (req, res, next) => {
   try {
-    const [totalUsers, totalVendors, pendingVendors, totalEvents, totalBookings, gmv] =
-      await Promise.all([
-        prisma.user.count(),
-        prisma.vendor.count({ where: { status: 'VERIFIED' } }),
-        prisma.vendor.count({ where: { status: { in: ['PENDING', 'IN_REVIEW'] } } }),
-        prisma.event.count(),
-        prisma.booking.count({ where: { status: 'CONFIRMED' } }),
-        prisma.booking.aggregate({
-          where: { status: 'COMPLETED' },
-          _sum: { totalAmount: true, commissionAmount: true },
-        }),
-      ]);
+    const [
+      totalUsers, totalVendors, pendingVendors, totalEvents, totalBookings, gmv,
+      pendingHosts, pendingProperties, pendingOperators, pendingExperiences, disputedBookings,
+    ] = await Promise.all([
+      prisma.user.count(),
+      prisma.vendor.count({ where: { status: 'VERIFIED' } }),
+      prisma.vendor.count({ where: { status: { in: ['PENDING', 'IN_REVIEW'] } } }),
+      prisma.event.count(),
+      prisma.booking.count({ where: { status: 'CONFIRMED' } }),
+      prisma.booking.aggregate({
+        where: { status: 'COMPLETED' },
+        _sum: { totalAmount: true, commissionAmount: true },
+      }),
+      prisma.host.count({ where: { isApproved: false } }),
+      prisma.property.count({ where: { isApproved: false } }),
+      prisma.operator.count({ where: { isApproved: false } }),
+      prisma.experience.count({ where: { isApproved: false } }),
+      prisma.booking.count({ where: { status: 'DISPUTED' } }),
+    ]);
 
     res.json({
       success: true,
@@ -34,6 +41,12 @@ adminRouter.get('/platform/stats', async (req, res, next) => {
         totalBookings,
         totalGMV: Number(gmv._sum.totalAmount || 0),
         totalCommission: Number(gmv._sum.commissionAmount || 0),
+        pendingApprovals: pendingHosts + pendingProperties + pendingOperators + pendingExperiences,
+        pendingHosts,
+        pendingProperties,
+        pendingOperators,
+        pendingExperiences,
+        disputedBookings,
       },
     });
   } catch (err) { next(err); }
@@ -897,3 +910,325 @@ adminRouter.get('/temp/channel-secret/:slug', async (req: Request, res: Response
   } catch (err) { next(err); }
 });
 
+// ─── E2: APPROVAL STATE MANAGEMENT ───────────────────────────────────────────
+// OWB-E2-IMPLEMENTATION-01 Rev 1: Explicit isApproved field — approve/revoke endpoints
+// Founder direction (2026-06-12, reconfirmed 2026-06-15):
+//   "Use an explicit isApproved field rather than relying on isActive as a proxy.
+//    Approval status and activation status should remain independently represented."
+// Applicable entities: hosts, properties, operators, experiences
+
+// ─── HOST APPROVAL ───────────────────────────────────
+adminRouter.get('/hosts/pending', async (_req, res, next) => {
+  try {
+    const hosts = await prisma.host.findMany({
+      where: { isApproved: false },
+      include: {
+        user: { select: { id: true, email: true, firstName: true, lastName: true, createdAt: true } },
+        properties: { select: { id: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+    res.json({ hosts });
+  } catch (err) { next(err); }
+});
+
+adminRouter.get('/hosts', async (_req, res, next) => {
+  try {
+    const hosts = await prisma.host.findMany({
+      include: {
+        user: { select: { id: true, email: true, firstName: true, lastName: true, createdAt: true } },
+        properties: { select: { id: true, name: true, isActive: true, isApproved: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ hosts });
+  } catch (err) { next(err); }
+});
+
+adminRouter.post('/hosts/:id/approve', async (req, res, next) => {
+  try {
+    const host = await prisma.host.update({
+      where: { id: req.params.id },
+      data: { isApproved: true, approvedAt: new Date() },
+      include: { user: true },
+    });
+    await sendEmail({
+      to: host.user.email,
+      subject: '✅ Your Owambe host profile has been approved!',
+      template: 'host-approved',
+      data: {
+        firstName: host.user.firstName,
+        businessName: host.businessName || host.user.firstName,
+        dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL}/host/dashboard`,
+      },
+    });
+    logger.info(`Host approved: ${host.id} — ${host.businessName || host.user.email}`);
+    res.json({ success: true, host });
+  } catch (err) { next(err); }
+});
+
+adminRouter.post('/hosts/:id/revoke', async (req, res, next) => {
+  try {
+    const host = await prisma.host.update({
+      where: { id: req.params.id },
+      data: { isApproved: false, approvedAt: null },
+      include: { user: true },
+    });
+    logger.info(`Host approval revoked: ${host.id} — ${host.businessName || host.user.email}`);
+    res.json({ success: true, host });
+  } catch (err) { next(err); }
+});
+
+// ─── PROPERTY APPROVAL ───────────────────────────────
+adminRouter.get('/properties/pending', async (_req, res, next) => {
+  try {
+    const properties = await prisma.property.findMany({
+      where: { isApproved: false },
+      include: {
+        host: {
+          include: {
+            user: { select: { id: true, email: true, firstName: true, lastName: true } },
+          },
+        },
+        rooms: { select: { id: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+    res.json({ properties });
+  } catch (err) { next(err); }
+});
+
+adminRouter.get('/properties', async (_req, res, next) => {
+  try {
+    const properties = await prisma.property.findMany({
+      include: {
+        host: {
+          include: {
+            user: { select: { id: true, email: true, firstName: true, lastName: true } },
+          },
+        },
+        rooms: { select: { id: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ properties });
+  } catch (err) { next(err); }
+});
+
+adminRouter.post('/properties/:id/approve', async (req, res, next) => {
+  try {
+    const property = await prisma.property.update({
+      where: { id: req.params.id },
+      data: { isApproved: true, approvedAt: new Date() },
+      include: { host: { include: { user: true } } },
+    });
+    await sendEmail({
+      to: property.host.user.email,
+      subject: '✅ Your property listing has been approved on Owambe!',
+      template: 'property-approved',
+      data: {
+        firstName: property.host.user.firstName,
+        propertyName: property.name,
+        listingUrl: `${process.env.NEXT_PUBLIC_APP_URL}/stays/${property.slug}`,
+      },
+    });
+    logger.info(`Property approved: ${property.id} — ${property.name}`);
+    res.json({ success: true, property });
+  } catch (err) { next(err); }
+});
+
+adminRouter.post('/properties/:id/revoke', async (req, res, next) => {
+  try {
+    const property = await prisma.property.update({
+      where: { id: req.params.id },
+      data: { isApproved: false, approvedAt: null },
+      include: { host: { include: { user: true } } },
+    });
+    logger.info(`Property approval revoked: ${property.id} — ${property.name}`);
+    res.json({ success: true, property });
+  } catch (err) { next(err); }
+});
+
+// ─── OPERATOR APPROVAL ───────────────────────────────
+adminRouter.get('/operators/pending', async (_req, res, next) => {
+  try {
+    const operators = await prisma.operator.findMany({
+      where: { isApproved: false },
+      include: {
+        user: { select: { id: true, email: true, firstName: true, lastName: true, createdAt: true } },
+        experiences: { select: { id: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+    res.json({ operators });
+  } catch (err) { next(err); }
+});
+
+adminRouter.get('/operators', async (_req, res, next) => {
+  try {
+    const operators = await prisma.operator.findMany({
+      include: {
+        user: { select: { id: true, email: true, firstName: true, lastName: true, createdAt: true } },
+        experiences: { select: { id: true, name: true, isActive: true, isApproved: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ operators });
+  } catch (err) { next(err); }
+});
+
+adminRouter.post('/operators/:id/approve', async (req, res, next) => {
+  try {
+    const operator = await prisma.operator.update({
+      where: { id: req.params.id },
+      data: { isApproved: true, approvedAt: new Date() },
+      include: { user: true },
+    });
+    await sendEmail({
+      to: operator.user.email,
+      subject: '✅ Your Owambe operator profile has been approved!',
+      template: 'operator-approved',
+      data: {
+        firstName: operator.user.firstName,
+        businessName: operator.businessName || operator.user.firstName,
+        dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL}/operator/dashboard`,
+      },
+    });
+    logger.info(`Operator approved: ${operator.id} — ${operator.businessName || operator.user.email}`);
+    res.json({ success: true, operator });
+  } catch (err) { next(err); }
+});
+
+adminRouter.post('/operators/:id/revoke', async (req, res, next) => {
+  try {
+    const operator = await prisma.operator.update({
+      where: { id: req.params.id },
+      data: { isApproved: false, approvedAt: null },
+      include: { user: true },
+    });
+    logger.info(`Operator approval revoked: ${operator.id} — ${operator.businessName || operator.user.email}`);
+    res.json({ success: true, operator });
+  } catch (err) { next(err); }
+});
+
+// ─── EXPERIENCE APPROVAL ─────────────────────────────
+adminRouter.get('/experiences/pending', async (_req, res, next) => {
+  try {
+    const experiences = await prisma.experience.findMany({
+      where: { isApproved: false },
+      include: {
+        operator: {
+          include: {
+            user: { select: { id: true, email: true, firstName: true, lastName: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+    res.json({ experiences });
+  } catch (err) { next(err); }
+});
+
+adminRouter.get('/experiences', async (_req, res, next) => {
+  try {
+    const experiences = await prisma.experience.findMany({
+      include: {
+        operator: {
+          include: {
+            user: { select: { id: true, email: true, firstName: true, lastName: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ experiences });
+  } catch (err) { next(err); }
+});
+
+adminRouter.post('/experiences/:id/approve', async (req, res, next) => {
+  try {
+    const experience = await prisma.experience.update({
+      where: { id: req.params.id },
+      data: { isApproved: true, approvedAt: new Date() },
+      include: { operator: { include: { user: true } } },
+    });
+    await sendEmail({
+      to: experience.operator.user.email,
+      subject: '✅ Your experience listing has been approved on Owambe!',
+      template: 'experience-approved',
+      data: {
+        firstName: experience.operator.user.firstName,
+        experienceName: experience.name,
+        listingUrl: `${process.env.NEXT_PUBLIC_APP_URL}/experiences/${experience.slug}`,
+      },
+    });
+    logger.info(`Experience approved: ${experience.id} — ${experience.name}`);
+    res.json({ success: true, experience });
+  } catch (err) { next(err); }
+});
+
+adminRouter.post('/experiences/:id/revoke', async (req, res, next) => {
+  try {
+    const experience = await prisma.experience.update({
+      where: { id: req.params.id },
+      data: { isApproved: false, approvedAt: null },
+      include: { operator: { include: { user: true } } },
+    });
+    logger.info(`Experience approval revoked: ${experience.id} — ${experience.name}`);
+    res.json({ success: true, experience });
+  } catch (err) { next(err); }
+});
+
+// ─── E2B: ALL VENDORS (for Commission surface) ───────
+adminRouter.get('/vendors', async (req, res, next) => {
+  try {
+    const { status, page = 1, limit = 50, search } = req.query;
+    const where: any = {};
+    if (status) where.status = status;
+    if (search) {
+      where.OR = [
+        { businessName: { contains: String(search), mode: 'insensitive' } },
+        { user: { email: { contains: String(search), mode: 'insensitive' } } },
+      ];
+    }
+    const [vendors, total] = await Promise.all([
+      prisma.vendor.findMany({
+        where,
+        select: {
+          id: true, businessName: true, category: true, city: true,
+          status: true, commissionRate: true, launchBonusActive: true,
+          launchBonusExpiresAt: true, createdAt: true, verifiedAt: true,
+          user: { select: { email: true, firstName: true, lastName: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (Number(page) - 1) * Number(limit),
+        take: Number(limit),
+      }),
+      prisma.vendor.count({ where }),
+    ]);
+    res.json({ success: true, vendors, total });
+  } catch (err) { next(err); }
+});
+
+// ─── E2B: EVENTS LISTING (for Events surface) ────────
+adminRouter.get('/events', async (req, res, next) => {
+  try {
+    const { status, page = 1, limit = 50 } = req.query;
+    const where: any = {};
+    if (status) where.status = status;
+    const [events, total] = await Promise.all([
+      prisma.event.findMany({
+        where,
+        include: {
+          planner: { include: { user: { select: { email: true, firstName: true, lastName: true } } } },
+          _count: { select: { attendees: true, ticketTypes: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (Number(page) - 1) * Number(limit),
+        take: Number(limit),
+      }),
+      prisma.event.count({ where }),
+    ]);
+    res.json({ success: true, events, total });
+  } catch (err) { next(err); }
+});

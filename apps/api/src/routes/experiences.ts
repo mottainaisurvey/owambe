@@ -34,6 +34,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 
     const where: any = {
       isActive: true,
+      isApproved: true,  // E2: only surface admin-approved experiences to consumers
       ...(city && { city: { contains: city as string, mode: 'insensitive' } }),
       ...(experienceType && { experienceType: experienceType as any }),
       ...(featured === 'true' && { isFeatured: true }),
@@ -130,8 +131,8 @@ router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => 
       }
     });
 
-    if (!experience || !experience.isActive) {
-      throw new AppError('Experience not found', 404);
+    if (!experience || !experience.isActive || !experience.isApproved) {
+      throw new AppError('Experience not found', 404);  // E2: also gate on isApproved
     }
 
     res.json({ success: true, data: experience });
