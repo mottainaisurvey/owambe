@@ -1,0 +1,16 @@
+name: Railway Surface Production HMAC (Probe Calibration)
+on:
+  workflow_dispatch:
+jobs:
+  surface-prod-hmac:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+      - name: Surface CC_HMAC_SECRET from owambe-api production
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_API }}
+        run: |
+          echo "=== Surfacing CC_HMAC_SECRET from owambe-api production ==="
+          railway variables --service owambe-api --environment production 2>&1 | grep CC_HMAC_SECRET || echo "CC_HMAC_SECRET not found"
