@@ -1,0 +1,23 @@
+name: Railway Enable Booking Events (Production)
+on:
+  workflow_dispatch:
+jobs:
+  enable-booking-events-prod:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+      - name: Enable OWAMBE_OUTBOUND_BOOKING_EVENTS_ENABLED on owambe-api production
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_API }}
+        run: |
+          echo "=== Setting OWAMBE_OUTBOUND_BOOKING_EVENTS_ENABLED=true on owambe-api production ==="
+          railway variables set OWAMBE_OUTBOUND_BOOKING_EVENTS_ENABLED=true --service owambe-api --environment production 2>&1
+          echo "Done"
+      - name: Verify updated value
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_API }}
+        run: |
+          echo "=== Verify production env var ==="
+          railway variables --service owambe-api --environment production 2>&1 | grep OWAMBE_OUTBOUND_BOOKING_EVENTS_ENABLED || true
