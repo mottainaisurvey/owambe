@@ -905,14 +905,13 @@ adminRouter.get('/temp/channel-secret/:slug', async (req: Request, res: Response
 adminRouter.post('/temp/probe-seed', async (req: Request, res: Response, next: NextFunction) => {
   try {
     // Find or create the probe operator user
-    let operatorUser = await prisma.user.findFirst({
-      where: { email: 'probe-operator@owambe-probe.invalid' },
-      include: { operator: true },
+    let operatorRecord = await prisma.operator.findFirst({
+      where: { user: { email: 'probe-operator@owambe-probe.invalid' } },
     });
-    if (!operatorUser) {
+    if (!operatorRecord) {
       const bcryptLib = await import('bcryptjs');
       const hashedPw = await bcryptLib.hash('ProbeOperator2026!', 10);
-      operatorUser = await prisma.user.create({
+      const createdUser = await prisma.user.create({
         data: {
           email: 'probe-operator@owambe-probe.invalid',
           passwordHash: hashedPw,
@@ -925,7 +924,6 @@ adminRouter.post('/temp/probe-seed', async (req: Request, res: Response, next: N
           operator: {
             create: {
               businessName: 'T1 Probe Operator',
-              businessType: 'INDIVIDUAL',
               country: 'NG',
               isVerified: true,
             },
@@ -933,8 +931,9 @@ adminRouter.post('/temp/probe-seed', async (req: Request, res: Response, next: N
         },
         include: { operator: true },
       });
+      operatorRecord = createdUser.operator!;
     }
-    const operatorId = operatorUser.operator!.id;
+    const operatorId = operatorRecord.id;
     // Find or create T1 probe experience
     let experience = await prisma.experience.findUnique({
       where: { slug: 't1-prod-probe-experience' },
