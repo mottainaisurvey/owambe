@@ -945,7 +945,7 @@ adminRouter.post('/temp/probe-seed', async (req: Request, res: Response, next: N
           name: 'T1 Prod Probe Experience',
           slug: 't1-prod-probe-experience',
           description: 'Temporary probe experience for AC-F1-PROD-02 smoke verification.',
-          experienceType: 'FOOD_DRINK' as any,
+          experienceType: 'FOOD_TASTING' as any,
           city: 'Lagos',
           country: 'NG',
           pricePerPerson: 15000,
