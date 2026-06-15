@@ -220,7 +220,7 @@ describe('E2 Approval State Model — Admin Approve/Revoke', () => {
 
   it('AC-3: POST /admin/hosts/:id/approve sets isApproved: true', async () => {
     const res = await request(app)
-      .post(`/admin/hosts/${hostId}/approve`)
+      .post(`/api/admin/hosts/${hostId}/approve`)
       .set('Authorization', 'Bearer test-admin-token');
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
@@ -232,7 +232,7 @@ describe('E2 Approval State Model — Admin Approve/Revoke', () => {
 
   it('AC-3: POST /admin/hosts/:id/revoke sets isApproved: false', async () => {
     const res = await request(app)
-      .post(`/admin/hosts/${hostId}/revoke`)
+      .post(`/api/admin/hosts/${hostId}/revoke`)
       .set('Authorization', 'Bearer test-admin-token');
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
@@ -244,7 +244,7 @@ describe('E2 Approval State Model — Admin Approve/Revoke', () => {
 
   it('AC-3: POST /admin/experiences/:id/approve sets isApproved: true', async () => {
     const res = await request(app)
-      .post(`/admin/experiences/${experienceId}/approve`)
+      .post(`/api/admin/experiences/${experienceId}/approve`)
       .set('Authorization', 'Bearer test-admin-token');
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
@@ -269,7 +269,7 @@ describe('E2 Approval State Model — Admin Approve/Revoke', () => {
 
   it('AC-3: POST /admin/experiences/:id/revoke sets isApproved: false', async () => {
     const res = await request(app)
-      .post(`/admin/experiences/${experienceId}/revoke`)
+      .post(`/api/admin/experiences/${experienceId}/revoke`)
       .set('Authorization', 'Bearer test-admin-token');
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);

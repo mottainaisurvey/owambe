@@ -114,7 +114,7 @@ afterAll(async () => {
 describe('E2B Admin Surfaces — GET /admin/platform/stats', () => {
   it('AC-8: returns all original fields (backward compatibility)', async () => {
     const res = await request(app)
-      .get('/admin/platform/stats')
+      .get('/api/admin/platform/stats')
       .expect(200);
 
     expect(res.body.success).toBe(true);
@@ -130,7 +130,7 @@ describe('E2B Admin Surfaces — GET /admin/platform/stats', () => {
 
   it('AC-8: returns new E2B fields: pendingApprovals, pendingHosts, pendingProperties, pendingOperators, pendingExperiences, disputedBookings', async () => {
     const res = await request(app)
-      .get('/admin/platform/stats')
+      .get('/api/admin/platform/stats')
       .expect(200);
 
     const { stats } = res.body;
@@ -153,7 +153,7 @@ describe('E2B Admin Surfaces — GET /admin/platform/stats', () => {
 
   it('AC-8: pendingApprovals equals sum of pendingHosts + pendingProperties + pendingOperators + pendingExperiences', async () => {
     const res = await request(app)
-      .get('/admin/platform/stats')
+      .get('/api/admin/platform/stats')
       .expect(200);
 
     const { stats } = res.body;
@@ -166,7 +166,7 @@ describe('E2B Admin Surfaces — GET /admin/platform/stats', () => {
 describe('E2B Admin Surfaces — GET /admin/vendors', () => {
   it('AC-8: returns vendors array with commissionRate field', async () => {
     const res = await request(app)
-      .get('/admin/vendors')
+      .get('/api/admin/vendors')
       .expect(200);
 
     expect(res.body.success).toBe(true);
@@ -176,7 +176,7 @@ describe('E2B Admin Surfaces — GET /admin/vendors', () => {
 
   it('AC-8: vendor objects include commissionRate and status fields', async () => {
     const res = await request(app)
-      .get('/admin/vendors')
+      .get('/api/admin/vendors')
       .expect(200);
 
     const testVendor = res.body.vendors.find((v: any) => v.id === testVendorId);
@@ -190,7 +190,7 @@ describe('E2B Admin Surfaces — GET /admin/vendors', () => {
 
   it('AC-8: search parameter filters vendors by businessName', async () => {
     const res = await request(app)
-      .get('/admin/vendors')
+      .get('/api/admin/vendors')
       .query({ search: 'E2B Test Vendor' })
       .expect(200);
 
@@ -200,7 +200,7 @@ describe('E2B Admin Surfaces — GET /admin/vendors', () => {
 
   it('AC-9: backward compatibility — existing PUT /admin/vendors/:id/commission still works', async () => {
     const res = await request(app)
-      .put(`/admin/vendors/${testVendorId}/commission`)
+      .put(`/api/admin/vendors/${testVendorId}/commission`)
       .send({ rate: 9.0 })
       .expect(200);
 
@@ -213,7 +213,7 @@ describe('E2B Admin Surfaces — GET /admin/vendors', () => {
 describe('E2B Admin Surfaces — GET /admin/events', () => {
   it('AC-8: returns events array with planner and _count fields', async () => {
     const res = await request(app)
-      .get('/admin/events')
+      .get('/api/admin/events')
       .expect(200);
 
     expect(res.body.success).toBe(true);
@@ -223,7 +223,7 @@ describe('E2B Admin Surfaces — GET /admin/events', () => {
 
   it('AC-8: event objects include planner relation and attendee count', async () => {
     const res = await request(app)
-      .get('/admin/events')
+      .get('/api/admin/events')
       .expect(200);
 
     const testEvent = res.body.events.find((e: any) => e.id === testEventId);
@@ -237,7 +237,7 @@ describe('E2B Admin Surfaces — GET /admin/events', () => {
 
   it('AC-8: status filter returns only events with matching status', async () => {
     const res = await request(app)
-      .get('/admin/events')
+      .get('/api/admin/events')
       .query({ status: 'PUBLISHED' })
       .expect(200);
 
@@ -246,11 +246,11 @@ describe('E2B Admin Surfaces — GET /admin/events', () => {
 
   it('AC-9: backward compatibility — existing GET /admin/platform/stats totalEvents still counts all events', async () => {
     const statsRes = await request(app)
-      .get('/admin/platform/stats')
+      .get('/api/admin/platform/stats')
       .expect(200);
 
     const eventsRes = await request(app)
-      .get('/admin/events')
+      .get('/api/admin/events')
       .expect(200);
 
     // totalEvents in stats should match total from /admin/events (both count all events)
