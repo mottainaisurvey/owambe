@@ -476,6 +476,8 @@ model Host {
   logoUrl         String?
   isVerified      Boolean   @default(false)
   verifiedAt      DateTime?
+  isApproved      Boolean   @default(false)  // E2: explicit approval status, independent of isVerified
+  approvedAt      DateTime?                  // E2: timestamp of most recent approval action
   paystackSubAccountCode String?
   paystackSubAccountId   String?
   bankCode        String?
@@ -514,6 +516,8 @@ model Property {
   houseRules      String?
   cancellationPolicy String?
   isActive        Boolean      @default(true)
+  isApproved      Boolean      @default(false)  // E2: explicit approval status, independent of isActive
+  approvedAt      DateTime?                     // E2: timestamp of most recent approval action
   isFeatured      Boolean      @default(false)
   rating          Decimal      @default(0) @db.Decimal(3, 2)
   reviewCount     Int          @default(0)
@@ -645,6 +649,8 @@ model Operator {
   logoUrl         String?
   isVerified      Boolean   @default(false)
   verifiedAt      DateTime?
+  isApproved      Boolean   @default(false)  // E2: explicit approval status, independent of isVerified
+  approvedAt      DateTime?                  // E2: timestamp of most recent approval action
   paystackSubAccountCode String?
   paystackSubAccountId   String?
   bankCode        String?
@@ -686,6 +692,8 @@ model Experience {
   requirements    String[]       @default([])
   languages       String[]       @default(["English"])
   isActive        Boolean        @default(true)
+  isApproved      Boolean        @default(false)  // E2: explicit approval status, independent of isActive
+  approvedAt      DateTime?                       // E2: timestamp of most recent approval action
   isFeatured      Boolean        @default(false)
   rating          Decimal        @default(0) @db.Decimal(3, 2)
   reviewCount     Int            @default(0)

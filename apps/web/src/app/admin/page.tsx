@@ -14,7 +14,7 @@ import {
   DollarSign, BarChart2, Shield, Loader2, Eye, Bell, LogOut, KeyRound
 } from 'lucide-react';
 
-const TABS = ['Overview', 'Vendor Queue', 'Users', 'Cohorts', 'Disputes', 'Commission', 'Portals', 'Contracts', 'Tags', 'Categories', 'Interest Captures'];
+const TABS = ['Overview', 'Vendor Queue', 'Approvals', 'Users', 'Cohorts', 'Disputes', 'Commission', 'Portals', 'Contracts', 'Tags', 'Categories', 'Interest Captures'];
 
 export default function AdminPage() {
   const { user, logout, _hasHydrated } = useAuthStore();
@@ -89,6 +89,7 @@ export default function AdminPage() {
 
         {activeTab === 'Overview' && <OverviewTab />}
         {activeTab === 'Vendor Queue' && <VendorQueueTab />}
+        {activeTab === 'Approvals' && <ApprovalsTab />}
         {activeTab === 'Users' && <UsersTab />}
         {activeTab === 'Disputes' && <DisputesTab />}
         {activeTab === 'Commission' && <CommissionTab />}
@@ -1248,6 +1249,171 @@ function InterestCapturesTab() {
             </div>
           )}
         </>
+      )}
+    </div>
+  );
+}
+
+// ─── E2: APPROVALS TAB ───────────────────────────────────────────────────────
+// OWB-E2-IMPLEMENTATION-01 Rev 1: Explicit isApproved field — admin approval surfaces
+// Four entity queues: Hosts, Properties, Operators, Experiences
+function ApprovalsTab() {
+  const [entity, setEntity] = useState<'hosts' | 'properties' | 'operators' | 'experiences'>('hosts');
+  const queryClient = useQueryClient();
+
+  const { data: hostsData, isLoading: hostsLoading } = useQuery({
+    queryKey: ['admin-hosts-pending'],
+    queryFn: () => api.get('/admin/hosts/pending').then(r => r.data),
+    refetchInterval: 60000,
+  });
+
+  const { data: propertiesData, isLoading: propertiesLoading } = useQuery({
+    queryKey: ['admin-properties-pending'],
+    queryFn: () => api.get('/admin/properties/pending').then(r => r.data),
+    refetchInterval: 60000,
+  });
+
+  const { data: operatorsData, isLoading: operatorsLoading } = useQuery({
+    queryKey: ['admin-operators-pending'],
+    queryFn: () => api.get('/admin/operators/pending').then(r => r.data),
+    refetchInterval: 60000,
+  });
+
+  const { data: experiencesData, isLoading: experiencesLoading } = useQuery({
+    queryKey: ['admin-experiences-pending'],
+    queryFn: () => api.get('/admin/experiences/pending').then(r => r.data),
+    refetchInterval: 60000,
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: ({ entityType, id }: { entityType: string; id: string }) =>
+      api.post(`/admin/${entityType}/${id}/approve`),
+    onSuccess: (_, vars) => {
+      toast.success('✅ Approved and notification sent!');
+      queryClient.invalidateQueries({ queryKey: [`admin-${vars.entityType}-pending`] });
+    },
+    onError: () => toast.error('Approval failed — please try again'),
+  });
+
+  const revokeMutation = useMutation({
+    mutationFn: ({ entityType, id }: { entityType: string; id: string }) =>
+      api.post(`/admin/${entityType}/${id}/revoke`),
+    onSuccess: (_, vars) => {
+      toast.success('Approval revoked');
+      queryClient.invalidateQueries({ queryKey: [`admin-${vars.entityType}-pending`] });
+    },
+    onError: () => toast.error('Revoke failed — please try again'),
+  });
+
+  const hosts = hostsData?.hosts || [];
+  const properties = propertiesData?.properties || [];
+  const operators = operatorsData?.operators || [];
+  const experiences = experiencesData?.experiences || [];
+
+  const ENTITY_TABS: { key: typeof entity; label: string; count: number }[] = [
+    { key: 'hosts', label: 'Hosts', count: hosts.length },
+    { key: 'properties', label: 'Properties', count: properties.length },
+    { key: 'operators', label: 'Operators', count: operators.length },
+    { key: 'experiences', label: 'Experiences', count: experiences.length },
+  ];
+
+  const isLoading = hostsLoading || propertiesLoading || operatorsLoading || experiencesLoading;
+
+  const renderEntityRow = (item: any, entityType: string, nameKey: string, subKey: string) => (
+    <tr key={item.id} className="table-row">
+      <td className="table-cell">
+        <div className="font-semibold text-sm">{item[nameKey] || item.user?.firstName + ' ' + item.user?.lastName}</div>
+        <div className="text-xs text-[var(--muted)]">{item.user?.email || item.host?.user?.email || item.operator?.user?.email}</div>
+      </td>
+      <td className="table-cell text-sm">{item.city || item.host?.city || '—'}</td>
+      <td className="table-cell text-xs text-[var(--muted)]">{formatTimeAgo(item.createdAt)}</td>
+      <td className="table-cell">
+        <div className="flex gap-1.5">
+          <button
+            onClick={() => approveMutation.mutate({ entityType, id: item.id })}
+            disabled={approveMutation.isPending}
+            className="flex items-center gap-1 bg-green-500 text-white text-xs px-2.5 py-1 rounded-lg hover:bg-green-600 transition-colors font-semibold">
+            {approveMutation.isPending ? <Loader2 size={10} className="animate-spin" /> : <CheckCircle size={11} />}
+            Approve
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+
+  const currentItems = entity === 'hosts' ? hosts
+    : entity === 'properties' ? properties
+    : entity === 'operators' ? operators
+    : experiences;
+
+  const currentLoading = entity === 'hosts' ? hostsLoading
+    : entity === 'properties' ? propertiesLoading
+    : entity === 'operators' ? operatorsLoading
+    : experiencesLoading;
+
+  const getNameKey = () => entity === 'properties' ? 'name' : entity === 'experiences' ? 'name' : 'businessName';
+
+  return (
+    <div className="animate-fade-up">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="section-title">Approval Queue</h2>
+          <p className="text-xs text-[var(--muted)] mt-0.5">
+            Review and approve hosts, properties, operators, and experiences. isApproved is independent of isActive.
+          </p>
+        </div>
+        <span className="badge-pending">
+          {hosts.length + properties.length + operators.length + experiences.length} pending total
+        </span>
+      </div>
+
+      {/* Entity sub-tabs */}
+      <div className="flex gap-1 mb-5 bg-[var(--bg)] border border-[var(--border)] rounded-xl p-1 w-fit">
+        {ENTITY_TABS.map(t => (
+          <button
+            key={t.key}
+            onClick={() => setEntity(t.key)}
+            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+              entity === t.key ? 'bg-[var(--dark)] text-white' : 'text-[var(--muted)] hover:text-[var(--dark)]'
+            }`}>
+            {t.label}
+            {t.count > 0 && (
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                entity === t.key ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-600'
+              }`}>{t.count}</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {currentLoading ? (
+        <div className="flex justify-center py-12">
+          <Loader2 size={24} className="animate-spin text-[var(--muted)]" />
+        </div>
+      ) : currentItems.length === 0 ? (
+        <div className="card text-center py-12">
+          <CheckCircle size={32} className="mx-auto mb-3 text-green-400" />
+          <div className="font-bold text-[var(--dark)]">Queue is clear</div>
+          <div className="text-sm text-[var(--muted)]">All {entity} have been reviewed</div>
+        </div>
+      ) : (
+        <div className="card overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b-2 border-[var(--border)]">
+                <th className="table-header">{entity === 'experiences' ? 'Experience' : entity === 'properties' ? 'Property' : 'Profile'}</th>
+                <th className="table-header">City</th>
+                <th className="table-header">Registered</th>
+                <th className="table-header">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {currentItems.map((item: any) =>
+                renderEntityRow(item, entity, getNameKey(), 'email')
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
