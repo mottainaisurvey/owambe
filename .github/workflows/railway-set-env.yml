@@ -24,6 +24,14 @@ jobs:
           echo "=== Setting APP_URL on owambe-api ==="
           railway variables set APP_URL=https://owambe.com --service owambe-api 2>&1
           echo "Done"
+      # temp: OWB-F1-NEW-IMPLEMENTATION-01 AC-1 — enable booking events on staging
+      - name: Enable OWAMBE_OUTBOUND_BOOKING_EVENTS_ENABLED on owambe-api staging
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
+        run: |
+          echo "=== Setting OWAMBE_OUTBOUND_BOOKING_EVENTS_ENABLED=true on owambe-api staging ==="
+          railway variables set OWAMBE_OUTBOUND_BOOKING_EVENTS_ENABLED=true --service owambe-api --environment staging 2>&1
+          echo "Done"
       - name: Verify updated values
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}

@@ -52,19 +52,19 @@ All account emails use the `.test` reserved namespace and are tagged with the se
 
 The seed creates a verified host profile and three active Stays properties. Each property has a room, a calendar entry, and is tied to the host account for host-portal ownership checks.
 
-| Slug | Property | Status intent |
-|---|---|---|
-| `t1-lekki-family-villa` | T1 Lekki Family Villa | Available villa sample with a confirmed stay booking. |
-| `t1-ikoyi-serviced-apartment` | T1 Ikoyi Serviced Apartment | Serviced apartment sample with a pending stay booking and a blocked calendar entry. |
-| `t1-victoria-island-boutique-stay` | T1 Victoria Island Boutique Stay | Featured boutique stay sample with a cancelled/refunded stay booking and a maintenance calendar entry. |
+| Slug | Property | Property UUID | Room | Room UUID | Status intent |
+|---|---|---|---|---|---|
+| `t1-lekki-family-villa` | T1 Lekki Family Villa | `8e0845a8-dc5b-448a-9977-213fbbb3287e` | Family Suite | `671c1b2d-2d2c-4671-9473-8b57d9429e48` | Available villa sample with a confirmed stay booking. |
+| `t1-ikoyi-serviced-apartment` | T1 Ikoyi Serviced Apartment | `7dbdc10d-03e6-4d97-887c-7050d5e3926f` | Executive Apartment | `544219ce-ff7c-4038-997a-d848fec052aa` | Serviced apartment sample with a pending stay booking and a blocked calendar entry. |
+| `t1-victoria-island-boutique-stay` | T1 Victoria Island Boutique Stay | `0000103b-5272-41ad-9a84-2f5c990ef4dd` | Presidential Suite | `6b170479-b519-4cea-9b17-a1bdd6888ff9` | Featured boutique stay sample with a cancelled/refunded stay booking and a maintenance calendar entry. |
 
 Canonical stay booking references:
 
-| Reference | Intended state |
-|---|---|
-| `T1-STAY-CONFIRMED-001` | Confirmed stay booking with deposit paid. |
-| `T1-STAY-PENDING-001` | Pending stay booking with pending payment. |
-| `T1-STAY-CANCELLED-001` | Cancelled stay booking with refunded payment. |
+| Reference | Booking UUID | Intended state |
+|---|---|---|
+| `T1-STAY-CONFIRMED-001` | `d0ccb13d-09b2-4c90-a867-b26a78b778d9` | Confirmed stay booking with deposit paid. |
+| `T1-STAY-PENDING-001` | `1ddf1acf-3ef0-41fd-a7f3-31d9b754d19c` | Pending stay booking with pending payment. |
+| `T1-STAY-CANCELLED-001` | `98951733-662c-40d6-aacf-ea838fc121c6` | Cancelled stay booking with refunded payment. |
 
 ## Vendor sample data
 
@@ -75,22 +75,29 @@ The seed creates a verified vendor named **T1 Lens & Light Studio**, including a
 | Vendor slug | `t1-lens-light-studio` |
 | Package | `T1 Half-Day Photo & Video Coverage` |
 | Booking reference | `T1-VENDOR-RFQ-001` |
+| Booking UUID | `07305ee5-95a6-4e76-8f1f-98362e56c453` |
 | Quote | Linked to `T1-VENDOR-RFQ-001` |
 
 ## Experiences sample data
 
 The seed creates a verified operator named **T1 Lagos Experience Co** and two active experiences with reusable future slots.
 
-| Slug | Experience | Intended state |
-|---|---|---|
-| `t1-lagos-food-culture-walk` | T1 Lagos Food & Culture Walk | Featured food/culture experience with a confirmed booking. |
-| `t1-private-afrobeats-nightlife` | T1 Private Afrobeats Nightlife | Active nightlife experience with open capacity. |
+| Slug | Experience | Experience UUID | Slot UUID | Slot start time | Intended state |
+|---|---|---|---|---|---|
+| `t1-lagos-food-culture-walk` | T1 Lagos Food & Culture Walk | `6dff6f90-0469-4d1e-8893-25806c350a1d` | `f902b68e-05bf-4a4e-b86c-a2b50c420eea` | `2026-06-27T15:00:00.000Z` | Featured food/culture experience with a confirmed booking. |
+| `t1-private-afrobeats-nightlife` | T1 Private Afrobeats Nightlife | `a424fc3f-ba34-44f2-8025-455e0775a686` | `e7af04ef-5ea7-44d7-9e8a-56a7452af023` | `2026-07-04T15:00:00.000Z` | Active nightlife experience with open capacity. |
 
 Canonical experience booking reference:
 
-| Reference | Intended state |
-|---|---|
-| `T1-EXPERIENCE-CONFIRMED-001` | Confirmed experience booking with deposit paid. |
+| Reference | Booking UUID | Intended state |
+|---|---|---|
+| `T1-EXPERIENCE-CONFIRMED-001` | `4e95e726-0e19-4877-adea-2bdd3162191e` | Confirmed experience booking with deposit paid. |
+
+## UUID publication notes
+
+The UUIDs in this document were retrieved from the live staging database on 2026-06-14 via the authenticated admin API and are authoritative for the current T1 seed state. If the T1 seed is re-run (e.g., after a staging database reset), the UUIDs will change because they are DB-generated. In that case, re-run the UUID publication query and update this document accordingly.
+
+The natural keys (slugs and references) are stable across seed runs and should be used as the primary bilateral coordination identifiers. UUIDs are published here as a secondary reference for direct DB-level or API-level lookup convenience.
 
 ## Verification checklist after seeding
 
@@ -101,7 +108,7 @@ After running the seed against staging, verify the following manually or through
 | Login as host account | Host can access Stays mode and see the seeded properties. |
 | Open Stays property list | At least the three `T1-*` properties are visible to the host. |
 | Open property detail/edit routes | `/dashboard/stays/properties/[id]` and `/dashboard/stays/properties/[id]/edit` load against real seeded property IDs. |
-| Login as vendor account | Vendor portal resolves to the seeded vendor profile rather than “Vendor not found.” |
+| Login as vendor account | Vendor portal resolves to the seeded vendor profile rather than "Vendor not found." |
 | Login as operator account | Experiences operator context has active sample experiences. |
 | Login as admin account | Admin can inspect sample users and records without requiring production data. |
 
