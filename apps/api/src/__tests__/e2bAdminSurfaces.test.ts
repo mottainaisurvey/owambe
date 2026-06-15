@@ -21,9 +21,14 @@ jest.mock('../services/email.service', () => ({
 
 jest.mock('../middleware/authenticate', () => ({
   authenticate: (req: any, _res: any, next: any) => {
-    req.user = { id: testAdminId, role: 'ADMIN' };
+    req.userId = (global as any).__e2bAdminId ?? 'test-admin-id';
+    req.userRole = 'ADMIN';
     next();
   },
+}));
+
+jest.mock('../middleware/requireRole', () => ({
+  requireRole: () => (_req: any, _res: any, next: any) => next(),
 }));
 
 // ─── TEST DATA ────────────────────────────────────────────────────────────────
