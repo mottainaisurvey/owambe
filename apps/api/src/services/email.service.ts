@@ -256,6 +256,67 @@ const templates: Record<string, (data: any) => string> = {
       </div>
     </div>`,
 
+  // ─── E2: APPROVAL STATE MODEL EMAIL TEMPLATES ──────
+  'host-approved': (d) => `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+      <div style="background:#2D6A4F;padding:24px;border-radius:8px 8px 0 0;text-align:center">
+        <h1 style="color:#fff;margin:0">owambe.com</h1>
+      </div>
+      <div style="padding:32px;background:#fff;border:1px solid #e5e7eb;border-radius:0 0 8px 8px">
+        <h2 style="color:#1A1612">Your host profile is approved! ✅</h2>
+        <p>Hi ${d.firstName}, congratulations — <strong>${d.businessName}</strong> has been approved as a host on Owambe!</p>
+        <p style="color:#374151">You can now list properties and start receiving bookings.</p>
+        <div style="text-align:center;margin:28px 0">
+          <a href="${d.dashboardUrl}" style="background:#2D6A4F;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold">Go to Host Dashboard →</a>
+        </div>
+      </div>
+    </div>`,
+
+  'property-approved': (d) => `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+      <div style="background:#2D6A4F;padding:24px;border-radius:8px 8px 0 0;text-align:center">
+        <h1 style="color:#fff;margin:0">owambe.com</h1>
+      </div>
+      <div style="padding:32px;background:#fff;border:1px solid #e5e7eb;border-radius:0 0 8px 8px">
+        <h2 style="color:#1A1612">Your property listing is live! ✅</h2>
+        <p>Hi ${d.firstName}, <strong>${d.propertyName}</strong> has been approved and is now live on Owambe Stays!</p>
+        <p style="color:#374151">Guests can now discover and book your property.</p>
+        <div style="text-align:center;margin:28px 0">
+          <a href="${d.listingUrl}" style="background:#2D6A4F;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold">View Your Listing →</a>
+        </div>
+      </div>
+    </div>`,
+
+  'operator-approved': (d) => `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+      <div style="background:#2D6A4F;padding:24px;border-radius:8px 8px 0 0;text-align:center">
+        <h1 style="color:#fff;margin:0">owambe.com</h1>
+      </div>
+      <div style="padding:32px;background:#fff;border:1px solid #e5e7eb;border-radius:0 0 8px 8px">
+        <h2 style="color:#1A1612">Your operator profile is approved! ✅</h2>
+        <p>Hi ${d.firstName}, congratulations — <strong>${d.businessName}</strong> has been approved as an experience operator on Owambe!</p>
+        <p style="color:#374151">You can now list experiences and start receiving bookings.</p>
+        <div style="text-align:center;margin:28px 0">
+          <a href="${d.dashboardUrl}" style="background:#2D6A4F;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold">Go to Operator Dashboard →</a>
+        </div>
+      </div>
+    </div>`,
+
+  'experience-approved': (d) => `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+      <div style="background:#2D6A4F;padding:24px;border-radius:8px 8px 0 0;text-align:center">
+        <h1 style="color:#fff;margin:0">owambe.com</h1>
+      </div>
+      <div style="padding:32px;background:#fff;border:1px solid #e5e7eb;border-radius:0 0 8px 8px">
+        <h2 style="color:#1A1612">Your experience listing is live! ✅</h2>
+        <p>Hi ${d.firstName}, <strong>${d.experienceName}</strong> has been approved and is now live on Owambe Experiences!</p>
+        <p style="color:#374151">Guests can now discover and book your experience.</p>
+        <div style="text-align:center;margin:28px 0">
+          <a href="${d.listingUrl}" style="background:#2D6A4F;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold">View Your Listing →</a>
+        </div>
+      </div>
+    </div>`,
+
   'vendor-rejected': (d) => `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
       <div style="background:#E76F2A;padding:24px;border-radius:8px 8px 0 0;text-align:center">
