@@ -21,6 +21,56 @@ const router = Router();
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL ?? 'https://owambe.com';
 
+
+function stayNightDates(checkIn: Date, nights: number): Date[] {
+  return Array.from({ length: nights }, (_, index) => {
+    const date = new Date(checkIn);
+    date.setUTCDate(checkIn.getUTCDate() + index);
+    date.setUTCHours(0, 0, 0, 0);
+    return date;
+  });
+}
+
+function stayDateKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+async function calculateEffectiveStayPricing(params: {
+  roomId: string;
+  checkIn: Date;
+  checkOut: Date;
+  nights: number;
+  baseRatePerNight: number;
+}): Promise<{ totalAmount: number; nightlyRates: Array<{ date: string; rate: number; source: 'BASE' | 'OVERRIDE' }> }> {
+  const overrideEntries = await prisma.calendarEntry.findMany({
+    where: {
+      roomId: params.roomId,
+      date: { gte: params.checkIn, lt: params.checkOut },
+      rateOverride: { not: null },
+    },
+    select: { date: true, rateOverride: true },
+  });
+
+  const overrideByDate = new Map(
+    overrideEntries.map((entry) => [stayDateKey(entry.date), Number(entry.rateOverride)]),
+  );
+
+  const nightlyRates = stayNightDates(params.checkIn, params.nights).map((date) => {
+    const key = stayDateKey(date);
+    const overrideRate = overrideByDate.get(key);
+    return {
+      date: key,
+      rate: overrideRate ?? params.baseRatePerNight,
+      source: overrideRate === undefined ? 'BASE' as const : 'OVERRIDE' as const,
+    };
+  });
+
+  return {
+    totalAmount: nightlyRates.reduce((sum, night) => sum + night.rate, 0),
+    nightlyRates,
+  };
+}
+
 function parseStayDate(value: unknown, fieldName: string): Date {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     throw new AppError(`${fieldName} must be provided in YYYY-MM-DD format`, 400);
@@ -148,7 +198,14 @@ router.post('/',
         throw new AppError('This room is not available for the selected dates', 409);
       }
 
-      const totalAmount = Number(room.pricePerNight) * nights;
+      const pricing = await calculateEffectiveStayPricing({
+        roomId,
+        checkIn,
+        checkOut,
+        nights,
+        baseRatePerNight: Number(room.pricePerNight),
+      });
+      const totalAmount = pricing.totalAmount;
       const depositAmount = totalAmount * 0.3;
       const reference = `STAY-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 

@@ -282,6 +282,15 @@ export const uploadApi = {
 };
 
 // ─── Stays Guest Booking API ───────────────────────────
+export interface StayRateBreakdownNight {
+  date: string;
+  rate: string | number;
+  currency?: string | null;
+  source?: 'BASE' | 'OVERRIDE' | string;
+  minimumStay?: number | null;
+  maximumStay?: number | null;
+}
+
 export interface StayPropertyRoom {
   id: string;
   name: string;
@@ -290,6 +299,9 @@ export interface StayPropertyRoom {
   currency: string;
   capacity: number;
   isAvailable?: boolean;
+  effectiveTotal?: string | number;
+  effectiveRatePerNight?: string | number;
+  rateBreakdown?: StayRateBreakdownNight[];
 }
 
 export interface StayProperty {

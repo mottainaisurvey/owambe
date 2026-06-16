@@ -29,6 +29,22 @@ import type {
 import { logger } from '../utils/logger';
 
 const router = Router();
+
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+function dateKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function selectedNightDates(checkInDate: Date, nights: number): Date[] {
+  return Array.from({ length: nights }, (_, index) => {
+    const date = new Date(checkInDate);
+    date.setUTCDate(checkInDate.getUTCDate() + index);
+    date.setUTCHours(0, 0, 0, 0);
+    return date;
+  });
+}
+
 const ccAdapter = new CoastalCorridorAdapter();
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -883,33 +899,57 @@ router.get('/:id/availability', async (req: Request, res: Response, next: NextFu
       select: { roomId: true }
     });
 
-    // Also check calendar entries for BLOCKED/MAINTENANCE dates
-    const nights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
-    const dateRange: Date[] = [];
-    for (let i = 0; i < nights; i++) {
-      const d = new Date(checkInDate);
-      d.setDate(d.getDate() + i);
-      dateRange.push(d);
-    }
+    // Also check calendar entries for blocked inventory and date-level pricing overrides.
+    const nights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / MS_PER_DAY);
+    const dateRange = selectedNightDates(checkInDate, nights);
 
-    const blockedEntries = await prisma.calendarEntry.findMany({
+    const calendarEntries = await prisma.calendarEntry.findMany({
       where: {
         propertyId: req.params.id,
         date: { gte: checkInDate, lt: checkOutDate },
-        status: { in: ['BLOCKED', 'MAINTENANCE', 'BOOKED'] },
+        OR: [
+          { status: { in: ['BLOCKED', 'MAINTENANCE', 'BOOKED'] } },
+          { rateOverride: { not: null } },
+          { minimumStay: { not: null } },
+          { maximumStay: { not: null } },
+        ],
       },
-      select: { roomId: true }
+      select: { roomId: true, date: true, status: true, rateOverride: true, currency: true, minimumStay: true, maximumStay: true }
     });
 
     const bookedSet = new Set([
       ...bookedRoomIds.map(b => b.roomId),
-      ...blockedEntries.map(e => e.roomId),
+      ...calendarEntries
+        .filter((entry) => ['BLOCKED', 'MAINTENANCE', 'BOOKED'].includes(entry.status))
+        .map(entry => entry.roomId),
     ]);
 
-    const availability = property.rooms.map(room => ({
-      ...room,
-      isAvailable: !bookedSet.has(room.id),
-    }));
+    const calendarByRoomDate = new Map(
+      calendarEntries.map((entry) => [`${entry.roomId}:${dateKey(entry.date)}`, entry]),
+    );
+
+    const availability = property.rooms.map(room => {
+      const rateBreakdown = dateRange.map((date) => {
+        const entry = calendarByRoomDate.get(`${room.id}:${dateKey(date)}`);
+        const overrideRate = entry?.rateOverride == null ? undefined : Number(entry.rateOverride);
+        return {
+          date: dateKey(date),
+          rate: overrideRate ?? Number(room.pricePerNight),
+          currency: entry?.currency ?? room.currency,
+          source: overrideRate === undefined ? 'BASE' : 'OVERRIDE',
+          minimumStay: entry?.minimumStay ?? null,
+          maximumStay: entry?.maximumStay ?? null,
+        };
+      });
+      const effectiveTotal = rateBreakdown.reduce((sum, night) => sum + night.rate, 0);
+      return {
+        ...room,
+        isAvailable: !bookedSet.has(room.id),
+        effectiveTotal,
+        effectiveRatePerNight: nights > 0 ? effectiveTotal / nights : Number(room.pricePerNight),
+        rateBreakdown,
+      };
+    });
 
     res.json({
       success: true,
