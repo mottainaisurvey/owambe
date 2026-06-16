@@ -149,7 +149,6 @@ app.use('/api/upload', uploadRouter);
 app.use('/api/ai', aiRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/notifications', notificationsRouter);
-app.use('/api', messagesRouter);
 app.use('/api/contracts', contractsRouter);
 app.use('/api/tenants', tenantsRouter);
 app.use('/api/promos', promosRouter);
@@ -164,6 +163,10 @@ app.use('/api/properties', propertiesRouter);
 app.use('/api/experiences', experiencesRouter);
 app.use('/api/stay-bookings', stayBookingsRouter);
 app.use('/api/experience-bookings', experienceBookingsRouter);
+// A4: keep broad authenticated messagesRouter after specific public Stays routes
+// so messagesRouter.use(authenticate) cannot intercept public property
+// search/detail/availability or direct guest stay-booking endpoints.
+app.use('/api', messagesRouter);
 
 app.use((_req, res) => { res.status(404).json({ success: false, error: 'Route not found' }); });
 app.use(errorHandler);
