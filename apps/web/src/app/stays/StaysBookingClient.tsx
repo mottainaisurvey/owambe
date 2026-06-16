@@ -35,6 +35,14 @@ type ReturningBooking = {
   currency?: string;
 };
 
+type ReturningBookingError = {
+  title: string;
+  message: string;
+  isAuthFailure: boolean;
+};
+
+const STAYS_API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
 function addDaysIso(days: number) {
@@ -60,6 +68,8 @@ export default function StaysBookingClient() {
   const [error, setError] = useState<string | null>(null);
   const [bookingResult, setBookingResult] = useState<BookingResult | null>(null);
   const [returningBooking, setReturningBooking] = useState<ReturningBooking | null>(null);
+  const [returningBookingId, setReturningBookingId] = useState<string | null>(null);
+  const [returningBookingError, setReturningBookingError] = useState<ReturningBookingError | null>(null);
   const [returningBookingLoading, setReturningBookingLoading] = useState(false);
 
   const nights = useMemo(() => {
@@ -86,6 +96,59 @@ export default function StaysBookingClient() {
     }
   }
 
+  async function loadReturningBooking(bookingId: string) {
+    setReturningBookingId(bookingId);
+    setReturningBooking(null);
+    setReturningBookingError(null);
+    setReturningBookingLoading(true);
+
+    try {
+      const response = await fetch(`${STAYS_API_URL}/stay-bookings/${encodeURIComponent(bookingId)}`, {
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+      });
+      const payload = await response.json().catch(() => null);
+
+      if (response.status === 401) {
+        setReturningBookingError({
+          title: 'Sign in to view this reservation',
+          message: 'We could not verify an active guest session for this returned Stays reservation. Please sign in, then retry the reservation lookup.',
+          isAuthFailure: true,
+        });
+        return;
+      }
+
+      if (!response.ok) {
+        setReturningBookingError({
+          title: 'Reservation lookup needs another try',
+          message: payload?.message ?? payload?.error ?? 'Could not load the returned Stays reservation. Please retry the lookup.',
+          isAuthFailure: false,
+        });
+        return;
+      }
+
+      const booking = payload?.data ?? null;
+      if (!booking) {
+        setReturningBookingError({
+          title: 'Reservation not found',
+          message: 'We could not find a Stays reservation for this return link. Please check the link or retry the lookup.',
+          isAuthFailure: false,
+        });
+        return;
+      }
+
+      setReturningBooking(booking);
+    } catch {
+      setReturningBookingError({
+        title: 'Reservation lookup needs another try',
+        message: 'A network error stopped us from loading the returned Stays reservation. Please retry the lookup.',
+        isAuthFailure: false,
+      });
+    } finally {
+      setReturningBookingLoading(false);
+    }
+  }
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const initialCity = params.get('city') ?? '';
@@ -95,14 +158,7 @@ export default function StaysBookingClient() {
     const bookingId = params.get('booking');
 
     if (bookingId) {
-      setReturningBookingLoading(true);
-      staysApi.getBooking(bookingId)
-        .then((response) => setReturningBooking(response.data?.data ?? null))
-        .catch((err: any) => {
-          const status = err?.response?.status;
-          setError(status === 401 ? 'Please sign in to view your Stays reservation.' : 'Could not load the returned Stays reservation.');
-        })
-        .finally(() => setReturningBookingLoading(false));
+      void loadReturningBooking(bookingId);
     }
 
     if (initialCity) setCity(initialCity);
@@ -208,11 +264,22 @@ export default function StaysBookingClient() {
 
         {error && <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">{error}</div>}
 
-        {(returningBookingLoading || returningBooking) && (
-          <section className="mt-8 rounded-2xl border border-[#D8E7DD] bg-white p-6 shadow">
+        {(returningBookingLoading || returningBooking || returningBookingError) && (
+          <section className="mt-8 rounded-2xl border border-[#D8E7DD] bg-white p-6 shadow" aria-live="polite">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#2D6A4F]">Reservation status</p>
             {returningBookingLoading ? (
               <p className="mt-3 text-sm text-gray-600">Loading your returned reservation...</p>
+            ) : returningBookingError ? (
+              <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                <h2 className="text-lg font-bold text-red-900">{returningBookingError.title}</h2>
+                <p className="mt-2">{returningBookingError.message}</p>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  {returningBookingError.isAuthFailure ? (
+                    <a className="rounded-lg bg-[#2D6A4F] px-4 py-2 font-semibold text-white" href={`/login?redirect=${encodeURIComponent(returningBookingId ? `/stays?booking=${returningBookingId}` : '/stays')}`}>Sign in to continue</a>
+                  ) : null}
+                  <button type="button" onClick={() => returningBookingId && loadReturningBooking(returningBookingId)} className="rounded-lg border border-red-300 bg-white px-4 py-2 font-semibold text-red-800">Retry reservation lookup</button>
+                </div>
+              </div>
             ) : returningBooking ? (
               <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_auto]">
                 <div>
