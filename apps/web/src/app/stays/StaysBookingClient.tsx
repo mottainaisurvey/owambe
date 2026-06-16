@@ -56,6 +56,22 @@ function formatMoney(value: string | number | undefined, currency = 'NGN') {
   return `${currency} ${amount.toLocaleString('en-NG')}`;
 }
 
+function selectedRoomTotal(room: StayPropertyRoom, nights: number): number {
+  const effectiveTotal = Number(room.effectiveTotal);
+  if (Number.isFinite(effectiveTotal) && effectiveTotal > 0) return effectiveTotal;
+  return Number(room.pricePerNight) * nights;
+}
+
+function selectedRoomNightlyLabel(room: StayPropertyRoom): number {
+  const effectiveRate = Number(room.effectiveRatePerNight);
+  if (Number.isFinite(effectiveRate) && effectiveRate > 0) return effectiveRate;
+  return Number(room.pricePerNight);
+}
+
+function selectedRoomUsesOverrides(room: StayPropertyRoom): boolean {
+  return room.rateBreakdown?.some((night) => night.source === 'OVERRIDE') ?? false;
+}
+
 export default function StaysBookingClient() {
   const [city, setCity] = useState('');
   const [checkInDate, setCheckInDate] = useState(addDaysIso(7));
@@ -353,8 +369,10 @@ export default function StaysBookingClient() {
                 <div className="rounded-xl bg-[#F8F5F0] p-4 text-sm">
                   <p>{selected.checkInDate} to {selected.checkOutDate}</p>
                   <p>{selected.guestCount} guest{selected.guestCount === 1 ? '' : 's'} · {nights} night{nights === 1 ? '' : 's'}</p>
-                  <p className="mt-2 font-bold">Total: {formatMoney(Number(selected.room.pricePerNight) * nights, selected.room.currency)}</p>
-                  <p className="text-gray-600">Deposit today: {formatMoney(Number(selected.room.pricePerNight) * nights * 0.3, selected.room.currency)}</p>
+                  <p className="mt-2 text-gray-700">Effective rate: {formatMoney(selectedRoomNightlyLabel(selected.room), selected.room.currency)} <span className="text-xs text-gray-500">/ night average</span></p>
+                  <p className="mt-2 font-bold">Total: {formatMoney(selectedRoomTotal(selected.room, nights), selected.room.currency)}</p>
+                  <p className="text-gray-600">Deposit today: {formatMoney(selectedRoomTotal(selected.room, nights) * 0.3, selected.room.currency)}</p>
+                  {selectedRoomUsesOverrides(selected.room) ? <p className="text-xs font-medium text-[#2D6A4F]">Includes date-specific host rate overrides for the selected stay.</p> : null}
                 </div>
                 <label className="block">
                   <span className="text-sm font-semibold text-gray-700">Special requests</span>
