@@ -161,3 +161,21 @@ export const contractsApi = {
   fromBooking: (bookingId: string, data?: any) => api.post(`/contracts/from-booking/${bookingId}`, data || {}),
   downloadPdfUrl: (id: string) => `${api.defaults.baseURL}/contracts/${id}/pdf`,
 };
+
+// Stays guest booking helpers intentionally route mobile consumers to the public web flow
+// until native Stays screens are introduced. This preserves A4 end-to-end access without
+// expanding the Expo navigation surface in this cycle.
+export const staysWebUrl = (params?: { city?: string; checkInDate?: string; checkOutDate?: string; guests?: number }) => {
+  const baseUrl = process.env.EXPO_PUBLIC_WEB_URL || 'https://owambe.com';
+  const query = new URLSearchParams();
+  if (params?.city) query.set('city', params.city);
+  if (params?.checkInDate) query.set('checkIn', params.checkInDate);
+  if (params?.checkOutDate) query.set('checkOut', params.checkOutDate);
+  if (params?.guests) query.set('guests', String(params.guests));
+  const suffix = query.toString();
+  return `${baseUrl}/stays${suffix ? `?${suffix}` : ''}`;
+};
+
+export const staysApi = {
+  webUrl: staysWebUrl,
+};

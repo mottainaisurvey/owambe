@@ -866,13 +866,16 @@ router.get('/:id/availability', async (req: Request, res: Response, next: NextFu
       include: { rooms: { where: { isActive: true } } }
     });
 
-    if (!property) throw new AppError('Property not found', 404);
+    if (!property || !property.isActive || !property.isApproved) {
+      throw new AppError('Property not found', 404);
+    }
 
-    // Find rooms that are already booked for the requested period
+    // Find rooms already held or booked for the requested period. PENDING is included
+    // because direct Stays reservations hold inventory while the guest completes deposit payment.
     const bookedRoomIds = await prisma.stayBooking.findMany({
       where: {
         propertyId: req.params.id,
-        status: { in: ['CONFIRMED', 'CHECKED_IN'] },
+        status: { in: ['PENDING', 'CONFIRMED', 'CHECKED_IN'] },
         OR: [
           { checkInDate: { lt: checkOutDate }, checkOutDate: { gt: checkInDate } }
         ]

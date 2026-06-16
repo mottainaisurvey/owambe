@@ -280,3 +280,50 @@ export const uploadApi = {
     });
   },
 };
+
+// ─── Stays Guest Booking API ───────────────────────────
+export interface StayPropertyRoom {
+  id: string;
+  name: string;
+  roomType: string;
+  pricePerNight: string | number;
+  currency: string;
+  capacity: number;
+  isAvailable?: boolean;
+}
+
+export interface StayProperty {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  propertyType: string;
+  city: string;
+  state?: string | null;
+  address?: string | null;
+  coverImageUrl?: string | null;
+  galleryUrls?: string[];
+  amenities?: string[];
+  rating?: string | number;
+  reviewCount?: number;
+  rooms: StayPropertyRoom[];
+  host?: { id: string; businessName: string; rating?: string | number; isVerified?: boolean };
+}
+
+export interface CreateStayBookingInput {
+  roomId: string;
+  checkInDate: string;
+  checkOutDate: string;
+  guestCount: number;
+  specialRequests?: string;
+}
+
+export const staysApi = {
+  search: (params: Record<string, string | number | undefined>) => api.get('/properties', { params }),
+  availability: (propertyId: string, checkIn: string, checkOut: string) =>
+    api.get(`/properties/${propertyId}/availability`, { params: { checkIn, checkOut } }),
+  createBooking: (payload: CreateStayBookingInput) => api.post('/stay-bookings', payload),
+  listBookings: (params?: Record<string, string | number | undefined>) => api.get('/stay-bookings', { params }),
+  getBooking: (id: string) => api.get(`/stay-bookings/${id}`),
+  cancelBooking: (id: string) => api.post(`/stay-bookings/${id}/cancel`),
+};
