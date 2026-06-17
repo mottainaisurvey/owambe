@@ -71,7 +71,7 @@ describe('StaysBookingClient room selection availability contract', () => {
     window.history.pushState({}, '', '/stays?city=Lagos&checkIn=2026-07-01&checkOut=2026-07-04&guests=2');
   });
 
-  it('accepts the live nested rooms response and shows the booking summary instead of the availability warning', async () => {
+  function mockAvailableStaySearch() {
     vi.mocked(staysApi.search).mockResolvedValue({ data: { data: [seededProperty] } });
     vi.mocked(staysApi.availability).mockResolvedValue({
       data: {
@@ -85,6 +85,10 @@ describe('StaysBookingClient room selection availability contract', () => {
         },
       },
     });
+  }
+
+  it('accepts the live nested rooms response and shows the booking summary instead of the availability warning', async () => {
+    mockAvailableStaySearch();
 
     renderWithProviders(<StaysBookingClient />);
 
@@ -98,5 +102,39 @@ describe('StaysBookingClient room selection availability contract', () => {
 
     expect(screen.queryByText('That room is no longer available for the selected dates. Please choose another room or date range.')).not.toBeInTheDocument();
     expect(staysApi.availability).toHaveBeenCalledWith(seededProperty.id, '2026-07-01', '2026-07-04');
+  });
+
+  it('settles a booking 401 path, restores the reserve button, and displays sign-in guidance', async () => {
+    mockAvailableStaySearch();
+    let rejectBooking!: (reason?: unknown) => void;
+    vi.mocked(staysApi.createBooking).mockReturnValue(
+      new Promise((_, reject) => {
+        rejectBooking = reject;
+      }) as ReturnType<typeof staysApi.createBooking>
+    );
+
+    renderWithProviders(<StaysBookingClient />);
+
+    expect(await screen.findByText('Owambe Seeded Test Stay')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Select room' }));
+
+    const reserveButton = await screen.findByRole('button', { name: 'Reserve and pay deposit' });
+    await userEvent.click(reserveButton);
+
+    expect(await screen.findByRole('button', { name: 'Creating booking...' })).toBeDisabled();
+
+    rejectBooking({ response: { status: 401 } });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Reserve and pay deposit' })).toBeEnabled();
+    });
+    expect(screen.getByText('Please sign in as a guest or consumer before creating a Stays booking.')).toBeInTheDocument();
+    expect(staysApi.createBooking).toHaveBeenCalledWith({
+      roomId: seededRoom.id,
+      checkInDate: '2026-07-01',
+      checkOutDate: '2026-07-04',
+      guestCount: 2,
+      specialRequests: undefined,
+    });
   });
 });
