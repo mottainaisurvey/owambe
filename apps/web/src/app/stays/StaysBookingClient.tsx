@@ -72,6 +72,13 @@ function selectedRoomUsesOverrides(room: StayPropertyRoom): boolean {
   return room.rateBreakdown?.some((night) => night.source === 'OVERRIDE') ?? false;
 }
 
+export function normalizeStayAvailabilityRooms(payload: unknown): StayPropertyRoom[] {
+  const data = (payload as { data?: unknown } | null | undefined)?.data ?? payload;
+  if (Array.isArray(data)) return data as StayPropertyRoom[];
+  const rooms = (data as { rooms?: unknown } | null | undefined)?.rooms;
+  return Array.isArray(rooms) ? (rooms as StayPropertyRoom[]) : [];
+}
+
 export default function StaysBookingClient() {
   const [city, setCity] = useState('');
   const [checkInDate, setCheckInDate] = useState(addDaysIso(7));
@@ -195,8 +202,8 @@ export default function StaysBookingClient() {
     setError(null);
     try {
       const response = await staysApi.availability(property.id, checkInDate, checkOutDate);
-      const availability = response.data?.data ?? [];
-      const availableRoom = availability.find((candidate: StayPropertyRoom) => candidate.id === room.id);
+      const availability = normalizeStayAvailabilityRooms(response.data);
+      const availableRoom = availability.find((candidate) => candidate.id === room.id);
       if (!availableRoom?.isAvailable) {
         setError('That room is no longer available for the selected dates. Please choose another room or date range.');
         return;
