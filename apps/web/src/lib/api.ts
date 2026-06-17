@@ -28,17 +28,34 @@ function processQueue(error: any, token: string | null = null) {
   failedQueue = [];
 }
 
+function requestUrl(config: any): string {
+  return config?.url ?? '';
+}
+
+function isRefreshRequest(config: any): boolean {
+  return requestUrl(config).includes('/auth/refresh');
+}
+
+function shouldRedirectAfterRefreshFailure(config: any): boolean {
+  return !requestUrl(config).includes('/stay-bookings');
+}
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
+    if (error.response?.status === 401 && isRefreshRequest(originalRequest)) {
+      return Promise.reject(error);
+    }
+
     // If 401 and not already retrying
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         }).then((token) => {
+          originalRequest.headers = originalRequest.headers || {};
           originalRequest.headers['Authorization'] = `Bearer ${token}`;
           return api(originalRequest);
         });
@@ -52,6 +69,7 @@ api.interceptors.response.use(
         const { accessToken } = res.data;
 
         api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+        originalRequest.headers = originalRequest.headers || {};
         originalRequest.headers['Authorization'] = `Bearer ${accessToken}`;
 
         // Update zustand store
@@ -67,7 +85,7 @@ api.interceptors.response.use(
         processQueue(refreshError, null);
         const { useAuthStore } = await import('@/store/auth.store');
         useAuthStore.getState().clearAuth();
-        if (typeof window !== 'undefined') { window.location.href = '/login'; }
+        if (typeof window !== 'undefined' && shouldRedirectAfterRefreshFailure(originalRequest)) { window.location.href = '/login'; }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
