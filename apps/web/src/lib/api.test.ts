@@ -1,10 +1,18 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { AxiosError, type AxiosAdapter, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
-import { api } from './api';
+import { api, staysApi } from './api';
 import { useAuthStore } from '@/store/auth.store';
 
 const originalAdapter = api.defaults.adapter;
 const originalAuthorization = api.defaults.headers.common['Authorization'];
+
+function readAuthorizationHeader(headers: any): string | undefined {
+  if (typeof headers?.get === 'function') {
+    return headers.get('Authorization') ?? headers.get('authorization') ?? undefined;
+  }
+
+  return headers?.Authorization ?? headers?.authorization;
+}
 
 function unauthorized(config: InternalAxiosRequestConfig): Promise<never> {
   const response: AxiosResponse = {
@@ -17,6 +25,76 @@ function unauthorized(config: InternalAxiosRequestConfig): Promise<never> {
 
   return Promise.reject(new AxiosError('Unauthorized', 'ERR_BAD_REQUEST', config, null, response));
 }
+
+describe('api request authorization interceptor', () => {
+  afterEach(() => {
+    api.defaults.adapter = originalAdapter;
+    if (originalAuthorization) {
+      api.defaults.headers.common['Authorization'] = originalAuthorization;
+    } else {
+      delete api.defaults.headers.common['Authorization'];
+    }
+    useAuthStore.getState().clearAuth();
+  });
+
+  it('attaches the current store access token to Stays booking requests at request time', async () => {
+    let observedAuthorization: string | undefined;
+    delete api.defaults.headers.common['Authorization'];
+    useAuthStore.setState({
+      accessToken: 'fresh-store-token',
+      isAuthenticated: true,
+    });
+
+    api.defaults.adapter = (async (config: InternalAxiosRequestConfig) => {
+      observedAuthorization = readAuthorizationHeader(config.headers);
+      return {
+        data: { ok: true },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config,
+      };
+    }) as AxiosAdapter;
+
+    await staysApi.createBooking({
+      roomId: 'room-owambe-seeded-deluxe',
+      checkInDate: '2026-07-17',
+      checkOutDate: '2026-07-20',
+      guestCount: 2,
+    });
+
+    expect(observedAuthorization).toBe('Bearer fresh-store-token');
+  });
+
+  it('does not synthesize an Authorization header when no access token or default header exists', async () => {
+    let observedAuthorization: string | undefined;
+    delete api.defaults.headers.common['Authorization'];
+    useAuthStore.setState({
+      accessToken: null,
+      isAuthenticated: false,
+    });
+
+    api.defaults.adapter = (async (config: InternalAxiosRequestConfig) => {
+      observedAuthorization = readAuthorizationHeader(config.headers);
+      return {
+        data: { ok: true },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config,
+      };
+    }) as AxiosAdapter;
+
+    await staysApi.createBooking({
+      roomId: 'room-owambe-seeded-deluxe',
+      checkInDate: '2026-07-17',
+      checkOutDate: '2026-07-20',
+      guestCount: 2,
+    });
+
+    expect(observedAuthorization).toBeUndefined();
+  });
+});
 
 describe('api refresh interceptor', () => {
   beforeEach(() => {
