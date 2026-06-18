@@ -10,9 +10,35 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+function readDefaultAuthorizationHeader(): string | null {
+  const authorization = api.defaults.headers.common['Authorization'];
+  return typeof authorization === 'string' && authorization.trim().length > 0 ? authorization : null;
+}
+
+function setAuthorizationHeader(config: any, authorization: string) {
+  config.headers = config.headers || {};
+
+  if (typeof config.headers.set === 'function') {
+    config.headers.set('Authorization', authorization);
+    return;
+  }
+
+  config.headers['Authorization'] = authorization;
+}
+
 // ─── REQUEST INTERCEPTOR ─────────────────────────────
 api.interceptors.request.use(
-  (config) => config,
+  async (config) => {
+    const { useAuthStore } = await import('@/store/auth.store');
+    const accessToken = useAuthStore.getState().accessToken;
+    const authorization = accessToken ? `Bearer ${accessToken}` : readDefaultAuthorizationHeader();
+
+    if (authorization) {
+      setAuthorizationHeader(config, authorization);
+    }
+
+    return config;
+  },
   (error) => Promise.reject(error)
 );
 
