@@ -71,6 +71,12 @@ export function validateEnv() {
     process.exit(1);
   }
 
+  // Paystack is required at payment-initialization time. Keep startup non-fatal so
+  // non-payment routes can still boot, but make misconfiguration explicit early.
+  if (!process.env.PAYSTACK_SECRET_KEY && process.env.NODE_ENV !== 'test') {
+    console.warn('⚠️  PAYSTACK_SECRET_KEY is not set — payment initialization routes will return a service-unavailable error until configured.\n');
+  }
+
   // Warn about test keys in production (warn only, do not exit — test keys are acceptable during staging)
   if (process.env.NODE_ENV === 'production') {
     if (process.env.PAYSTACK_SECRET_KEY?.startsWith('sk_test_')) {
