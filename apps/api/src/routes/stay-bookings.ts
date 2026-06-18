@@ -253,21 +253,38 @@ router.post('/',
         },
       });
 
-      const paymentInit = await initializeTransaction({
-        email: guestUser.email,
-        amount: depositAmount,
-        reference: `${reference}-DEP`,
-        metadata: {
+      let paymentInit;
+      try {
+        paymentInit = await initializeTransaction({
+          email: guestUser.email,
+          amount: depositAmount,
+          reference: `${reference}-DEP`,
+          metadata: {
+            bookingId: booking.id,
+            bookingReference: reference,
+            type: 'STAY_DEPOSIT',
+            propertyName: room.property.name,
+            roomId,
+            checkInDate,
+            checkOutDate,
+          },
+          callbackUrl: `${APP_URL}/stays?booking=${booking.id}`,
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        logger.error('[StayBookings] Paystack deposit initialization failed after booking persistence', {
           bookingId: booking.id,
-          bookingReference: reference,
-          type: 'STAY_DEPOSIT',
-          propertyName: room.property.name,
-          roomId,
-          checkInDate,
-          checkOutDate,
-        },
-        callbackUrl: `${APP_URL}/stays?booking=${booking.id}`,
-      });
+          reference,
+          error: msg,
+        });
+        throw err instanceof AppError
+          ? err
+          : new AppError(
+            'Payment provider could not initialize this booking payment. Please try again later.',
+            502,
+            'PAYSTACK_INITIALIZATION_FAILED',
+          );
+      }
 
       await prisma.stayBooking.update({
         where: { id: booking.id },
