@@ -115,7 +115,6 @@ app.use('/api/v1/channel', channelRouter);
 // Must be mounted BEFORE messagesRouter to avoid messagesRouter.use(authenticate)
 // intercepting /api/cohort/* requests (same pattern as channelRouter above).
 app.use('/api/cohort', cohortRouter);
-app.use('/api', messagesRouter);
 app.use('/api/contracts', contractsRouter);
 app.use('/api/tenants', tenantsRouter);
 app.use('/api/promos', promosRouter);
@@ -130,6 +129,10 @@ app.use('/api/properties', propertiesRouter);
 app.use('/api/experiences', experiencesRouter);
 app.use('/api/stay-bookings', stayBookingsRouter);
 app.use('/api/experience-bookings', experienceBookingsRouter);
+// A4: keep broad authenticated messagesRouter after specific public Stays routes
+// so messagesRouter.use(authenticate) cannot intercept public property
+// search/detail/availability or direct guest stay-booking endpoints.
+app.use('/api', messagesRouter);
 // Phase B: User self-service (password change, profile)
 app.use('/api/users', usersRouter);
 

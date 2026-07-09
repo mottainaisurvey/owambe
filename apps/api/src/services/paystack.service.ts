@@ -1,8 +1,39 @@
 import https from 'https';
 import { logger } from '../utils/logger';
+import { AppError } from '../utils/AppError';
 
-const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY || '';
 const BASE_URL = 'api.paystack.co';
+
+function getPaystackSecret(): string {
+  return process.env.PAYSTACK_SECRET_KEY || '';
+}
+
+export function isPaystackConfigured(): boolean {
+  return getPaystackSecret().trim().length > 0;
+}
+
+function requirePaystackSecret(): string {
+  const secret = getPaystackSecret().trim();
+  if (!secret) {
+    throw new AppError(
+      'Payment provider is not configured. Please try again later or contact support.',
+      503,
+      'PAYSTACK_CONFIGURATION_MISSING',
+    );
+  }
+  return secret;
+}
+
+function toPaystackInitializationError(err: unknown): AppError {
+  if (err instanceof AppError) return err;
+  const message = err instanceof Error ? err.message : String(err);
+  logger.error('[Paystack] Transaction initialization failed', { error: message });
+  return new AppError(
+    'Payment provider could not initialize this booking payment. Please try again later.',
+    502,
+    'PAYSTACK_INITIALIZATION_FAILED',
+  );
+}
 
 // ─── PAYSTACK API WRAPPER ────────────────────────────
 function paystackRequest<T>(method: string, path: string, data?: object): Promise<T> {
@@ -14,7 +45,7 @@ function paystackRequest<T>(method: string, path: string, data?: object): Promis
       path,
       method,
       headers: {
-        Authorization: `Bearer ${PAYSTACK_SECRET}`,
+        Authorization: `Bearer ${requirePaystackSecret()}`,
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(body),
       },
@@ -71,7 +102,11 @@ export async function initializeTransaction(params: InitTransactionParams): Prom
   };
 
   logger.info(`Initializing Paystack transaction: ${params.reference}`);
-  return paystackRequest('POST', '/transaction/initialize', data);
+  try {
+    return await paystackRequest('POST', '/transaction/initialize', data);
+  } catch (err) {
+    throw toPaystackInitializationError(err);
+  }
 }
 
 // ─── VERIFY TRANSACTION ──────────────────────────────

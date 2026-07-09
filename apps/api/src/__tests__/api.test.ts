@@ -531,8 +531,9 @@ describe('Contracts API', () => {
     if (!plannerSigningToken) return;
     const res = await request(app)
       .get(`/api/contracts/sign/${plannerSigningToken}`);
-    // Accept 200 (success) or 401 (auth now required on this route)
-    expect([200, 401]).toContain(res.status);
+    // Accept 200 (success), 401 (auth required), or 400 when a valid token belongs to
+    // a DRAFT contract that has not yet been sent and is therefore not signable.
+    expect([200, 400, 401]).toContain(res.status);
     if (res.status === 200) {
       expect(res.body).toHaveProperty('contract');
       expect(res.body).toHaveProperty('signature');

@@ -10,9 +10,35 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+function readDefaultAuthorizationHeader(): string | null {
+  const authorization = api.defaults.headers.common['Authorization'];
+  return typeof authorization === 'string' && authorization.trim().length > 0 ? authorization : null;
+}
+
+function setAuthorizationHeader(config: any, authorization: string) {
+  config.headers = config.headers || {};
+
+  if (typeof config.headers.set === 'function') {
+    config.headers.set('Authorization', authorization);
+    return;
+  }
+
+  config.headers['Authorization'] = authorization;
+}
+
 // ─── REQUEST INTERCEPTOR ─────────────────────────────
 api.interceptors.request.use(
-  (config) => config,
+  async (config) => {
+    const { useAuthStore } = await import('@/store/auth.store');
+    const accessToken = useAuthStore.getState().accessToken;
+    const authorization = accessToken ? `Bearer ${accessToken}` : readDefaultAuthorizationHeader();
+
+    if (authorization) {
+      setAuthorizationHeader(config, authorization);
+    }
+
+    return config;
+  },
   (error) => Promise.reject(error)
 );
 
@@ -28,17 +54,34 @@ function processQueue(error: any, token: string | null = null) {
   failedQueue = [];
 }
 
+function requestUrl(config: any): string {
+  return config?.url ?? '';
+}
+
+function isRefreshRequest(config: any): boolean {
+  return requestUrl(config).includes('/auth/refresh');
+}
+
+function shouldRedirectAfterRefreshFailure(config: any): boolean {
+  return !requestUrl(config).includes('/stay-bookings');
+}
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
+    if (error.response?.status === 401 && isRefreshRequest(originalRequest)) {
+      return Promise.reject(error);
+    }
+
     // If 401 and not already retrying
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         }).then((token) => {
+          originalRequest.headers = originalRequest.headers || {};
           originalRequest.headers['Authorization'] = `Bearer ${token}`;
           return api(originalRequest);
         });
@@ -52,6 +95,7 @@ api.interceptors.response.use(
         const { accessToken } = res.data;
 
         api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+        originalRequest.headers = originalRequest.headers || {};
         originalRequest.headers['Authorization'] = `Bearer ${accessToken}`;
 
         // Update zustand store
@@ -67,7 +111,7 @@ api.interceptors.response.use(
         processQueue(refreshError, null);
         const { useAuthStore } = await import('@/store/auth.store');
         useAuthStore.getState().clearAuth();
-        if (typeof window !== 'undefined') { window.location.href = '/login'; }
+        if (typeof window !== 'undefined' && shouldRedirectAfterRefreshFailure(originalRequest)) { window.location.href = '/login'; }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
@@ -279,4 +323,63 @@ export const uploadApi = {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
   },
+};
+
+// ─── Stays Guest Booking API ───────────────────────────
+export interface StayRateBreakdownNight {
+  date: string;
+  rate: string | number;
+  currency?: string | null;
+  source?: 'BASE' | 'OVERRIDE' | string;
+  minimumStay?: number | null;
+  maximumStay?: number | null;
+}
+
+export interface StayPropertyRoom {
+  id: string;
+  name: string;
+  roomType: string;
+  pricePerNight: string | number;
+  currency: string;
+  capacity: number;
+  isAvailable?: boolean;
+  effectiveTotal?: string | number;
+  effectiveRatePerNight?: string | number;
+  rateBreakdown?: StayRateBreakdownNight[];
+}
+
+export interface StayProperty {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  propertyType: string;
+  city: string;
+  state?: string | null;
+  address?: string | null;
+  coverImageUrl?: string | null;
+  galleryUrls?: string[];
+  amenities?: string[];
+  rating?: string | number;
+  reviewCount?: number;
+  rooms: StayPropertyRoom[];
+  host?: { id: string; businessName: string; rating?: string | number; isVerified?: boolean };
+}
+
+export interface CreateStayBookingInput {
+  roomId: string;
+  checkInDate: string;
+  checkOutDate: string;
+  guestCount: number;
+  specialRequests?: string;
+}
+
+export const staysApi = {
+  search: (params: Record<string, string | number | undefined>) => api.get('/properties', { params }),
+  availability: (propertyId: string, checkIn: string, checkOut: string) =>
+    api.get(`/properties/${propertyId}/availability`, { params: { checkIn, checkOut } }),
+  createBooking: (payload: CreateStayBookingInput) => api.post('/stay-bookings', payload),
+  listBookings: (params?: Record<string, string | number | undefined>) => api.get('/stay-bookings', { params }),
+  getBooking: (id: string) => api.get(`/stay-bookings/${id}`),
+  cancelBooking: (id: string) => api.post(`/stay-bookings/${id}/cancel`),
 };

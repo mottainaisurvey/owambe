@@ -146,6 +146,29 @@ const templates: Record<string, (data: any) => string> = {
       </div>
     </div>`,
 
+  'guest-stay-reservation-pending': (d) => `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+      <div style="background:#2D6A4F;padding:24px;border-radius:8px 8px 0 0;text-align:center">
+        <h1 style="color:#fff;margin:0">owambe.com — Stays</h1>
+      </div>
+      <div style="padding:32px;background:#fff;border:1px solid #e5e7eb;border-radius:0 0 8px 8px">
+        <h2 style="color:#1A1612">Reservation Created</h2>
+        <p>Hi ${d.firstName}, your stay reservation at <strong>${d.propertyName}</strong> has been created and is pending deposit payment.</p>
+        <div style="background:#EEF7F2;border-radius:8px;padding:20px;margin:20px 0">
+          <p style="margin:4px 0"><strong>Room:</strong> ${d.roomName}</p>
+          <p style="margin:4px 0"><strong>Check-in:</strong> ${d.checkIn}</p>
+          <p style="margin:4px 0"><strong>Check-out:</strong> ${d.checkOut} (${d.nights} nights)</p>
+          <p style="margin:4px 0"><strong>Total:</strong> ${d.totalAmount}</p>
+          <p style="margin:4px 0"><strong>Deposit due:</strong> ${d.depositAmount}</p>
+          <p style="margin:4px 0"><strong>Reference:</strong> ${d.reference}</p>
+        </div>
+        <div style="text-align:center;margin:24px 0">
+          <a href="${d.manageUrl}" style="background:#2D6A4F;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold">View Reservation →</a>
+        </div>
+        <p style="color:#9CA3AF;font-size:13px">Your reservation is not fully confirmed until the deposit payment succeeds.</p>
+      </div>
+    </div>`,
+
   'host-reservation-cancelled': (d) => `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
       <div style="background:#E76F2A;padding:24px;border-radius:8px 8px 0 0;text-align:center">
