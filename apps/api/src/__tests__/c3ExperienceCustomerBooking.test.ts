@@ -421,14 +421,14 @@ describe('C3 — Experience Customer Booking', () => {
       .send({ reference: bookingRef });
     expect(verifyRes.status).toBe(200);
     expect(verifyRes.body.data.paymentStatus).toBe('PAID');
-    // meetingDetails is in the response after PAID confirmation
-    expect(verifyRes.body.data.meetingDetails).toBeTruthy();
-    expect(verifyRes.body.data.meetingDetails).toBe('Published meeting location — only for paid guests');
+    // meetingDetails is nested under data.experience.meetingDetails
+    expect(verifyRes.body.data.experience.meetingDetails).toBeTruthy();
+    expect(verifyRes.body.data.experience.meetingDetails).toBe('Published meeting location — only for paid guests');
 
-    // GET /:id also discloses after PAID
+    // GET /:id also discloses after PAID (nested under experience)
     const getRes = await request(app).get(`/api/experience-bookings/${newBookingId}`);
     expect(getRes.status).toBe(200);
-    expect(getRes.body.data.meetingDetails).toBeTruthy();
+    expect(getRes.body.data.experience.meetingDetails).toBeTruthy();
 
     // Clean up
     await prisma.experienceBooking.delete({ where: { id: newBookingId } });
