@@ -1,0 +1,669 @@
+{
+  "STEP-1a: OPERATOR-A Registration": {
+    "status": 201,
+    "body": {
+      "success": true,
+      "message": "Registration successful. Please check your email to verify your account.",
+      "userId": "fe4ef1fc-8075-48d2-987f-06b678393ca3"
+    }
+  },
+  "STEP-1b: OPERATOR-A Login": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJmZTRlZjFmYy04MDc1LTQ4ZDItOTg3Zi0wNmI2NzgzOTNjYTMiLCJyb2xlIjoiT1BFUkFUT1IiLCJpYXQiOjE3ODM3OTQ3NjgsImV4cCI6MTc4Mzc5NTY2OH0.sOxQQIlTrU5LYhWJyqqEh_CGDgAvNf5rR2DH2W9362c",
+      "user": {
+        "id": "fe4ef1fc-8075-48d2-987f-06b678393ca3",
+        "email": "op-a-c2-1783794764@smoke.owambe.test",
+        "firstName": "OperatorA",
+        "lastName": "C2Smoke1783794764",
+        "role": "OPERATOR",
+        "avatarUrl": null,
+        "isEmailVerified": false,
+        "activeMode": "EXPERIENCES",
+        "availableModes": [
+          "EXPERIENCES"
+        ],
+        "profile": {
+          "id": "1c62e1b2-a145-4d11-bfda-169780314d0b",
+          "userId": "fe4ef1fc-8075-48d2-987f-06b678393ca3",
+          "businessName": "Op A Experiences 1783794764",
+          "city": null,
+          "state": null,
+          "country": "NG",
+          "phone": null,
+          "bio": null,
+          "logoUrl": null,
+          "isVerified": false,
+          "verifiedAt": null,
+          "isApproved": false,
+          "approvedAt": null,
+          "paystackSubAccountCode": null,
+          "paystackSubAccountId": null,
+          "bankCode": null,
+          "bankAccountNumber": null,
+          "bankAccountName": null,
+          "rating": "0",
+          "reviewCount": 0,
+          "createdAt": "2026-07-11T18:32:46.196Z",
+          "updatedAt": "2026-07-11T18:32:46.196Z"
+        },
+        "operator": {
+          "id": "1c62e1b2-a145-4d11-bfda-169780314d0b",
+          "userId": "fe4ef1fc-8075-48d2-987f-06b678393ca3",
+          "businessName": "Op A Experiences 1783794764",
+          "city": null,
+          "state": null,
+          "country": "NG",
+          "phone": null,
+          "bio": null,
+          "logoUrl": null,
+          "isVerified": false,
+          "verifiedAt": null,
+          "isApproved": false,
+          "approvedAt": null,
+          "paystackSubAccountCode": null,
+          "paystackSubAccountId": null,
+          "bankCode": null,
+          "bankAccountNumber": null,
+          "bankAccountName": null,
+          "rating": "0",
+          "reviewCount": 0,
+          "createdAt": "2026-07-11T18:32:46.196Z",
+          "updatedAt": "2026-07-11T18:32:46.196Z"
+        }
+      }
+    }
+  },
+  "STEP-1c: OPERATOR-A Hydration Payload (/auth/me)": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "user": {
+        "id": "fe4ef1fc-8075-48d2-987f-06b678393ca3",
+        "email": "op-a-c2-1783794764@smoke.owambe.test",
+        "firstName": "OperatorA",
+        "lastName": "C2Smoke1783794764",
+        "role": "OPERATOR",
+        "avatarUrl": null,
+        "isEmailVerified": false,
+        "activeMode": "EXPERIENCES",
+        "availableModes": [
+          "EXPERIENCES"
+        ],
+        "planner": null,
+        "vendor": null,
+        "consumer": null,
+        "host": null,
+        "operator": {
+          "id": "1c62e1b2-a145-4d11-bfda-169780314d0b",
+          "userId": "fe4ef1fc-8075-48d2-987f-06b678393ca3",
+          "businessName": "Op A Experiences 1783794764",
+          "city": null,
+          "state": null,
+          "country": "NG",
+          "phone": null,
+          "bio": null,
+          "logoUrl": null,
+          "isVerified": false,
+          "verifiedAt": null,
+          "isApproved": false,
+          "approvedAt": null,
+          "paystackSubAccountCode": null,
+          "paystackSubAccountId": null,
+          "bankCode": null,
+          "bankAccountNumber": null,
+          "bankAccountName": null,
+          "rating": "0",
+          "reviewCount": 0,
+          "createdAt": "2026-07-11T18:32:46.196Z",
+          "updatedAt": "2026-07-11T18:32:46.196Z"
+        }
+      }
+    }
+  },
+  "STEP-2: Create DRAFT Experience": {
+    "status": 201,
+    "body": {
+      "success": true,
+      "data": {
+        "id": "d6ec2421-3bc7-4d79-9b7f-beb102c5468a",
+        "operatorId": "1c62e1b2-a145-4d11-bfda-169780314d0b",
+        "name": "C2 Smoke Experience 1783794764",
+        "slug": "c2-smoke-experience-1783794764",
+        "description": "AC-5 staging smoke experience",
+        "experienceType": "CULTURAL_TOUR",
+        "city": "Lagos",
+        "state": null,
+        "country": "Nigeria",
+        "address": null,
+        "latitude": null,
+        "longitude": null,
+        "coverImageUrl": null,
+        "galleryUrls": [],
+        "durationMinutes": 90,
+        "maxGroupSize": null,
+        "minGroupSize": 1,
+        "pricePerPerson": "7500",
+        "currency": "NGN",
+        "includes": [],
+        "requirements": [],
+        "languages": [
+          "English"
+        ],
+        "meetingDetails": null,
+        "isActive": false,
+        "isApproved": false,
+        "approvedAt": null,
+        "isFeatured": false,
+        "rating": "0",
+        "reviewCount": 0,
+        "createdAt": "2026-07-11T18:32:51.042Z",
+        "updatedAt": "2026-07-11T18:32:51.042Z"
+      }
+    }
+  },
+  "STEP-3: One-Off Slot Creation": {
+    "status": 201,
+    "body": {
+      "success": true,
+      "data": {
+        "id": "639a99b2-8194-4b71-8a88-439f5f1621e9",
+        "experienceId": "d6ec2421-3bc7-4d79-9b7f-beb102c5468a",
+        "startTime": "2026-07-18T10:00:00.000Z",
+        "endTime": "2026-07-18T12:00:00.000Z",
+        "capacity": 12,
+        "bookedCount": 0,
+        "isActive": true,
+        "createdAt": "2026-07-11T18:32:52.339Z",
+        "rruleString": null,
+        "timezone": null,
+        "parentSlotId": null
+      },
+      "type": "one-off"
+    }
+  },
+  "STEP-4: Weekly BYDAY=TU,TH COUNT=6 Recurrence": {
+    "status": 201,
+    "body": {
+      "success": true,
+      "data": {
+        "parent": {
+          "id": "97f7e8f9-aa1e-497f-b243-4eb9d1801d0a",
+          "experienceId": "d6ec2421-3bc7-4d79-9b7f-beb102c5468a",
+          "startTime": "2026-07-28T14:00:00.000Z",
+          "endTime": "2026-07-28T16:00:00.000Z",
+          "capacity": 8,
+          "bookedCount": 0,
+          "isActive": true,
+          "createdAt": "2026-07-11T18:32:53.908Z",
+          "rruleString": "FREQ=WEEKLY;BYDAY=TU,TH;COUNT=6",
+          "timezone": "Africa/Lagos",
+          "parentSlotId": null
+        },
+        "instances": [
+          {
+            "id": "c60e7ef6-8ac7-4682-9b6b-f109029514c7",
+            "experienceId": "d6ec2421-3bc7-4d79-9b7f-beb102c5468a",
+            "startTime": "2026-07-28T14:00:00.000Z",
+            "endTime": "2026-07-28T16:00:00.000Z",
+            "capacity": 8,
+            "bookedCount": 0,
+            "isActive": true,
+            "createdAt": "2026-07-11T18:32:53.912Z",
+            "rruleString": null,
+            "timezone": "Africa/Lagos",
+            "parentSlotId": "97f7e8f9-aa1e-497f-b243-4eb9d1801d0a"
+          },
+          {
+            "id": "fff6ba59-21d2-4ec3-9a1e-6600fb8588cf",
+            "experienceId": "d6ec2421-3bc7-4d79-9b7f-beb102c5468a",
+            "startTime": "2026-07-30T14:00:00.000Z",
+            "endTime": "2026-07-30T16:00:00.000Z",
+            "capacity": 8,
+            "bookedCount": 0,
+            "isActive": true,
+            "createdAt": "2026-07-11T18:32:53.912Z",
+            "rruleString": null,
+            "timezone": "Africa/Lagos",
+            "parentSlotId": "97f7e8f9-aa1e-497f-b243-4eb9d1801d0a"
+          },
+          {
+            "id": "8a887786-5008-4b22-bf5f-69507b1261c1",
+            "experienceId": "d6ec2421-3bc7-4d79-9b7f-beb102c5468a",
+            "startTime": "2026-08-04T14:00:00.000Z",
+            "endTime": "2026-08-04T16:00:00.000Z",
+            "capacity": 8,
+            "bookedCount": 0,
+            "isActive": true,
+            "createdAt": "2026-07-11T18:32:53.912Z",
+            "rruleString": null,
+            "timezone": "Africa/Lagos",
+            "parentSlotId": "97f7e8f9-aa1e-497f-b243-4eb9d1801d0a"
+          },
+          {
+            "id": "c85bccaa-bb54-4065-8d78-b60d44479762",
+            "experienceId": "d6ec2421-3bc7-4d79-9b7f-beb102c5468a",
+            "startTime": "2026-08-06T14:00:00.000Z",
+            "endTime": "2026-08-06T16:00:00.000Z",
+            "capacity": 8,
+            "bookedCount": 0,
+            "isActive": true,
+            "createdAt": "2026-07-11T18:32:53.912Z",
+            "rruleString": null,
+            "timezone": "Africa/Lagos",
+            "parentSlotId": "97f7e8f9-aa1e-497f-b243-4eb9d1801d0a"
+          },
+          {
+            "id": "f3c250b7-e5c2-4591-94a1-7569b2dcaf7a",
+            "experienceId": "d6ec2421-3bc7-4d79-9b7f-beb102c5468a",
+            "startTime": "2026-08-11T14:00:00.000Z",
+            "endTime": "2026-08-11T16:00:00.000Z",
+            "capacity": 8,
+            "bookedCount": 0,
+            "isActive": true,
+            "createdAt": "2026-07-11T18:32:53.912Z",
+            "rruleString": null,
+            "timezone": "Africa/Lagos",
+            "parentSlotId": "97f7e8f9-aa1e-497f-b243-4eb9d1801d0a"
+          },
+          {
+            "id": "f07de784-243e-4830-8fce-232f8cdc8a02",
+            "experienceId": "d6ec2421-3bc7-4d79-9b7f-beb102c5468a",
+            "startTime": "2026-08-13T14:00:00.000Z",
+            "endTime": "2026-08-13T16:00:00.000Z",
+            "capacity": 8,
+            "bookedCount": 0,
+            "isActive": true,
+            "createdAt": "2026-07-11T18:32:53.912Z",
+            "rruleString": null,
+            "timezone": "Africa/Lagos",
+            "parentSlotId": "97f7e8f9-aa1e-497f-b243-4eb9d1801d0a"
+          }
+        ]
+      },
+      "type": "recurring",
+      "instanceCount": 6
+    }
+  },
+  "STEP-4b: Slot Listing (all instances)": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": [
+        {
+          "id": "639a99b2-8194-4b71-8a88-439f5f1621e9",
+          "experienceId": "d6ec2421-3bc7-4d79-9b7f-beb102c5468a",
+          "startTime": "2026-07-18T10:00:00.000Z",
+          "endTime": "2026-07-18T12:00:00.000Z",
+          "capacity": 12,
+          "bookedCount": 0,
+          "isActive": true,
+          "createdAt": "2026-07-11T18:32:52.339Z",
+          "rruleString": null,
+          "timezone": null,
+          "parentSlotId": null,
+          "availableSpots": 12,
+          "isSoldOut": false
+        },
+        {
+          "id": "c60e7ef6-8ac7-4682-9b6b-f109029514c7",
+          "experienceId": "d6ec2421-3bc7-4d79-9b7f-beb102c5468a",
+          "startTime": "2026-07-28T14:00:00.000Z",
+          "endTime": "2026-07-28T16:00:00.000Z",
+          "capacity": 8,
+          "bookedCount": 0,
+          "isActive": true,
+          "createdAt": "2026-07-11T18:32:53.912Z",
+          "rruleString": null,
+          "timezone": "Africa/Lagos",
+          "parentSlotId": "97f7e8f9-aa1e-497f-b243-4eb9d1801d0a",
+          "availableSpots": 8,
+          "isSoldOut": false
+        },
+        {
+          "id": "fff6ba59-21d2-4ec3-9a1e-6600fb8588cf",
+          "experienceId": "d6ec2421-3bc7-4d79-9b7f-beb102c5468a",
+          "startTime": "2026-07-30T14:00:00.000Z",
+          "endTime": "2026-07-30T16:00:00.000Z",
+          "capacity": 8,
+          "bookedCount": 0,
+          "isActive": true,
+          "createdAt": "2026-07-11T18:32:53.912Z",
+          "rruleString": null,
+          "timezone": "Africa/Lagos",
+          "parentSlotId": "97f7e8f9-aa1e-497f-b243-4eb9d1801d0a",
+          "availableSpots": 8,
+          "isSoldOut": false
+        },
+        {
+          "id": "8a887786-5008-4b22-bf5f-69507b1261c1",
+          "experienceId": "d6ec2421-3bc7-4d79-9b7f-beb102c5468a",
+          "startTime": "2026-08-04T14:00:00.000Z",
+          "endTime": "2026-08-04T16:00:00.000Z",
+          "capacity": 8,
+          "bookedCount": 0,
+          "isActive": true,
+          "createdAt": "2026-07-11T18:32:53.912Z",
+          "rruleString": null,
+          "timezone": "Africa/Lagos",
+          "parentSlotId": "97f7e8f9-aa1e-497f-b243-4eb9d1801d0a",
+          "availableSpots": 8,
+          "isSoldOut": false
+        },
+        {
+          "id": "c85bccaa-bb54-4065-8d78-b60d44479762",
+          "experienceId": "d6ec2421-3bc7-4d79-9b7f-beb102c5468a",
+          "startTime": "2026-08-06T14:00:00.000Z",
+          "endTime": "2026-08-06T16:00:00.000Z",
+          "capacity": 8,
+          "bookedCount": 0,
+          "isActive": true,
+          "createdAt": "2026-07-11T18:32:53.912Z",
+          "rruleString": null,
+          "timezone": "Africa/Lagos",
+          "parentSlotId": "97f7e8f9-aa1e-497f-b243-4eb9d1801d0a",
+          "availableSpots": 8,
+          "isSoldOut": false
+        },
+        {
+          "id": "f3c250b7-e5c2-4591-94a1-7569b2dcaf7a",
+          "experienceId": "d6ec2421-3bc7-4d79-9b7f-beb102c5468a",
+          "startTime": "2026-08-11T14:00:00.000Z",
+          "endTime": "2026-08-11T16:00:00.000Z",
+          "capacity": 8,
+          "bookedCount": 0,
+          "isActive": true,
+          "createdAt": "2026-07-11T18:32:53.912Z",
+          "rruleString": null,
+          "timezone": "Africa/Lagos",
+          "parentSlotId": "97f7e8f9-aa1e-497f-b243-4eb9d1801d0a",
+          "availableSpots": 8,
+          "isSoldOut": false
+        },
+        {
+          "id": "f07de784-243e-4830-8fce-232f8cdc8a02",
+          "experienceId": "d6ec2421-3bc7-4d79-9b7f-beb102c5468a",
+          "startTime": "2026-08-13T14:00:00.000Z",
+          "endTime": "2026-08-13T16:00:00.000Z",
+          "capacity": 8,
+          "bookedCount": 0,
+          "isActive": true,
+          "createdAt": "2026-07-11T18:32:53.912Z",
+          "rruleString": null,
+          "timezone": "Africa/Lagos",
+          "parentSlotId": "97f7e8f9-aa1e-497f-b243-4eb9d1801d0a",
+          "availableSpots": 8,
+          "isSoldOut": false
+        }
+      ]
+    }
+  },
+  "STEP-5a: Single-Instance Edit": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": {
+        "id": "c60e7ef6-8ac7-4682-9b6b-f109029514c7",
+        "experienceId": "d6ec2421-3bc7-4d79-9b7f-beb102c5468a",
+        "startTime": "2026-07-26T16:00:00.000Z",
+        "endTime": "2026-07-26T18:00:00.000Z",
+        "capacity": 10,
+        "bookedCount": 0,
+        "isActive": true,
+        "createdAt": "2026-07-11T18:32:53.912Z",
+        "rruleString": null,
+        "timezone": "Africa/Lagos",
+        "parentSlotId": "97f7e8f9-aa1e-497f-b243-4eb9d1801d0a"
+      }
+    }
+  },
+  "STEP-5b: Single-Instance Cancel": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "message": "Slot cancelled successfully"
+    }
+  },
+  "STEP-8a: OPERATOR-B Registration": {
+    "status": 201,
+    "body": {
+      "success": true,
+      "message": "Registration successful. Please check your email to verify your account.",
+      "userId": "11d63456-5fbe-48ca-8b84-712d652f2eee"
+    }
+  },
+  "STEP-8b: OPERATOR-B Login": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxMWQ2MzQ1Ni01ZmJlLTQ4Y2EtOGI4NC03MTJkNjUyZjJlZWUiLCJyb2xlIjoiT1BFUkFUT1IiLCJpYXQiOjE3ODM3OTQ3ODEsImV4cCI6MTc4Mzc5NTY4MX0.tKSX6PuNbktQynXj4oMU64UjxvrPak1eZp-kge0rDqw",
+      "user": {
+        "id": "11d63456-5fbe-48ca-8b84-712d652f2eee",
+        "email": "op-b-c2-1783794764@smoke.owambe.test",
+        "firstName": "OperatorB",
+        "lastName": "C2Smoke1783794764",
+        "role": "OPERATOR",
+        "avatarUrl": null,
+        "isEmailVerified": false,
+        "activeMode": "EXPERIENCES",
+        "availableModes": [
+          "EXPERIENCES"
+        ],
+        "profile": {
+          "id": "905aafe7-20f7-4519-bf35-bb1e85322e84",
+          "userId": "11d63456-5fbe-48ca-8b84-712d652f2eee",
+          "businessName": "Op B Experiences 1783794764",
+          "city": null,
+          "state": null,
+          "country": "NG",
+          "phone": null,
+          "bio": null,
+          "logoUrl": null,
+          "isVerified": false,
+          "verifiedAt": null,
+          "isApproved": false,
+          "approvedAt": null,
+          "paystackSubAccountCode": null,
+          "paystackSubAccountId": null,
+          "bankCode": null,
+          "bankAccountNumber": null,
+          "bankAccountName": null,
+          "rating": "0",
+          "reviewCount": 0,
+          "createdAt": "2026-07-11T18:32:59.667Z",
+          "updatedAt": "2026-07-11T18:32:59.667Z"
+        },
+        "operator": {
+          "id": "905aafe7-20f7-4519-bf35-bb1e85322e84",
+          "userId": "11d63456-5fbe-48ca-8b84-712d652f2eee",
+          "businessName": "Op B Experiences 1783794764",
+          "city": null,
+          "state": null,
+          "country": "NG",
+          "phone": null,
+          "bio": null,
+          "logoUrl": null,
+          "isVerified": false,
+          "verifiedAt": null,
+          "isApproved": false,
+          "approvedAt": null,
+          "paystackSubAccountCode": null,
+          "paystackSubAccountId": null,
+          "bankCode": null,
+          "bankAccountNumber": null,
+          "bankAccountName": null,
+          "rating": "0",
+          "reviewCount": 0,
+          "createdAt": "2026-07-11T18:32:59.667Z",
+          "updatedAt": "2026-07-11T18:32:59.667Z"
+        }
+      }
+    }
+  },
+  "STEP-8c: Foreign-Operator READ Probe (GET slots for Op-A experience)": {
+    "status": 403,
+    "body": {
+      "success": false,
+      "error": "You do not have permission to manage slots for this experience"
+    }
+  },
+  "STEP-8d: Foreign-Operator WRITE Probe (POST slot to Op-A experience)": {
+    "status": 403,
+    "body": {
+      "success": false,
+      "error": "You do not have permission to manage slots for this experience"
+    }
+  },
+  "STEP-6: Rule-Level Mutation (edit-series) \u2192 Re-materialisation": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "message": "Series updated. 3 future instance(s) re-materialised.",
+      "data": {
+        "parentSlotId": "97f7e8f9-aa1e-497f-b243-4eb9d1801d0a",
+        "instances": [
+          {
+            "id": "42db9276-e353-4530-a953-b388f6344cdd",
+            "experienceId": "d6ec2421-3bc7-4d79-9b7f-beb102c5468a",
+            "startTime": "2026-08-03T09:00:00.000Z",
+            "endTime": "2026-08-03T11:00:00.000Z",
+            "capacity": 15,
+            "bookedCount": 0,
+            "isActive": true,
+            "createdAt": "2026-07-11T18:33:56.697Z",
+            "rruleString": null,
+            "timezone": "Africa/Lagos",
+            "parentSlotId": "97f7e8f9-aa1e-497f-b243-4eb9d1801d0a"
+          },
+          {
+            "id": "ad270b4a-4c60-4e95-8146-26aef770a041",
+            "experienceId": "d6ec2421-3bc7-4d79-9b7f-beb102c5468a",
+            "startTime": "2026-08-05T09:00:00.000Z",
+            "endTime": "2026-08-05T11:00:00.000Z",
+            "capacity": 15,
+            "bookedCount": 0,
+            "isActive": true,
+            "createdAt": "2026-07-11T18:33:56.697Z",
+            "rruleString": null,
+            "timezone": "Africa/Lagos",
+            "parentSlotId": "97f7e8f9-aa1e-497f-b243-4eb9d1801d0a"
+          },
+          {
+            "id": "001b4ac1-7137-415f-99d8-7f3317c4099c",
+            "experienceId": "d6ec2421-3bc7-4d79-9b7f-beb102c5468a",
+            "startTime": "2026-08-07T09:00:00.000Z",
+            "endTime": "2026-08-07T11:00:00.000Z",
+            "capacity": 15,
+            "bookedCount": 0,
+            "isActive": true,
+            "createdAt": "2026-07-11T18:33:56.697Z",
+            "rruleString": null,
+            "timezone": "Africa/Lagos",
+            "parentSlotId": "97f7e8f9-aa1e-497f-b243-4eb9d1801d0a"
+          }
+        ]
+      },
+      "instanceCount": 3
+    }
+  },
+  "STEP-6b: Slot Listing After Rule Mutation": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": [
+        {
+          "id": "639a99b2-8194-4b71-8a88-439f5f1621e9",
+          "experienceId": "d6ec2421-3bc7-4d79-9b7f-beb102c5468a",
+          "startTime": "2026-07-18T10:00:00.000Z",
+          "endTime": "2026-07-18T12:00:00.000Z",
+          "capacity": 12,
+          "bookedCount": 0,
+          "isActive": true,
+          "createdAt": "2026-07-11T18:32:52.339Z",
+          "rruleString": null,
+          "timezone": null,
+          "parentSlotId": null,
+          "availableSpots": 12,
+          "isSoldOut": false
+        },
+        {
+          "id": "42db9276-e353-4530-a953-b388f6344cdd",
+          "experienceId": "d6ec2421-3bc7-4d79-9b7f-beb102c5468a",
+          "startTime": "2026-08-03T09:00:00.000Z",
+          "endTime": "2026-08-03T11:00:00.000Z",
+          "capacity": 15,
+          "bookedCount": 0,
+          "isActive": true,
+          "createdAt": "2026-07-11T18:33:56.697Z",
+          "rruleString": null,
+          "timezone": "Africa/Lagos",
+          "parentSlotId": "97f7e8f9-aa1e-497f-b243-4eb9d1801d0a",
+          "availableSpots": 15,
+          "isSoldOut": false
+        },
+        {
+          "id": "ad270b4a-4c60-4e95-8146-26aef770a041",
+          "experienceId": "d6ec2421-3bc7-4d79-9b7f-beb102c5468a",
+          "startTime": "2026-08-05T09:00:00.000Z",
+          "endTime": "2026-08-05T11:00:00.000Z",
+          "capacity": 15,
+          "bookedCount": 0,
+          "isActive": true,
+          "createdAt": "2026-07-11T18:33:56.697Z",
+          "rruleString": null,
+          "timezone": "Africa/Lagos",
+          "parentSlotId": "97f7e8f9-aa1e-497f-b243-4eb9d1801d0a",
+          "availableSpots": 15,
+          "isSoldOut": false
+        },
+        {
+          "id": "001b4ac1-7137-415f-99d8-7f3317c4099c",
+          "experienceId": "d6ec2421-3bc7-4d79-9b7f-beb102c5468a",
+          "startTime": "2026-08-07T09:00:00.000Z",
+          "endTime": "2026-08-07T11:00:00.000Z",
+          "capacity": 15,
+          "bookedCount": 0,
+          "isActive": true,
+          "createdAt": "2026-07-11T18:33:56.697Z",
+          "rruleString": null,
+          "timezone": "Africa/Lagos",
+          "parentSlotId": "97f7e8f9-aa1e-497f-b243-4eb9d1801d0a",
+          "availableSpots": 15,
+          "isSoldOut": false
+        }
+      ]
+    }
+  },
+  "STEP-7: Series Cancel (unbooked path)": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "message": "Series cancelled. 3 future instance(s) cancelled.",
+      "cancelledCount": 3
+    }
+  },
+  "STEP-7b: Slot Listing After Series Cancel": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": [
+        {
+          "id": "639a99b2-8194-4b71-8a88-439f5f1621e9",
+          "experienceId": "d6ec2421-3bc7-4d79-9b7f-beb102c5468a",
+          "startTime": "2026-07-18T10:00:00.000Z",
+          "endTime": "2026-07-18T12:00:00.000Z",
+          "capacity": 12,
+          "bookedCount": 0,
+          "isActive": true,
+          "createdAt": "2026-07-11T18:32:52.339Z",
+          "rruleString": null,
+          "timezone": null,
+          "parentSlotId": null,
+          "availableSpots": 12,
+          "isSoldOut": false
+        }
+      ]
+    }
+  }
+}
