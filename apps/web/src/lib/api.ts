@@ -383,3 +383,77 @@ export const staysApi = {
   getBooking: (id: string) => api.get(`/stay-bookings/${id}`),
   cancelBooking: (id: string) => api.post(`/stay-bookings/${id}/cancel`),
 };
+
+// ─── C3: Experiences consumer API types ────────────────
+export interface ExperienceSlotInstance {
+  id: string;
+  startTime: string;
+  endTime: string;
+  capacity: number;
+  bookedCount: number;
+  isActive: boolean;
+  rruleString: string | null;
+  timezone: string | null;
+  parentSlotId: string | null;
+}
+
+export interface Experience {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  type: string;
+  city: string;
+  country: string;
+  pricePerPerson: string | number;
+  currency: string;
+  minGroupSize: number | null;
+  maxGroupSize: number | null;
+  durationMinutes: number | null;
+  coverImageUrl: string | null;
+  isActive: boolean;
+  isApproved: boolean;
+  operator?: { id: string; businessName: string };
+  slots?: ExperienceSlotInstance[];
+}
+
+export interface CreateExperienceBookingInput {
+  slotId: string;
+  guestCount: number;
+  specialRequests?: string;
+}
+
+export interface ExperienceBooking {
+  id: string;
+  reference: string;
+  status: string;
+  paymentStatus: string;
+  guestCount: number;
+  totalAmount: string | number;
+  currency: string;
+  createdAt: string;
+  confirmedAt: string | null;
+  cancelledAt: string | null;
+  specialRequests: string | null;
+  slot?: { startTime: string; endTime: string };
+  experience?: { name: string; city: string; coverImageUrl: string | null; meetingDetails?: string | null };
+}
+
+export const experiencesApi = {
+  list: (params?: Record<string, string | number | undefined>) =>
+    api.get('/experiences', { params }),
+  getBySlug: (slug: string) =>
+    api.get(`/experiences/${slug}`),
+  getSlots: (experienceId: string) =>
+    api.get(`/experience-slots/${experienceId}`),
+  createBooking: (payload: CreateExperienceBookingInput) =>
+    api.post('/experience-bookings', payload),
+  verifyBooking: (bookingId: string, reference?: string) =>
+    api.post(`/experience-bookings/${bookingId}/verify`, { reference }),
+  getBooking: (id: string) =>
+    api.get(`/experience-bookings/${id}`),
+  listBookings: (params?: Record<string, string | number | undefined>) =>
+    api.get('/experience-bookings', { params }),
+  cancelBooking: (id: string, reason?: string) =>
+    api.post(`/experience-bookings/${id}/cancel`, { reason }),
+};
