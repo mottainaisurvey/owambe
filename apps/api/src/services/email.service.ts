@@ -213,6 +213,29 @@ const templates: Record<string, (data: any) => string> = {
       </div>
     </div>`,
 
+  // C3: Guest confirmation email — pattern-match to guest-stay-reservation-pending
+  'guest-experience-booking-confirmed': (d) => `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+      <div style="background:#2D6A4F;padding:24px;border-radius:8px 8px 0 0;text-align:center">
+        <h1 style="color:#fff;margin:0">owambe.com — Experiences</h1>
+      </div>
+      <div style="padding:32px;background:#fff;border:1px solid #e5e7eb;border-radius:0 0 8px 8px">
+        <h2 style="color:#1A1612">Booking Created 🎟</h2>
+        <p>Hi ${d.firstName}, your booking for <strong>${d.experienceName}</strong> has been created and is pending payment.</p>
+        <div style="background:#EEF7F2;border-radius:8px;padding:20px;margin:20px 0">
+          <p style="margin:4px 0"><strong>Date:</strong> ${d.slotDate}</p>
+          <p style="margin:4px 0"><strong>Time:</strong> ${d.slotTime}</p>
+          <p style="margin:4px 0"><strong>Guests:</strong> ${d.guestCount}</p>
+          <p style="margin:4px 0"><strong>Total:</strong> ${d.totalAmount}</p>
+          <p style="margin:4px 0"><strong>Reference:</strong> ${d.reference}</p>
+        </div>
+        <div style="text-align:center;margin:24px 0">
+          <a href="${d.manageUrl}" style="background:#2D6A4F;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold">Complete Payment →</a>
+        </div>
+        <p style="color:#9CA3AF;font-size:13px">Your booking is not confirmed until payment is completed. Meeting details will be shared after payment.</p>
+      </div>
+    </div>`,
+
   // ─── CC-COHORT-OFFER-SURFACES-01 (Amendment 01) ─────
   'cohort-interest-forward': (d) => `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
