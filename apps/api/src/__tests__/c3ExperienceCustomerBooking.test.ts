@@ -512,8 +512,9 @@ describe('C3 — Experience Customer Booking', () => {
       .post('/api/auth/login')
       .send({ email, password });
     expect(loginRes.status).toBe(200);
-    expect(loginRes.body.data.user.activeMode).toBe('EXPERIENCES');
-    expect(loginRes.body.data.user.availableModes).toContain('EXPERIENCES');
+    // Login returns { success, accessToken, user: {...} } — no data wrapper
+    expect(loginRes.body.user.activeMode).toBe('EXPERIENCES');
+    expect(loginRes.body.user.availableModes).toContain('EXPERIENCES');
     // Clean up
     await prisma.operator.deleteMany({ where: { userId: newUserId } });
     await prisma.user.delete({ where: { id: newUserId } });
