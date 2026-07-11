@@ -246,18 +246,18 @@ function asOperator() {
 
 describe('C3 — Experience Customer Booking', () => {
 
-  // 1. Unauthenticated booking — mock returns 401 when no userId set
-  it('1. Booking on slot on unpublished experience → 409', async () => {
+  // 1. Sold-out slot → 409
+  it('1. Booking on sold-out slot → 409', async () => {
     asConsumer();
     const res = await request(app)
       .post('/api/experience-bookings')
       .send({ slotId: soldOutSlotId, guestCount: 1 });
-    // soldOutSlotId is on published experience but sold out → 409
+    // soldOutSlotId is on published experience but fully booked → 409
     expect(res.status).toBe(409);
   });
 
-  // 2. Sold-out slot → 409
-  it('2. Booking on sold-out slot → 409', async () => {
+  // 2. Sold-out slot (second probe) → 409
+  it('2. Booking on sold-out slot (second probe) → 409', async () => {
     asConsumer();
     const res = await request(app)
       .post('/api/experience-bookings')
@@ -265,13 +265,14 @@ describe('C3 — Experience Customer Booking', () => {
     expect(res.status).toBe(409);
   });
 
-  // 3. Cancelled/inactive slot → 409
-  it('3. Booking on cancelled slot → 409', async () => {
+  // 3. Cancelled/inactive slot → 404 (slot not found or unavailable)
+  it('3. Booking on cancelled slot → 404 (slot unavailable)', async () => {
     asConsumer();
     const res = await request(app)
       .post('/api/experience-bookings')
       .send({ slotId: cancelledSlotId, guestCount: 1 });
-    expect(res.status).toBe(409);
+    // Handler: if (!slot || !slot.isActive) → 404
+    expect(res.status).toBe(404);
   });
 
   // 4. Slot on draft (unapproved) experience → 409
@@ -293,7 +294,8 @@ describe('C3 — Experience Customer Booking', () => {
     const res = await request(app)
       .post('/api/experience-bookings')
       .send({ slotId: draftSlot.id, guestCount: 1 });
-    expect(res.status).toBe(409);
+    // Handler: if (!slot.experience.isActive || !slot.experience.isApproved) → 400
+    expect(res.status).toBe(400);
     await prisma.experienceSlot.delete({ where: { id: draftSlot.id } });
   });
 
@@ -332,7 +334,8 @@ describe('C3 — Experience Customer Booking', () => {
     const res = await request(app)
       .post('/api/experience-bookings')
       .send({ slotId: inactiveSlot.id, guestCount: 1 });
-    expect(res.status).toBe(409);
+    // Handler: if (!slot.experience.isActive || !slot.experience.isApproved) → 400
+    expect(res.status).toBe(400);
     await prisma.experienceSlot.delete({ where: { id: inactiveSlot.id } });
     await prisma.experience.delete({ where: { id: inactiveExp.id } });
   });
@@ -411,12 +414,14 @@ describe('C3 — Experience Customer Booking', () => {
     expect(newBookingRes.status).toBe(201);
     const newBookingId = newBookingRes.body.data.id;
 
-    // Verify (mock Paystack returns success)
+    // Verify (mock Paystack returns success) — pass reference from booking
+    const bookingRef = newBookingRes.body.data.reference;
     const verifyRes = await request(app)
       .post(`/api/experience-bookings/${newBookingId}/verify`)
-      .send({});
+      .send({ reference: bookingRef });
     expect(verifyRes.status).toBe(200);
     expect(verifyRes.body.data.paymentStatus).toBe('PAID');
+    // meetingDetails is in the response after PAID confirmation
     expect(verifyRes.body.data.meetingDetails).toBeTruthy();
     expect(verifyRes.body.data.meetingDetails).toBe('Published meeting location — only for paid guests');
 
