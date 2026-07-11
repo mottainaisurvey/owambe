@@ -507,9 +507,8 @@ describe('C2: Existing-suite regression — C1 experience CRUD', () => {
         description: 'Regression test experience',
         city: 'Lagos',
         country: 'Nigeria',
-        price: 5000,
+        pricePerPerson: 5000,
         currency: 'NGN',
-        capacity: 10,
         durationMinutes: 120,
         experienceType: 'CULTURAL_TOUR',
       });
