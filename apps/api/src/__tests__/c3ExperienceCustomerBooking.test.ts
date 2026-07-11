@@ -486,25 +486,37 @@ describe('C3 — Experience Customer Booking', () => {
     }
   });
 
-  // 16. C1 regression — OPERATOR registration still sets EXPERIENCES mode
+  // 16. C1 regression — OPERATOR registration + login sets EXPERIENCES mode
   it('16. C1 regression — OPERATOR registration sets EXPERIENCES mode hydration', async () => {
     const ts = Date.now();
-    const res = await request(app)
+    const email = `c3reg-operator-${ts}@test.owambe.com`;
+    const password = 'TestPass123!';
+    // Register
+    const regRes = await request(app)
       .post('/api/auth/register')
       .send({
-        email: `c3reg-operator-${ts}@test.owambe.com`,
-        password: 'TestPass123!',
+        email,
+        password,
         firstName: 'C3Reg',
         lastName: 'Operator',
         role: 'OPERATOR',
         companyName: `C3 Reg Operator ${ts}`,
       });
-    expect(res.status).toBe(201);
-    expect(res.body.data.user.activeMode).toBe('EXPERIENCES');
-    expect(res.body.data.user.availableModes).toContain('EXPERIENCES');
+    expect(regRes.status).toBe(201);
+    expect(regRes.body.userId).toBeTruthy();
+    const newUserId = regRes.body.userId;
+    // Mark email verified so login succeeds
+    await prisma.user.update({ where: { id: newUserId }, data: { isEmailVerified: true } });
+    // Login and check mode hydration
+    const loginRes = await request(app)
+      .post('/api/auth/login')
+      .send({ email, password });
+    expect(loginRes.status).toBe(200);
+    expect(loginRes.body.data.user.activeMode).toBe('EXPERIENCES');
+    expect(loginRes.body.data.user.availableModes).toContain('EXPERIENCES');
     // Clean up
-    await prisma.operator.deleteMany({ where: { userId: res.body.data.user.id } });
-    await prisma.user.delete({ where: { id: res.body.data.user.id } });
+    await prisma.operator.deleteMany({ where: { userId: newUserId } });
+    await prisma.user.delete({ where: { id: newUserId } });
   });
 
   // 17. C2 regression — slot creation still works for OPERATOR
