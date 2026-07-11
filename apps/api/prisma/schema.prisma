@@ -691,7 +691,8 @@ model Experience {
   includes        String[]       @default([])
   requirements    String[]       @default([])
   languages       String[]       @default(["English"])
-  isActive        Boolean        @default(true)
+  meetingDetails  String?                         // C1: meeting point / instructions for confirmed bookings
+  isActive        Boolean        @default(false) // C1: default false (DRAFT state per lifecycle model)
   isApproved      Boolean        @default(false)  // E2: explicit approval status, independent of isActive
   approvedAt      DateTime?                       // E2: timestamp of most recent approval action
   isFeatured      Boolean        @default(false)
