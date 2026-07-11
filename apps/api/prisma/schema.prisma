@@ -722,12 +722,20 @@ model ExperienceSlot {
   bookedCount     Int        @default(0)
   isActive        Boolean    @default(true)
   createdAt       DateTime   @default(now())
+  // C2: Recurrence fields (stored-rule-with-materialised-instances model)
+  rruleString     String?    // RFC 5545 RRULE string; set on parent row only
+  timezone        String?    // IANA timezone at rule authoring time (e.g. 'Africa/Lagos')
+  parentSlotId    String?    @db.Uuid  // FK to parent slot row; set on child instance rows
 
   experience         Experience          @relation(fields: [experienceId], references: [id], onDelete: Cascade)
   experienceBookings ExperienceBooking[]
+  // C2: Self-relation for parent/child instance grouping
+  parentSlot      ExperienceSlot?  @relation("SlotInstances", fields: [parentSlotId], references: [id], onDelete: SetNull)
+  childSlots      ExperienceSlot[] @relation("SlotInstances")
 
   @@index([experienceId])
   @@index([startTime])
+  @@index([parentSlotId])
   @@map("experience_slots")
 }
 

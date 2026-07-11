@@ -43,6 +43,7 @@ import { usersRouter } from './routes/users';
 import experiencesRouter from './routes/experiences';
 import stayBookingsRouter from './routes/stay-bookings';
 import experienceBookingsRouter from './routes/experience-bookings';
+import experienceSlotsRouter from './routes/experience-slots'; // C2: slot scheduling
 import { initQueues, startWorkers, closeQueues } from './services/queue.service';
 import { initWebhookDispatcher, closeWebhookDispatcher } from './services/webhookDispatcher.service';
 import { initReconciliationCron, closeReconciliationCron } from './services/reconciliation.service';
@@ -163,6 +164,7 @@ app.use('/api/properties', propertiesRouter);
 app.use('/api/experiences', experiencesRouter);
 app.use('/api/stay-bookings', stayBookingsRouter);
 app.use('/api/experience-bookings', experienceBookingsRouter);
+app.use('/api/experience-slots', experienceSlotsRouter); // C2: slot scheduling
 // A4: keep broad authenticated messagesRouter after specific public Stays routes
 // so messagesRouter.use(authenticate) cannot intercept public property
 // search/detail/availability or direct guest stay-booking endpoints.
