@@ -1,0 +1,401 @@
+{
+  "1_OPERATOR_REGISTRATION": {
+    "status": 201,
+    "body": {
+      "success": true,
+      "message": "Registration successful. Please check your email to verify your account.",
+      "userId": "9b8047c7-5a96-45a6-81c2-5775ecc75668"
+    }
+  },
+  "2_OPERATOR_LOGIN_MODE_HYDRATION": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI5YjgwNDdjNy01YTk2LTQ1YTYtODFjMi01Nzc1ZWNjNzU2NjgiLCJyb2xlIjoiT1BFUkFUT1IiLCJpYXQiOjE3ODM3ODI1MjUsImV4cCI6MTc4Mzc4MzQyNX0.HXt8JblBDyfLs5296nj4bnpkg-JlT_Ss4vYGpkFkQa8",
+      "user": {
+        "id": "9b8047c7-5a96-45a6-81c2-5775ecc75668",
+        "email": "evidence-operator-1783782520@test.owambe.com",
+        "firstName": "Evidence",
+        "lastName": "Operator",
+        "role": "OPERATOR",
+        "avatarUrl": null,
+        "isEmailVerified": false,
+        "activeMode": "EXPERIENCES",
+        "availableModes": [
+          "EXPERIENCES"
+        ],
+        "profile": {
+          "id": "043beb06-baa9-4a9d-9311-1fa0a014d282",
+          "userId": "9b8047c7-5a96-45a6-81c2-5775ecc75668",
+          "businessName": "Evidence Experiences Ltd",
+          "city": null,
+          "state": null,
+          "country": "NG",
+          "phone": null,
+          "bio": null,
+          "logoUrl": null,
+          "isVerified": false,
+          "verifiedAt": null,
+          "isApproved": false,
+          "approvedAt": null,
+          "paystackSubAccountCode": null,
+          "paystackSubAccountId": null,
+          "bankCode": null,
+          "bankAccountNumber": null,
+          "bankAccountName": null,
+          "rating": "0",
+          "reviewCount": 0,
+          "createdAt": "2026-07-11T15:08:42.975Z",
+          "updatedAt": "2026-07-11T15:08:42.975Z"
+        },
+        "operator": {
+          "id": "043beb06-baa9-4a9d-9311-1fa0a014d282",
+          "userId": "9b8047c7-5a96-45a6-81c2-5775ecc75668",
+          "businessName": "Evidence Experiences Ltd",
+          "city": null,
+          "state": null,
+          "country": "NG",
+          "phone": null,
+          "bio": null,
+          "logoUrl": null,
+          "isVerified": false,
+          "verifiedAt": null,
+          "isApproved": false,
+          "approvedAt": null,
+          "paystackSubAccountCode": null,
+          "paystackSubAccountId": null,
+          "bankCode": null,
+          "bankAccountNumber": null,
+          "bankAccountName": null,
+          "rating": "0",
+          "reviewCount": 0,
+          "createdAt": "2026-07-11T15:08:42.975Z",
+          "updatedAt": "2026-07-11T15:08:42.975Z"
+        }
+      }
+    }
+  },
+  "3_GET_ME_OPERATOR_PROFILE": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "user": {
+        "id": "9b8047c7-5a96-45a6-81c2-5775ecc75668",
+        "email": "evidence-operator-1783782520@test.owambe.com",
+        "firstName": "Evidence",
+        "lastName": "Operator",
+        "role": "OPERATOR",
+        "avatarUrl": null,
+        "isEmailVerified": false,
+        "activeMode": "EXPERIENCES",
+        "availableModes": [
+          "EXPERIENCES"
+        ],
+        "planner": null,
+        "vendor": null,
+        "consumer": null,
+        "host": null,
+        "operator": {
+          "id": "043beb06-baa9-4a9d-9311-1fa0a014d282",
+          "userId": "9b8047c7-5a96-45a6-81c2-5775ecc75668",
+          "businessName": "Evidence Experiences Ltd",
+          "city": null,
+          "state": null,
+          "country": "NG",
+          "phone": null,
+          "bio": null,
+          "logoUrl": null,
+          "isVerified": false,
+          "verifiedAt": null,
+          "isApproved": false,
+          "approvedAt": null,
+          "paystackSubAccountCode": null,
+          "paystackSubAccountId": null,
+          "bankCode": null,
+          "bankAccountNumber": null,
+          "bankAccountName": null,
+          "rating": "0",
+          "reviewCount": 0,
+          "createdAt": "2026-07-11T15:08:42.975Z",
+          "updatedAt": "2026-07-11T15:08:42.975Z"
+        }
+      }
+    }
+  },
+  "4_CREATE_EXPERIENCE_DRAFT_STATE": {
+    "status": 201,
+    "body": {
+      "success": true,
+      "data": {
+        "id": "73c66506-7047-4c32-b8be-960dfee818e7",
+        "operatorId": "043beb06-baa9-4a9d-9311-1fa0a014d282",
+        "name": "C1 Evidence Cultural Tour",
+        "slug": "c1-evidence-cultural-tour",
+        "description": "A test experience created for C1 staging evidence.",
+        "experienceType": "CULTURAL_TOUR",
+        "city": "Lagos",
+        "state": null,
+        "country": "NG",
+        "address": null,
+        "latitude": null,
+        "longitude": null,
+        "coverImageUrl": null,
+        "galleryUrls": [],
+        "durationMinutes": null,
+        "maxGroupSize": null,
+        "minGroupSize": 1,
+        "pricePerPerson": "15000",
+        "currency": "NGN",
+        "includes": [],
+        "requirements": [],
+        "languages": [
+          "English"
+        ],
+        "meetingDetails": "Meet at the Lekki Conservation Centre main gate.",
+        "isActive": false,
+        "isApproved": false,
+        "approvedAt": null,
+        "isFeatured": false,
+        "rating": "0",
+        "reviewCount": 0,
+        "createdAt": "2026-07-11T15:08:51.231Z",
+        "updatedAt": "2026-07-11T15:08:51.231Z"
+      }
+    },
+    "isActive": false,
+    "isApproved": false
+  },
+  "5_GET_MINE_OPERATOR_EXPERIENCES": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": [
+        {
+          "id": "73c66506-7047-4c32-b8be-960dfee818e7",
+          "operatorId": "043beb06-baa9-4a9d-9311-1fa0a014d282",
+          "name": "C1 Evidence Cultural Tour",
+          "slug": "c1-evidence-cultural-tour",
+          "description": "A test experience created for C1 staging evidence.",
+          "experienceType": "CULTURAL_TOUR",
+          "city": "Lagos",
+          "state": null,
+          "country": "NG",
+          "address": null,
+          "latitude": null,
+          "longitude": null,
+          "coverImageUrl": null,
+          "galleryUrls": [],
+          "durationMinutes": null,
+          "maxGroupSize": null,
+          "minGroupSize": 1,
+          "pricePerPerson": "15000",
+          "currency": "NGN",
+          "includes": [],
+          "requirements": [],
+          "languages": [
+            "English"
+          ],
+          "meetingDetails": "Meet at the Lekki Conservation Centre main gate.",
+          "isActive": false,
+          "isApproved": false,
+          "approvedAt": null,
+          "isFeatured": false,
+          "rating": "0",
+          "reviewCount": 0,
+          "createdAt": "2026-07-11T15:08:51.231Z",
+          "updatedAt": "2026-07-11T15:08:51.231Z",
+          "_count": {
+            "experienceBookings": 0,
+            "availableSlots": 0
+          }
+        }
+      ],
+      "pagination": {
+        "page": 1,
+        "limit": 20,
+        "total": 1,
+        "pages": 1
+      }
+    }
+  },
+  "6_PUBLISH_BLOCKED_NOT_APPROVED": {
+    "status": 403,
+    "body": {
+      "success": false,
+      "error": "Experience must be approved by the platform before it can be published. Submit for review first."
+    }
+  },
+  "7_UNPUBLISH_AUTHORISED": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": {
+        "id": "73c66506-7047-4c32-b8be-960dfee818e7",
+        "operatorId": "043beb06-baa9-4a9d-9311-1fa0a014d282",
+        "name": "C1 Evidence Cultural Tour",
+        "slug": "c1-evidence-cultural-tour",
+        "description": "A test experience created for C1 staging evidence.",
+        "experienceType": "CULTURAL_TOUR",
+        "city": "Lagos",
+        "state": null,
+        "country": "NG",
+        "address": null,
+        "latitude": null,
+        "longitude": null,
+        "coverImageUrl": null,
+        "galleryUrls": [],
+        "durationMinutes": null,
+        "maxGroupSize": null,
+        "minGroupSize": 1,
+        "pricePerPerson": "15000",
+        "currency": "NGN",
+        "includes": [],
+        "requirements": [],
+        "languages": [
+          "English"
+        ],
+        "meetingDetails": "Meet at the Lekki Conservation Centre main gate.",
+        "isActive": false,
+        "isApproved": false,
+        "approvedAt": null,
+        "isFeatured": false,
+        "rating": "0",
+        "reviewCount": 0,
+        "createdAt": "2026-07-11T15:08:51.231Z",
+        "updatedAt": "2026-07-11T15:08:58.988Z"
+      },
+      "message": "Experience unpublished successfully"
+    }
+  },
+  "8_ARCHIVE_AUTHORISED_SOFT_DELETE": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": {
+        "id": "73c66506-7047-4c32-b8be-960dfee818e7",
+        "operatorId": "043beb06-baa9-4a9d-9311-1fa0a014d282",
+        "name": "C1 Evidence Cultural Tour",
+        "slug": "c1-evidence-cultural-tour",
+        "description": "A test experience created for C1 staging evidence.",
+        "experienceType": "CULTURAL_TOUR",
+        "city": "Lagos",
+        "state": null,
+        "country": "NG",
+        "address": null,
+        "latitude": null,
+        "longitude": null,
+        "coverImageUrl": null,
+        "galleryUrls": [],
+        "durationMinutes": null,
+        "maxGroupSize": null,
+        "minGroupSize": 1,
+        "pricePerPerson": "15000",
+        "currency": "NGN",
+        "includes": [],
+        "requirements": [],
+        "languages": [
+          "English"
+        ],
+        "meetingDetails": "Meet at the Lekki Conservation Centre main gate.",
+        "isActive": false,
+        "isApproved": false,
+        "approvedAt": null,
+        "isFeatured": false,
+        "rating": "0",
+        "reviewCount": 0,
+        "createdAt": "2026-07-11T15:08:51.231Z",
+        "updatedAt": "2026-07-11T15:09:01.738Z"
+      },
+      "message": "Experience archived successfully"
+    }
+  },
+  "9_BOOKINGS_EMPTY_STATE": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "data": [],
+      "pagination": {
+        "page": 1,
+        "limit": 20,
+        "total": 0,
+        "pages": 0
+      }
+    }
+  },
+  "11_HOST_REGISTRATION_REGRESSION": {
+    "status": 201,
+    "body": {
+      "success": true,
+      "message": "Registration successful. Please check your email to verify your account.",
+      "userId": "60149d5a-2f7e-42f4-8ad4-de2c02ea075c"
+    }
+  },
+  "11b_HOST_LOGIN_MODE_HYDRATION_REGRESSION": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2MDE0OWQ1YS0yZjdlLTQyZjQtOGFkNC1kZTJjMDJlYTA3NWMiLCJyb2xlIjoiSE9TVCIsImlhdCI6MTc4Mzc4MjU1MSwiZXhwIjoxNzgzNzgzNDUxfQ.kBqL4aXIlvvdbP4wH99RZwKu_RlFjqMs2LVAJkVylys",
+      "user": {
+        "id": "60149d5a-2f7e-42f4-8ad4-de2c02ea075c",
+        "email": "evidence-host-1783782520@test.owambe.com",
+        "firstName": "Evidence",
+        "lastName": "Host",
+        "role": "HOST",
+        "avatarUrl": null,
+        "isEmailVerified": false,
+        "activeMode": "STAYS",
+        "availableModes": [
+          "STAYS"
+        ],
+        "profile": {
+          "id": "406e92ec-259b-4ffd-bc22-f5d7538877ab",
+          "userId": "60149d5a-2f7e-42f4-8ad4-de2c02ea075c",
+          "businessName": null,
+          "city": null,
+          "state": null,
+          "country": "NG",
+          "phone": null,
+          "bio": null,
+          "logoUrl": null,
+          "isVerified": false,
+          "verifiedAt": null,
+          "isApproved": false,
+          "approvedAt": null,
+          "paystackSubAccountCode": null,
+          "paystackSubAccountId": null,
+          "bankCode": null,
+          "bankAccountNumber": null,
+          "bankAccountName": null,
+          "rating": "0",
+          "reviewCount": 0,
+          "createdAt": "2026-07-11T15:09:09.104Z",
+          "updatedAt": "2026-07-11T15:09:09.104Z"
+        },
+        "host": {
+          "id": "406e92ec-259b-4ffd-bc22-f5d7538877ab",
+          "userId": "60149d5a-2f7e-42f4-8ad4-de2c02ea075c",
+          "businessName": null,
+          "city": null,
+          "state": null,
+          "country": "NG",
+          "phone": null,
+          "bio": null,
+          "logoUrl": null,
+          "isVerified": false,
+          "verifiedAt": null,
+          "isApproved": false,
+          "approvedAt": null,
+          "paystackSubAccountCode": null,
+          "paystackSubAccountId": null,
+          "bankCode": null,
+          "bankAccountNumber": null,
+          "bankAccountName": null,
+          "rating": "0",
+          "reviewCount": 0,
+          "createdAt": "2026-07-11T15:09:09.104Z",
+          "updatedAt": "2026-07-11T15:09:09.104Z"
+        }
+      }
+    }
+  }
+}
