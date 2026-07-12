@@ -36,15 +36,17 @@ Creates the booking and returns the Paystack authorization URL.
 
 ## 3. Founder UX Walkthrough Enablement
 
-The following dual-journey scripts are provided for the Founder UX Walkthrough, detailing the exact entry states and steps required to demonstrate the end-to-end flow.
+*(Updated post UIENABLE-01 consolidation cycle)*
+
+The following dual-journey scripts are provided for the Founder UX Walkthrough, detailing the exact entry states and steps required to demonstrate the end-to-end flow entirely through the user interface, without requiring API interventions.
 
 ### Journey 1: Operator Setup & Publication
-1.  **Entry State:** Operator logs in (or registers). Hydration sets mode to `EXPERIENCES`.
+1.  **Entry State:** Operator selects the `OPERATOR` role on the web registration form and completes sign-up. Hydration sets mode to `EXPERIENCES`.
 2.  **Action:** Navigate to `Dashboard > Experiences > Add New`.
-3.  **Execution:** Fill the form, including `meetingDetails`. Submit. The experience is created in `DRAFT` state.
-4.  **Action:** Navigate to `Manage Slots`. Add a weekly recurring slot with a set capacity.
-5.  **Action:** (Admin Intervention) An admin must call `POST /api/admin/experiences/:id/approve` to satisfy the §8 platform-approval requirement.
-6.  **Action:** Operator clicks "Publish" on the experience card. The experience is now live.
+3.  **Execution:** Fill the form, including `meetingDetails`. Submit. The experience is created in `DRAFT` state and is submitted for platform review.
+4.  **Action:** Navigate to `Manage Slots`. Select a specific day (e.g., Saturday) under the Recurring tab. Submit to create recurring slots.
+5.  **Action:** (Admin Intervention) Log in as an Admin and navigate to the admin approval queue to approve the experience.
+6.  **Action:** Operator navigates to the Experiences list. The card menu now displays the "Publish" button. Click "Publish". The experience is now live.
 
 ### Journey 2: Consumer Booking & Confirmation
 1.  **Entry State:** Consumer logs in.
