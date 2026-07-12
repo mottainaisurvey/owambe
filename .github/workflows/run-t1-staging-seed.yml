@@ -1,0 +1,56 @@
+name: Run T1 Staging Seed (One-shot)
+on:
+  workflow_dispatch:
+    inputs:
+      staging_test_password:
+        description: 'STAGING_TEST_PASSWORD (min 12 chars, not stored in logs)'
+        required: true
+        type: string
+jobs:
+  seed-staging:
+    name: Execute T1 staging test data seed
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: apps/api/package-lock.json
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Install API dependencies
+        working-directory: apps/api
+        run: npm install --legacy-peer-deps
+
+      - name: Fetch staging DATABASE_URL from Railway
+        id: get-db-url
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
+        run: |
+          echo "=== Fetching DATABASE_URL from Railway staging environment ==="
+          DB_URL=$(railway variables get DATABASE_URL --service owambe-api --environment staging 2>&1)
+          if echo "$DB_URL" | grep -q "postgresql://"; then
+            echo "::add-mask::$DB_URL"
+            echo "database_url=$DB_URL" >> $GITHUB_OUTPUT
+            echo "✅ DATABASE_URL retrieved (masked)"
+          else
+            echo "❌ Failed to retrieve DATABASE_URL"
+            echo "$DB_URL"
+            exit 1
+          fi
+
+      - name: Run T1 staging seed
+        working-directory: apps/api
+        env:
+          DATABASE_URL: ${{ steps.get-db-url.outputs.database_url }}
+          STAGING_TEST_PASSWORD: ${{ github.event.inputs.staging_test_password }}
+          OWAMBE_ALLOW_STAGING_TEST_DATA_SEED: 'true'
+        run: |
+          echo "=== Running T1 staging seed ==="
+          npx ts-node -r tsconfig-paths/register src/database/seed-staging-test-data.ts 2>&1
+          echo "=== Seed complete ==="
