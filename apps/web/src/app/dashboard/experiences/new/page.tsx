@@ -98,7 +98,7 @@ export default function AddExperiencePage() {
         coverImageUrl: form.coverImageUrl || undefined,
         meetingDetails: form.meetingDetails || undefined,
       });
-      toast.success('Experience created! It has been saved as a draft and submitted for platform review.');
+      toast.success('Saved as draft. Platform approval is required before publishing.');
       router.push('/dashboard/experiences/list');
     } catch (err: any) {
       toast.error(err?.response?.data?.message ?? err?.response?.data?.error ?? 'Failed to create experience');

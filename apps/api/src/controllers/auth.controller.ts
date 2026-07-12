@@ -62,8 +62,7 @@ export async function register(req: Request, res: Response, next: NextFunction) 
       } else if (role === 'HOST') {
         await tx.host.create({ data: { userId: u.id, businessName: companyName } });
       } else if (role === 'OPERATOR') {
-        // C1-a: Create Operator profile; businessName from companyName field (optional at registration)
-        await tx.operator.create({ data: { userId: u.id, businessName: companyName || null } });
+        await tx.operator.create({ data: { userId: u.id, businessName: companyName || '' } });
       }
 
       return u;
@@ -130,9 +129,6 @@ export async function login(req: Request, res: Response, next: NextFunction) {
       profile = await prisma.consumer.findUnique({ where: { userId: user.id } });
     } else if (user.role === 'HOST') {
       profile = await prisma.host.findUnique({ where: { userId: user.id } });
-    } else if (user.role === 'OPERATOR') {
-      // C1-a: Fetch operator profile on login
-      profile = await prisma.operator.findUnique({ where: { userId: user.id } });
     }
 
     res.cookie('refreshToken', refreshTokenValue, {
@@ -157,7 +153,6 @@ export async function login(req: Request, res: Response, next: NextFunction) {
         availableModes: user.availableModes,
         profile,
         ...(user.role === 'HOST' ? { host: profile } : {}),
-        ...(user.role === 'OPERATOR' ? { operator: profile } : {}),
       }
     });
   } catch (err) {
@@ -278,7 +273,7 @@ export async function getMe(req: Request, res: Response, next: NextFunction) {
         id: true, email: true, firstName: true, lastName: true,
         role: true, avatarUrl: true, isEmailVerified: true,
         activeMode: true, availableModes: true,
-        planner: true, vendor: true, consumer: true, host: true, operator: true,
+        planner: true, vendor: true, consumer: true, host: true,
       }
     });
     if (!user) throw new AppError('User not found', 404);
