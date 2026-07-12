@@ -8,7 +8,9 @@ import { Calendar, Plus, Loader2, Users, Repeat, Trash2, Edit2, AlertTriangle, R
 import { api } from '@/lib/api';
 import toast from 'react-hot-toast';
 
-interface Experience { id: string; name: string; city: string; capacity: number; isActive: boolean; isApproved: boolean; }
+// UI-6 / NB-1: Experience model has no top-level capacity field (capacity lives on ExperienceSlot).
+// Removed stale 'capacity: number' to eliminate the 'undefined' placeholder defect.
+interface Experience { id: string; name: string; city: string; isActive: boolean; isApproved: boolean; }
 interface SlotInstance { id: string; experienceId: string; startTime: string; endTime: string; capacity: number; bookedCount: number; isActive: boolean; rruleString?: string; timezone?: string; parentSlotId?: string; availableSpots?: number; isSoldOut?: boolean; }
 
 const WEEKDAYS = [{ label: 'Mon', value: 'MO' }, { label: 'Tue', value: 'TU' }, { label: 'Wed', value: 'WE' }, { label: 'Thu', value: 'TH' }, { label: 'Fri', value: 'FR' }, { label: 'Sat', value: 'SA' }, { label: 'Sun', value: 'SU' }];
@@ -62,7 +64,10 @@ export default function ManageSlotsPage() {
   const [endTimeVal, setEndTimeVal] = useState('11:00');
   const [capacity, setCapacity] = useState('');
   const [freq, setFreq] = useState<'DAILY' | 'WEEKLY'>('WEEKLY');
-  const [byday, setByday] = useState<string[]>(['MO']);
+  // UI-4 / NB-2: default to empty — no day pre-selected.
+  // Operators must explicitly choose days; a pre-selected Monday caused
+  // silent multi-day RRULE submissions (BYDAY=MO,SA instead of BYDAY=SA).
+  const [byday, setByday] = useState<string[]>([]);
   const [boundType, setBoundType] = useState<'COUNT' | 'UNTIL'>('COUNT');
   const [countVal, setCountVal] = useState(8);
   const [untilVal, setUntilVal] = useState('');
@@ -91,10 +96,19 @@ export default function ManageSlotsPage() {
       const startISO = new Date(`${startDate}T${startTimeVal}:00`).toISOString();
       const endISO = new Date(`${startDate}T${endTimeVal}:00`).toISOString();
       const body: any = { startTime: startISO, endTime: endISO, capacity };
-      if (slotType === 'recurring') { body.rruleString = buildRRule(freq, byday, boundType, countVal, untilVal); body.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Lagos'; }
+      if (slotType === 'recurring') {
+        // UI-4: validate that at least one day is selected for WEEKLY recurrence
+        if (freq === 'WEEKLY' && byday.length === 0) {
+          toast.error('Please select at least one day of the week for a weekly recurring series.');
+          setSaving(false);
+          return;
+        }
+        body.rruleString = buildRRule(freq, byday, boundType, countVal, untilVal);
+        body.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Lagos';
+      }
       const { data } = await api.post(`/experience-slots/${selectedId}`, body);
       toast.success(slotType === 'recurring' ? `Series created: ${data.instanceCount ?? 1} instance(s)` : 'Slot created');
-      setStartDate(''); setCapacity(''); setByday(['MO']); setCountVal(8); setUntilVal('');
+      setStartDate(''); setCapacity(''); setByday([]); setCountVal(8); setUntilVal('');
       fetchSlots();
     } catch (err: any) { toast.error(err?.response?.data?.error ?? 'Failed to create slot'); }
     finally { setSaving(false); }
@@ -165,7 +179,7 @@ export default function ManageSlotsPage() {
                 <div><label className="block text-xs font-medium text-[var(--mid)] mb-1">Start time</label><input type="time" className="input w-full" value={startTimeVal} onChange={e => setStartTimeVal(e.target.value)} required /></div>
                 <div><label className="block text-xs font-medium text-[var(--mid)] mb-1">End time</label><input type="time" className="input w-full" value={endTimeVal} onChange={e => setEndTimeVal(e.target.value)} required /></div>
               </div>
-              <div><label className="block text-xs font-medium text-[var(--mid)] mb-1">Capacity</label><input type="number" className="input w-full sm:w-36" value={capacity} onChange={e => setCapacity(e.target.value)} placeholder={selectedExp ? String(selectedExp.capacity) : '10'} min="1" required /></div>
+              <div><label className="block text-xs font-medium text-[var(--mid)] mb-1">Capacity</label><input type="number" className="input w-full sm:w-36" value={capacity} onChange={e => setCapacity(e.target.value)} placeholder="e.g. 10" min="1" required /></div>
               {slotType === 'recurring' && (
                 <div className="space-y-3 pt-2 border-t border-[var(--border)]">
                   <p className="text-xs font-medium text-[var(--mid)] uppercase tracking-wide">Recurrence pattern</p>

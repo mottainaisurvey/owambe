@@ -121,13 +121,20 @@ api.interceptors.response.use(
     // Show error toast for non-401 errors, but suppress for:
     // 1. Silent background auth calls (refresh, me, logout)
     // 2. All errors on auth pages (login, register, forgot-password)
+    // 3. UI-7 / NB-3: 403 "Access restricted" toasts for CONSUMER role.
+    //    Consumers land on the EVENTS-mode dashboard which calls PLANNER-only
+    //    endpoints; the 403 is expected and should not surface as a toast.
     const silentEndpoints = ['/auth/refresh', '/auth/me', '/auth/logout'];
     const requestUrl = error.config?.url || '';
     const isSilent = silentEndpoints.some(ep => requestUrl.includes(ep));
     const isAuthPage = typeof window !== 'undefined' &&
       ['/login', '/register', '/forgot-password'].includes(window.location.pathname);
     const message = error.response?.data?.error || error.message || 'Something went wrong';
-    if (error.response?.status !== 401 && !isSilent && !isAuthPage) {
+    // Suppress 403 "Access restricted" toasts for CONSUMER role (doc-J: nav architecture deferred)
+    const isConsumerRoleRestriction = error.response?.status === 403 &&
+      typeof message === 'string' &&
+      message.toLowerCase().includes('access restricted');
+    if (error.response?.status !== 401 && !isSilent && !isAuthPage && !isConsumerRoleRestriction) {
       toast.error(message);
     }
 

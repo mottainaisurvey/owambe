@@ -73,9 +73,12 @@ export default function ExperiencesListPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [actionPending, setActionPending] = useState<string | null>(null);
+  // UI-3 / BLOCK-3: show a slow-load notice after 8 s on Railway cold-start
+  const [slowLoad, setSlowLoad] = useState(false);
 
   const fetchExperiences = async () => {
     setLoading(true);
+    setSlowLoad(false);
     setLoadError(null);
     try {
       const { data } = await api.get('/experiences/mine');
@@ -86,12 +89,20 @@ export default function ExperiencesListPage() {
       toast.error('Failed to load experiences');
     } finally {
       setLoading(false);
+      setSlowLoad(false);
     }
   };
 
   useEffect(() => {
     fetchExperiences();
   }, []);
+
+  // UI-3: surface a slow-load notice after 8 s so the skeleton doesn't appear frozen
+  useEffect(() => {
+    if (!loading) return;
+    const timer = setTimeout(() => setSlowLoad(true), 8000);
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   // C1-b.0: Publish — requires isApproved=true (enforced server-side too)
   const handlePublish = async (id: string) => {
@@ -147,6 +158,12 @@ export default function ExperiencesListPage() {
             <div key={i} className="h-32 bg-[var(--border)] rounded-xl" />
           ))}
         </div>
+        {/* UI-3 / BLOCK-3: slow-load notice after 8 s (Railway cold-start) */}
+        {slowLoad && (
+          <p className="text-center text-xs text-[var(--muted)] mt-6">
+            Taking longer than usual — the server may be waking up. Please wait…
+          </p>
+        )}
       </div>
     );
   }

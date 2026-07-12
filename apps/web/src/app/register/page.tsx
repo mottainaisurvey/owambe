@@ -15,7 +15,7 @@ const schema = z.object({
   lastName: z.string().min(2, 'Last name required'),
   email: z.string().email('Valid email required'),
   password: z.string().min(8, 'Minimum 8 characters'),
-  role: z.enum(['PLANNER', 'VENDOR', 'CONSUMER', 'HOST']),
+  role: z.enum(['PLANNER', 'VENDOR', 'CONSUMER', 'HOST', 'OPERATOR']),
   companyName: z.string().optional(),
 });
 
@@ -25,6 +25,7 @@ const ROLES = [
   { value: 'PLANNER', label: '📋 Event Planner', desc: 'I manage events for clients or my company' },
   { value: 'VENDOR', label: '🏢 Vendor / Business', desc: 'I offer services for events (venue, catering, etc.)' },
   { value: 'HOST', label: '🏠 Host / Property Manager', desc: 'I list and manage short-stay properties on Owambe Stays' },
+  { value: 'OPERATOR', label: '🌍 Hosting Experiences / Tours', desc: 'I offer cultural tours, food tastings, workshops, and other guest experiences' },
   { value: 'CONSUMER', label: '🎉 Planning My Own Event', desc: 'I want to plan a personal event using AI' },
 ];
 
@@ -132,15 +133,15 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {(selectedRole === 'PLANNER' || selectedRole === 'HOST') && (
+            {(selectedRole === 'PLANNER' || selectedRole === 'HOST' || selectedRole === 'OPERATOR') && (
               <div>
                 <label className="label">
-                  {selectedRole === 'HOST' ? 'Host Business Name' : 'Company Name'}{' '}
+                  {selectedRole === 'HOST' ? 'Host Business Name' : selectedRole === 'OPERATOR' ? 'Experience Business Name' : 'Company Name'}{' '}
                   <span className="text-[var(--muted)] font-normal">(optional)</span>
                 </label>
                 <input
                   className="input"
-                  placeholder={selectedRole === 'HOST' ? 'Lagos Short Stays Ltd' : 'AO Events Ltd'}
+                  placeholder={selectedRole === 'HOST' ? 'Lagos Short Stays Ltd' : selectedRole === 'OPERATOR' ? 'Lagos Experience Co' : 'AO Events Ltd'}
                   {...register('companyName')}
                 />
               </div>

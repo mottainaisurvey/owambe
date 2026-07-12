@@ -286,12 +286,14 @@ router.put('/:id',
         throw new AppError('You do not have permission to update this experience', 403);
       }
 
+      // UI-5 / NB-4: isActive and isFeatured intentionally excluded from PUT allowlist.
+      // Lifecycle transitions (publish/unpublish/archive) must flow through their
+      // dedicated PATCH endpoints which enforce the isApproved guard.
       const updatable = [
         'name', 'description', 'city', 'state', 'country', 'address',
         'latitude', 'longitude', 'coverImageUrl', 'galleryUrls',
         'durationMinutes', 'maxGroupSize', 'minGroupSize', 'pricePerPerson',
-        'currency', 'includes', 'requirements', 'languages',
-        'isActive', 'isFeatured'
+        'currency', 'includes', 'requirements', 'languages'
       ];
 
       const data: any = {};
@@ -409,7 +411,7 @@ router.patch('/:id/publish',
       // C1-b.0 authority matrix: operator can publish ONLY if platform has approved
       if (!experience.isApproved) {
         throw new AppError(
-          'Experience must be approved by the platform before it can be published. Submit for review first.',
+          'This experience requires platform approval before it can be published. Contact the Owambe team to request a review.',
           403
         );
       }

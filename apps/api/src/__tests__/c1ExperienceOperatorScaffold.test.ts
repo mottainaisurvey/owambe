@@ -274,7 +274,9 @@ describe('C1-b.0: Lifecycle Transitions', () => {
     const res = await request(app).patch(`/api/experiences/${experienceId}/publish`);
     expect(res.status).toBe(403);
     // AppError is serialized as { success: false, error: '...' } by errorHandler
-    expect(res.body.error).toMatch(/approved/i);
+    // UI-2 / UIENABLE-01: message updated to remove "Submit for review" copy;
+    // now contains "platform approval" — assert on the updated copy
+    expect(res.body.error).toMatch(/platform approval|requires.*approv/i);
   });
 
   it('PATCH /unpublish succeeds even when isActive=false (no-op is permitted)', async () => {
