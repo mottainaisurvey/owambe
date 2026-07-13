@@ -1,0 +1,22 @@
+name: EMAIL-DIAG-01 Env Check
+on:
+  workflow_dispatch:
+jobs:
+  check-email-env:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+      - name: Check email env var presence on owambe-api staging
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
+        run: |
+          echo "=== EMAIL-DIAG-01: Checking email env var presence on owambe-api staging ==="
+          echo "=== Variable names only — values will NOT be printed ==="
+          VARS=$(railway variables --service owambe-api 2>&1)
+          echo "POSTMARK_API_KEY present: $(echo "$VARS" | grep -c "^POSTMARK_API_KEY" || echo 0)"
+          echo "EMAIL_FROM present: $(echo "$VARS" | grep -c "^EMAIL_FROM" || echo 0)"
+          echo "EMAIL_FROM_NAME present: $(echo "$VARS" | grep -c "^EMAIL_FROM_NAME" || echo 0)"
+          echo "=== All variable names (no values): ==="
+          echo "$VARS" | grep -oE "^[A-Z_]+" | sort || true
