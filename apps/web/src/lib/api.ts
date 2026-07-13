@@ -454,7 +454,7 @@ export const experiencesApi = {
   getBySlug: (slug: string) =>
     api.get(`/experiences/${slug}`),
   getSlots: (experienceId: string) =>
-    api.get(`/experience-slots/${experienceId}`),
+    api.get(`/experiences/${experienceId}/slots`),
   createBooking: (payload: CreateExperienceBookingInput) =>
     api.post('/experience-bookings', payload),
   verifyBooking: (bookingId: string, reference?: string) =>

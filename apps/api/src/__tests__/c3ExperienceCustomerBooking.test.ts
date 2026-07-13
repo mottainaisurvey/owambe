@@ -19,6 +19,8 @@
  *  15.  GET / (list) — consumer sees only their own bookings
  *  16.  C1 regression — OPERATOR registration still sets EXPERIENCES mode
  *  17.  C2 regression — slot creation still works for OPERATOR
+ *  18.  F-1 / D-4 — Consumer retrieves slots via public route GET /experiences/:id/slots → 200
+ *  19.  F-1 / D-4 — Consumer still 403 at OPERATOR route GET /experience-slots/:id (gating unchanged)
  *
  * Strategy:
  *   - Uses real Prisma client connected to CI test database.
@@ -537,5 +539,23 @@ describe('C3 — Experience Customer Booking', () => {
     expect(res.body.data).toHaveProperty('id');
     // Clean up
     await prisma.experienceSlot.delete({ where: { id: res.body.data.id } });
+  });
+
+  // 18. F-1 / D-4 — Consumer retrieves slots via public route → 200
+  it('18. F-1 / D-4 — Consumer retrieves slots via public route GET /experiences/:id/slots → 200', async () => {
+    asConsumer();
+    const res = await request(app)
+      .get(`/api/experiences/${publishedExperienceId}/slots`);
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(Array.isArray(res.body.data)).toBe(true);
+  });
+
+  // 19. F-1 / D-4 — Consumer still 403 at OPERATOR route (gating unchanged)
+  it('19. F-1 / D-4 — Consumer still 403 at OPERATOR route GET /experience-slots/:id', async () => {
+    asConsumer();
+    const res = await request(app)
+      .get(`/api/experience-slots/${publishedExperienceId}`);
+    expect(res.status).toBe(403);
   });
 });
