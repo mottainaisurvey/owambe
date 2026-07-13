@@ -41,7 +41,7 @@ Both bookings are against the PREWALK Verification Lagos Lekki Tour (`f035ea66-e
 
 ## 5. Out-of-Scope Statement
 
-The customer cancellation and refund journey is explicitly out of scope for this walkthrough. While the underlying booking data model supports cancellation states and refund tracking, the end-to-end UI flows for consumer-initiated cancellations and operator-initiated refunds are not yet fully enabled or validated for the Founder UX Walkthrough.
+The guest cancellation and refund journey is explicitly out of scope for this walkthrough. While the underlying booking data model supports cancellation states and refund tracking, the end-to-end UI flows for consumer-initiated cancellations and operator-initiated refunds are not yet fully enabled or validated for the Founder UX Walkthrough.
 
 ## 6. Rough-Edges Register
 
