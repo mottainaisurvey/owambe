@@ -23,7 +23,7 @@
 2. **Selection:** Click on the experience to view details and available slots.
 3. **Booking Initiation:** Select a slot (e.g., a Saturday instance) and click "Book & Pay".
 4. **Authentication:** If not logged in, the user will be prompted to register or log in as a `CONSUMER`.
-5. **Payment Handoff:** Upon confirming the booking, the system creates a pending reservation and attempts to initialize the payment gateway.
+5. **Payment Handoff:** Upon confirming the booking, the system creates a pending reservation and attempts to initialize the Paystack payment handoff.
    - *Staging Note:* As payment keys are not seeded in staging, the system gracefully falls back with the message: "Booking Created — payment could not be initialised automatically." This represents the successful completion of the booking boundary.
 
 ---
