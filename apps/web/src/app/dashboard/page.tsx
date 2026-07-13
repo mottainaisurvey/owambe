@@ -2,19 +2,143 @@
 
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
-import { analyticsApi, eventsApi } from '@/lib/api';
-import { formatNGN, formatEventDate, formatTimeAgo, EVENT_STATUS_CONFIG, cn } from '@/lib/utils';
-import { TrendingUp, TrendingDown, Plus, Users, DollarSign, Calendar, Target } from 'lucide-react';
+import { analyticsApi, eventsApi, experiencesApi } from '@/lib/api';
+import { formatNGN, formatEventDate, EVENT_STATUS_CONFIG, cn } from '@/lib/utils';
+import { TrendingUp, TrendingDown, Plus, Users, DollarSign, Calendar, Target, MapPin, Clock } from 'lucide-react';
+import { useAuthStore } from '@/store/auth.store';
 
-export default function DashboardPage() {
+// ─────────────────────────────────────────────────────────────────────────────
+// EXPERIENCES DASHBOARD
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ExperiencesDashboard() {
+  const { data: myExpData, isLoading } = useQuery({
+    queryKey: ['my-experiences-dashboard'],
+    queryFn: () => experiencesApi.listMine({ limit: 5 }).then((r: any) => r.data),
+  });
+
+  const experiences = myExpData?.experiences || [];
+  const total = myExpData?.total ?? 0;
+  const published = experiences.filter((e: any) => e.isActive).length;
+  const pending = experiences.filter((e: any) => !e.isApproved).length;
+
+  return (
+    <div className="p-6 animate-fade-up">
+      {/* Stats row */}
+      <div className="grid grid-cols-4 gap-3.5 mb-6">
+        <StatCard
+          label="My Experiences"
+          value={isLoading ? '—' : total}
+          sub="total created"
+          accent="#6C2BD9"
+          icon={<MapPin size={16} className="text-[var(--accent)]" />}
+          positive
+        />
+        <StatCard
+          label="Published"
+          value={isLoading ? '—' : published}
+          sub="live & bookable"
+          accent="#16A34A"
+          icon={<Calendar size={16} className="text-green-600" />}
+          positive={published > 0}
+        />
+        <StatCard
+          label="Awaiting Approval"
+          value={isLoading ? '—' : pending}
+          sub="pending platform review"
+          accent="#C9A227"
+          icon={<Clock size={16} className="text-yellow-600" />}
+          positive={pending === 0}
+        />
+        <StatCard
+          label="Total Bookings"
+          value="—"
+          sub="coming soon"
+          accent="#7B61FF"
+          icon={<Users size={16} className="text-purple-500" />}
+          positive
+        />
+      </div>
+
+      {/* Recent Experiences */}
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="section-title">My Experiences</h2>
+        <Link href="/dashboard/experiences/new" className="btn-primary text-xs px-3 py-1.5 flex items-center gap-1.5">
+          <Plus size={12} /> Add Experience
+        </Link>
+      </div>
+      <div className="space-y-2.5 mb-6">
+        {isLoading ? (
+          <div className="card text-center py-8 text-sm text-[var(--muted)]">Loading…</div>
+        ) : experiences.length === 0 ? (
+          <EmptyExperiences />
+        ) : (
+          experiences.map((exp: any) => <ExperienceRow key={exp.id} experience={exp} />)
+        )}
+        {experiences.length > 0 && (
+          <Link href="/dashboard/experiences/list" className="block text-center text-sm text-[var(--accent)] font-semibold py-2 hover:underline">
+            View all experiences →
+          </Link>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ExperienceRow({ experience }: { experience: any }) {
+  const isPublished = experience.isActive;
+  const isApproved = experience.isApproved;
+  const statusLabel = isPublished ? 'Published' : isApproved ? 'Approved — Unpublished' : 'Awaiting Approval';
+  const statusClass = isPublished
+    ? 'text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700'
+    : isApproved
+    ? 'text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700'
+    : 'text-[10px] font-semibold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700';
+
+  return (
+    <Link href="/dashboard/experiences/list">
+      <div className="card px-4 py-3.5 grid grid-cols-[1fr_auto_auto] items-center gap-3.5 hover:shadow-card hover:-translate-y-px transition-all cursor-pointer">
+        <div>
+          <div className="font-bold text-sm text-[var(--dark)]">{experience.title}</div>
+          <div className="text-[11px] text-[var(--muted)] mt-0.5">
+            📍 {experience.location || 'Location TBC'} · ⏱ {experience.durationMinutes ? `${experience.durationMinutes} min` : '—'}
+          </div>
+        </div>
+        <div className="text-sm font-semibold text-[var(--dark)]">
+          {experience.pricePerPerson ? formatNGN(experience.pricePerPerson, true) : '—'}
+        </div>
+        <span className={statusClass}>{statusLabel}</span>
+      </div>
+    </Link>
+  );
+}
+
+function EmptyExperiences() {
+  return (
+    <div className="card text-center py-12">
+      <div className="text-4xl mb-3">🌍</div>
+      <div className="font-bold text-[var(--dark)] mb-1">No experiences yet</div>
+      <div className="text-sm text-[var(--muted)] mb-5">Create your first experience in under 2 minutes</div>
+      <Link href="/dashboard/experiences/new" className="btn-primary inline-flex items-center gap-1.5 text-sm">
+        <Plus size={14} /> Add Experience
+      </Link>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EVENTS DASHBOARD (original)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function EventsDashboard() {
   const { data: overview } = useQuery({
     queryKey: ['planner-overview'],
-    queryFn: () => analyticsApi.plannerOverview().then(r => r.data),
+    queryFn: () => analyticsApi.plannerOverview().then((r: any) => r.data),
   });
 
   const { data: eventsData } = useQuery({
     queryKey: ['my-events', { limit: 3 }],
-    queryFn: () => eventsApi.list({ limit: 3 }).then(r => r.data),
+    queryFn: () => eventsApi.list({ limit: 3 }).then((r: any) => r.data),
   });
 
   const stats = overview?.stats;
@@ -57,7 +181,6 @@ export default function DashboardPage() {
           positive={(stats?.fillRate ?? 0) >= 60}
         />
       </div>
-
       {/* Events */}
       <div className="flex items-center justify-between mb-3">
         <h2 className="section-title">Recent Events</h2>
@@ -65,7 +188,6 @@ export default function DashboardPage() {
           <Plus size={12} /> Create
         </Link>
       </div>
-
       <div className="space-y-2.5 mb-6">
         {events.length === 0 ? (
           <EmptyEvents />
@@ -78,7 +200,6 @@ export default function DashboardPage() {
           </Link>
         )}
       </div>
-
       {/* Activity Feed */}
       <h2 className="section-title mb-3">Activity Feed</h2>
       <div className="card overflow-hidden">
@@ -93,6 +214,24 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ROOT — mode switch
+// ─────────────────────────────────────────────────────────────────────────────
+
+export default function DashboardPage() {
+  const { activeMode } = useAuthStore();
+
+  if (activeMode === 'EXPERIENCES') {
+    return <ExperiencesDashboard />;
+  }
+
+  return <EventsDashboard />;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SHARED COMPONENTS
+// ─────────────────────────────────────────────────────────────────────────────
 
 function StatCard({ label, value, sub, accent, icon, positive }: any) {
   return (

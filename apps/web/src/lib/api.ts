@@ -449,6 +449,8 @@ export interface ExperienceBooking {
 export const experiencesApi = {
   list: (params?: Record<string, string | number | undefined>) =>
     api.get('/experiences', { params }),
+  listMine: (params?: Record<string, string | number | undefined>) =>
+    api.get('/experiences/mine', { params }),
   getBySlug: (slug: string) =>
     api.get(`/experiences/${slug}`),
   getSlots: (experienceId: string) =>
