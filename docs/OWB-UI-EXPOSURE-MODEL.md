@@ -1,25 +1,46 @@
-# Owambe UI Exposure Model
+# OWB-UI-EXPOSURE-MODEL
 
-## 1. Registration Role Exposure
-The registration form exposes role selection directly to the user.
-- **Roles Exposed:** `CONSUMER`, `ORGANIZER`, `VENDOR`, `OPERATOR`.
-- **Validation:** Enforced via Zod schema (`z.enum(["CONSUMER", "ORGANIZER", "VENDOR", "OPERATOR"])`) on the client and strict enum validation on the API.
-- **Default State:** No role is pre-selected.
+**Document Context:** This document maps the web-tier components to the API-tier endpoints they consume for the `EXPERIENCES` domain, following the completion of the `OWB-C-UIENABLE-01` consolidation cycle. It serves as the structural contract between the frontend and backend boundaries.
 
-## 2. Experience Lifecycle Exposure
-The operator UI exposes state transitions, but actual state changes are strictly gated by the API.
-- **Draft State:** Experiences are created as drafts (`isApproved: false`, `isActive: false`). The UI communicates this via a "Draft" badge and a toast notification indicating submission for review.
-- **Approval Gate:** The "Publish" action is entirely hidden from the UI until `isApproved` is true. The card menu displays "Awaiting platform approval" instead.
-- **Publish Action:** Once approved, the "Publish" button is exposed. This triggers a dedicated `PUT /api/experiences/:id/publish` endpoint.
-- **API Integrity:** The general `PUT /api/experiences/:id` endpoint explicitly strips `isActive` and `isApproved` from the allowlist. Operators cannot bypass the approval gate by modifying the payload.
+## 1. Discovery & Public Access (Consumer Facing)
 
-## 3. Recurring Slot Day-Mapping
-The recurring slot form exposes day selection for weekly patterns.
-- **Default State:** No days are pre-selected (`byday: []`).
-- **Validation:** The form requires at least one day to be selected if the `WEEKLY` pattern is chosen.
-- **API Integrity:** The API expands the `RRULE` using the provided `BYDAY` values. The form strictly sends only the user-selected days (e.g., `BYDAY=SA` for Saturday only).
+The public-facing components accessed by unauthenticated users or users with the `CONSUMER` role.
 
-## 4. Consumer Access Exposure
-Consumers have restricted access to certain dashboard features.
-- **Navigation:** Consumers can access their bookings but are restricted from operator-specific pages (e.g., creating experiences).
-- **Error Handling:** When a consumer accesses a restricted route, the API returns a 403. The global API response interceptor suppresses the generic "Access restricted" toast for `CONSUMER` roles, preventing noisy errors during normal navigation (e.g., when the dashboard layout attempts to fetch operator data).
+| Web Component Path | Target API Endpoint | Method | Role Boundary | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `/app/experiences/page.tsx` | `/api/experiences` | `GET` | Public | Fetches all active and approved experiences for the discovery listing. |
+| `/app/experiences/[id]/page.tsx` | `/api/experiences/:id` | `GET` | Public | Fetches the full details of a single published experience. |
+| `/app/experiences/[id]/page.tsx` | `/api/experiences/:id/slots` | `GET` | Public | Fetches available scheduling slots for a specific experience. |
+
+## 2. Operator Dashboard & Lifecycle Management
+
+The restricted components accessed exclusively by users with the `OPERATOR` role.
+
+| Web Component Path | Target API Endpoint | Method | Role Boundary | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `/app/dashboard/experiences/list/page.tsx` | `/api/experiences/mine` | `GET` | `OPERATOR` | Fetches all experiences owned by the authenticated operator, regardless of publication status. |
+| `/app/dashboard/experiences/new/page.tsx` | `/api/experiences` | `POST` | `OPERATOR` | Creates a new experience in draft state (`isApproved: false`, `isActive: false`). |
+| `/app/dashboard/experiences/new/page.tsx` | `/api/experiences/:id` | `PUT` | `OPERATOR` | Updates draft experience details. (`isActive` and `isFeatured` are stripped from the payload by the API allowlist). |
+| `/app/dashboard/experiences/list/page.tsx` | `/api/experiences/:id/publish` | `POST` | `OPERATOR` | Transitions an approved experience to published state (`isActive: true`). Will 403 if `isApproved` is false. |
+| `/app/dashboard/experiences/list/page.tsx` | `/api/experiences/:id/unpublish` | `POST` | `OPERATOR` | Transitions a published experience back to draft state (`isActive: false`). |
+
+## 3. Scheduling & Slots Management
+
+The restricted components for managing availability, accessed by the `OPERATOR` role.
+
+| Web Component Path | Target API Endpoint | Method | Role Boundary | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `/app/dashboard/experiences/slots/page.tsx` | `/api/experiences/:id/slots` | `GET` | `OPERATOR` | Fetches all scheduling slots configured for the operator's experience. |
+| `/app/dashboard/experiences/slots/page.tsx` | `/api/experiences/:id/slots` | `POST` | `OPERATOR` | Creates new slots (one-off or recurring series via RRULE). |
+| `/app/dashboard/experiences/slots/page.tsx` | `/api/experiences/:id/slots/:slotId` | `DELETE` | `OPERATOR` | Deletes a specific scheduling slot. |
+
+## 4. Booking & Transaction Execution
+
+The components responsible for securing inventory and initiating payment.
+
+| Web Component Path | Target API Endpoint | Method | Role Boundary | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `/app/experiences/[id]/book/page.tsx` | `/api/experiences/:id/slots/:slotId/book` | `POST` | Authenticated | Creates a pending booking reservation for the selected slot and initiates the payment handoff sequence. |
+
+---
+*Signed: Thread-2*
