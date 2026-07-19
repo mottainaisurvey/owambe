@@ -49,7 +49,6 @@ Walkthrough participants will encounter the following known, non-blocking imperf
 
 1. **Staging Cold-Start Latency:** The Railway staging environment hibernates the API container when idle. The first request to the dashboard (e.g., `/api/experiences/mine`) may take 15–25 seconds while the container wakes up. An 8-second slow-load notice ("Taking longer than usual...") will appear to provide feedback during this delay.
 2. **UTC Slot-Time Display:** Slot times are currently rendered in UTC across the dashboard and booking interfaces. Local timezone conversion is not yet implemented in the presentation layer.
-3. **D-5 — Operator Bookings List (UI schema mismatch):** The operator bookings list surface (`/dashboard/experiences/bookings`) fails to render booking rows due to a field name mismatch: the UI expects `numberOfGuests` but the API returns `guestCount`. The underlying API data is correct and accessible via the API directly. Registered as D-5 for the post-PREWALK defect cycle.
 
 ---
 *Signed: Thread-2 — Walkthrough Enablement Completion 2026-07-13; updated PREWALK-01 2026-07-13*

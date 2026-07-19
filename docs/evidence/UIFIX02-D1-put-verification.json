@@ -1,0 +1,8 @@
+{
+  "put_status": 200,
+  "put_success": true,
+  "meetingDetails_in_response": "UIFIX02-DIAG-THROWAWAY: Meeting point updated via PUT at 2026-07-19T08:54:53.108761+00:00",
+  "meetingDetails_persisted": "UIFIX02-DIAG-THROWAWAY: Meeting point updated via PUT at 2026-07-19T08:54:53.108761+00:00",
+  "match": true,
+  "uifix02_value": "UIFIX02-DIAG-THROWAWAY: Meeting point updated via PUT at 2026-07-19T08:54:53.108761+00:00"
+}
