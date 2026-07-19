@@ -1,6 +1,6 @@
 # OWB-C3-INVARIANTS-AND-ENABLEMENT
 
-**Document Context:** This document details the end-to-end execution path for the Founder UX Walkthrough, encompassing the Experience Operator journey and the Consumer booking journey. It has been updated following the `OWB-C-UIENABLE-01` cycle to reflect that the entire flow can now be executed via the web UI. Updated again following `OWB-C-PREWALK-01` to record paid and PENDING walkthrough entry states, remove the Paystack fallback rough-edge, and add D-5 to the rough-edges register.
+**Document Context:** This document details the end-to-end execution path for the Founder UX Walkthrough, encompassing the Experience Operator journey and the Consumer booking journey. It has been updated following the `OWB-C-UIENABLE-01` cycle to reflect that the entire flow can now be executed via the web UI. Updated again following `OWB-C-PREWALK-01` to record paid and PENDING walkthrough entry states and remove the Paystack fallback rough-edge. Updated following `OWB-C-UIFIX-02` to remove the D-5 rough-edges entry and add the staging email rough-edge (EMAIL-DIAG-01).
 
 ## 1. Environment Prerequisites
 
@@ -49,6 +49,7 @@ Walkthrough participants will encounter the following known, non-blocking imperf
 
 1. **Staging Cold-Start Latency:** The Railway staging environment hibernates the API container when idle. The first request to the dashboard (e.g., `/api/experiences/mine`) may take 15–25 seconds while the container wakes up. An 8-second slow-load notice ("Taking longer than usual...") will appear to provide feedback during this delay.
 2. **UTC Slot-Time Display:** Slot times are currently rendered in UTC across the dashboard and booking interfaces. Local timezone conversion is not yet implemented in the presentation layer.
+3. **Staging email non-functional (configuration gap; EMAIL-DIAG-01):** no emails will arrive during the walkthrough unless the staging email variables are set beforehand.
 
 ---
-*Signed: Thread-2 — Walkthrough Enablement Completion 2026-07-13; updated PREWALK-01 2026-07-13*
+*Signed: Thread-2 — Walkthrough Enablement Completion 2026-07-13; updated PREWALK-01 2026-07-13; updated UIFIX-02 2026-07-19*
