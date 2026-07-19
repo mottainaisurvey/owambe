@@ -11,7 +11,7 @@ interface ExperienceBooking {
   reference: string;
   guestName?: string | null;
   guestEmail?: string | null;
-  numberOfGuests: number;
+  guestCount: number;
   totalAmount: number;
   currency: string;
   status: string;
@@ -187,7 +187,7 @@ export default function ExperienceBookingsPage() {
                     </span>
                     <span className="flex items-center gap-1">
                       <Users size={11} />
-                      {booking.numberOfGuests} guest{booking.numberOfGuests !== 1 ? 's' : ''}
+                      {booking.guestCount} guest{booking.guestCount !== 1 ? 's' : ''}
                     </span>
                     <span className="flex items-center gap-1">
                       <Clock size={11} />

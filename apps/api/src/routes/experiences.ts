@@ -293,7 +293,7 @@ router.put('/:id',
         'name', 'description', 'city', 'state', 'country', 'address',
         'latitude', 'longitude', 'coverImageUrl', 'galleryUrls',
         'durationMinutes', 'maxGroupSize', 'minGroupSize', 'pricePerPerson',
-        'currency', 'includes', 'requirements', 'languages'
+        'currency', 'includes', 'requirements', 'languages', 'meetingDetails'
       ];
 
       const data: any = {};
