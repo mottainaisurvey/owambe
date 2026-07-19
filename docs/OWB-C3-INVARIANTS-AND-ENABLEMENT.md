@@ -21,12 +21,13 @@
 
 ## 3. The Consumer Booking Journey
 
-1. **Discovery:** Navigate to the public experiences listing (`/experiences`). The newly published experience will be visible.
-2. **Selection:** Click on the experience to view details and available slots.
-3. **Booking Initiation:** Select a slot (e.g., a Saturday instance) and click "Book & Pay".
-4. **Authentication:** If not logged in, the user will be prompted to register or log in as a `CONSUMER`.
-5. **Payment Handoff:** Upon confirming the booking, the system creates a pending reservation and initialises the Paystack payment handoff. The consumer is redirected to the Paystack checkout page to complete payment.
-6. **Confirmation:** After successful payment, the consumer is redirected back to the Owambe web app. The confirmation surface displays the booking details including the `meetingDetails` field, which is disclosed only upon successful payment.
+1. **Registration:** Navigate to `https://owambe-web-staging.up.railway.app/register`. Select "Consumer", then select "Book an Experience". Complete the registration form.
+2. **Login & Redirect:** Log in with the new account — you will be automatically redirected to `/experiences`.
+3. **Discovery:** The newly published experience will be visible in the listing.
+4. **Selection:** Click on the experience to view details and available slots.
+5. **Booking Initiation:** Select a slot (e.g., a Saturday instance) and click "Book & Pay".
+6. **Payment Handoff:** Upon confirming the booking, the system creates a pending reservation and initialises the Paystack payment handoff. The consumer is redirected to the Paystack checkout page to complete payment.
+7. **Confirmation:** After successful payment, the consumer is redirected back to the Owambe web app. The confirmation surface displays the booking details including the `meetingDetails` field, which is disclosed only upon successful payment.
 
 ## 4. Walkthrough Entry States (PREWALK-01 Fixtures)
 
