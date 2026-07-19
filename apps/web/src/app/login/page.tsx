@@ -31,15 +31,35 @@ export default function LoginPage() {
     try {
       await login(data.email, data.password);
       const user = useAuthStore.getState().user;
+      const activeMode = useAuthStore.getState().activeMode;
+      // Check for a ?redirect= param first
+      const params = new URLSearchParams(window.location.search);
+      const redirectTo = params.get('redirect');
       toast.success('Welcome back!');
       if (user?.role === 'ADMIN') router.replace('/admin');
       else if (user?.role === 'VENDOR') router.replace('/vendor');
       else if (user?.role === 'HOST') router.replace('/dashboard/stays');
-      else {
-        // PLANNER and other roles: route based on active mode
-        const activeMode = useAuthStore.getState().activeMode;
-        if (activeMode === 'STAYS') router.replace('/dashboard/stays');
-        else router.replace('/dashboard');
+      else if (user?.role === 'CONSUMER') {
+        // E-2 (D-7) + E-3: CONSUMER never routes to /dashboard.
+        // Honour ?redirect= if present; otherwise route by active mode.
+        if (redirectTo) {
+          router.replace(redirectTo);
+        } else if (activeMode === 'STAYS') {
+          router.replace('/stays');
+        } else if (activeMode === 'EXPERIENCES') {
+          router.replace('/experiences');
+        } else {
+          router.replace('/plan');
+        }
+      } else {
+        // PLANNER and other supply roles: route based on active mode
+        if (redirectTo) {
+          router.replace(redirectTo);
+        } else if (activeMode === 'STAYS') {
+          router.replace('/dashboard/stays');
+        } else {
+          router.replace('/dashboard');
+        }
       }
     } catch (err: any) {
       const message = err.response?.data?.error || err.message || 'Login failed. Please check your credentials.';

@@ -188,7 +188,9 @@ export default function ExperiencesBookingClient() {
       if (status === 409) {
         setError(msg ?? 'This slot is no longer available. Please choose another time.');
       } else if (status === 401) {
-        setError('Please log in to book this experience.');
+        // E-3: redirect to login with return URL so the journey resumes after sign-in
+        window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+        return;
       } else {
         setError(msg ?? 'Booking failed. Please try again.');
       }

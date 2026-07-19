@@ -220,7 +220,23 @@ function EventsDashboard() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const { activeMode } = useAuthStore();
+  const { user, activeMode } = useAuthStore();
+
+  // E-2 (D-7): CONSUMER role must never land on the operator/business surface.
+  // Redirect to the appropriate consumer destination based on their active mode.
+  if (user?.role === 'CONSUMER') {
+    if (typeof window !== 'undefined') {
+      if (activeMode === 'STAYS') {
+        window.location.replace('/stays');
+      } else if (activeMode === 'EXPERIENCES') {
+        window.location.replace('/experiences');
+      } else {
+        // EVENTS or PLAN_EVENT intent
+        window.location.replace('/plan');
+      }
+    }
+    return null;
+  }
 
   if (activeMode === 'EXPERIENCES') {
     return <ExperiencesDashboard />;

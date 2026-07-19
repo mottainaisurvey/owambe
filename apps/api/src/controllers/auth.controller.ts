@@ -20,9 +20,17 @@ function generateRefreshToken() {
 }
 
 // ─── REGISTER ────────────────────────────────────────
+// Consumer intent → mode mapping
+const CONSUMER_INTENT_MODE: Record<string, { activeMode: string; availableModes: string[] }> = {
+  BOOK_STAY:       { activeMode: 'STAYS',       availableModes: ['STAYS'] },
+  BOOK_EXPERIENCE: { activeMode: 'EXPERIENCES', availableModes: ['EXPERIENCES'] },
+  ATTEND_EVENT:    { activeMode: 'EVENTS',      availableModes: ['EVENTS'] },
+  PLAN_EVENT:      { activeMode: 'EVENTS',      availableModes: ['EVENTS'] },
+};
+
 export async function register(req: Request, res: Response, next: NextFunction) {
   try {
-    const { email, password, firstName, lastName, role, companyName } = req.body;
+    const { email, password, firstName, lastName, role, companyName, consumerIntent } = req.body;
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) throw new AppError('Email already registered', 409);
@@ -49,6 +57,10 @@ export async function register(req: Request, res: Response, next: NextFunction) 
                 activeMode: 'EXPERIENCES',
                 availableModes: ['EXPERIENCES'],
               }
+            : role === 'CONSUMER' && consumerIntent && CONSUMER_INTENT_MODE[consumerIntent]
+            ? CONSUMER_INTENT_MODE[consumerIntent]
+            : role === 'CONSUMER'
+            ? { activeMode: 'EVENTS', availableModes: ['EVENTS'] }
             : {}),
         }
       });
