@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { prisma } from '../database/client';
+import { PlatformMode } from '@prisma/client';
 import { AppError } from '../utils/AppError';
 import { sendEmail } from '../services/email.service';
 import { logger } from '../utils/logger';
@@ -21,11 +22,11 @@ function generateRefreshToken() {
 
 // ─── REGISTER ────────────────────────────────────────
 // Consumer intent → mode mapping
-const CONSUMER_INTENT_MODE: Record<string, { activeMode: string; availableModes: string[] }> = {
-  BOOK_STAY:       { activeMode: 'STAYS',       availableModes: ['STAYS'] },
-  BOOK_EXPERIENCE: { activeMode: 'EXPERIENCES', availableModes: ['EXPERIENCES'] },
-  ATTEND_EVENT:    { activeMode: 'EVENTS',      availableModes: ['EVENTS'] },
-  PLAN_EVENT:      { activeMode: 'EVENTS',      availableModes: ['EVENTS'] },
+const CONSUMER_INTENT_MODE: Record<string, { activeMode: PlatformMode; availableModes: PlatformMode[] }> = {
+  BOOK_STAY:       { activeMode: PlatformMode.STAYS,       availableModes: [PlatformMode.STAYS] },
+  BOOK_EXPERIENCE: { activeMode: PlatformMode.EXPERIENCES, availableModes: [PlatformMode.EXPERIENCES] },
+  ATTEND_EVENT:    { activeMode: PlatformMode.EVENTS,      availableModes: [PlatformMode.EVENTS] },
+  PLAN_EVENT:      { activeMode: PlatformMode.EVENTS,      availableModes: [PlatformMode.EVENTS] },
 };
 
 export async function register(req: Request, res: Response, next: NextFunction) {
@@ -60,7 +61,7 @@ export async function register(req: Request, res: Response, next: NextFunction) 
             : role === 'CONSUMER' && consumerIntent && CONSUMER_INTENT_MODE[consumerIntent]
             ? CONSUMER_INTENT_MODE[consumerIntent]
             : role === 'CONSUMER'
-            ? { activeMode: 'EVENTS', availableModes: ['EVENTS'] }
+            ? { activeMode: PlatformMode.EVENTS, availableModes: [PlatformMode.EVENTS] }
             : {}),
         }
       });
