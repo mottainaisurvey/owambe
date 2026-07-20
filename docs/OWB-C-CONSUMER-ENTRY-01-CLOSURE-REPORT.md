@@ -1,27 +1,30 @@
 # OWB-C-CONSUMER-ENTRY-01 Closure Report
 
-**Authorisation:** OWB-C-CONSUMER-ENTRY-01 Rev 1
-**Date:** 2026-07-19
+**Authorisation:** OWB-C-CONSUMER-ENTRY-01 Rev 2 (Final)
+**Date:** 2026-07-20
 **Signed:** Thread-2
-**Status:** COMPLETE (Reconciliation 1 applied)
+**Status:** COMPLETE (Final Closure Bundle applied)
 
 ## 1. Functional Dimension
-**E-1 (Two-tier Chooser):** The registration surface at `/register` now implements a two-tier chooser. The top level offers "Consumer" and "Professional". Selecting "Consumer" advances to an intent chooser ("Plan a personal event" or "Book an Experience"). The chosen intent is submitted as `consumerIntent` (`PLAN_EVENT` or `BOOK_EXPERIENCE`). The Professional tier correctly preserves the four deployed supply identities verbatim: Event Planner, Vendor / Business, Host / Property Manager, and Experience Operator (confirmed via R-2 fact check).
-**E-2 (D-7 Hydration Correction & Routing):** The `auth.controller.ts` registration handler hydrates `activeMode` and `availableModes` strictly derived from the submitted intent: `PLAN_EVENT` yields `EVENTS`, `BOOK_EXPERIENCE` yields `EXPERIENCES`. The dashboard layout and login handlers redirect `CONSUMER` accounts away from `/dashboard` (the operator surface) and directly to `/experiences`.
+**E-1 (Two-tier Chooser):** The registration surface at `/register` implements a two-tier chooser. The top level offers "Consumer" and "Professional". Selecting "Consumer" advances to an intent chooser. The implementation contains four consumer intents (`BOOK_STAY`, `BOOK_EXPERIENCE`, `ATTEND_EVENT`, `PLAN_EVENT`). However, as the `/events` destination does not yet exist, the `ATTEND_EVENT` intent has been hidden from the UI surface via a `hidden: true` flag in the array and a `.filter(i => !i.hidden)` render condition (F-1). The UI surface presents the three remaining intents. The Professional tier correctly preserves the four deployed supply identities verbatim: Event Planner, Vendor / Business, Host / Property Manager, and Experience Operator.
+**E-2 (D-7 Hydration Correction & Routing):** The `auth.controller.ts` registration handler hydrates `activeMode` and `availableModes` strictly derived from the submitted intent, using the Prisma `PlatformMode` enum: `BOOK_STAY` yields `STAYS`, `BOOK_EXPERIENCE` yields `EXPERIENCES`, `ATTEND_EVENT` yields `EVENTS`, and `PLAN_EVENT` yields `EVENTS`. The dashboard layout and login handlers redirect `CONSUMER` accounts away from `/dashboard` (the operator surface) and directly to `/experiences` (or their intent-specific destination).
 **E-3 (Redirect Continuity):** The `ExperiencesBookingClient` 401 response is replaced with a redirect to `/login?redirect=/experiences`. The login handler preserves and executes this redirect post-authentication.
 **E-4 (AI Event Builder Fact):** The `/plan` route (AI Event Builder) renders a fully functional chat interface without authentication guards. Unauthenticated access is permitted at the frontend layer; backend `/api/ai/*` routes enforce auth. The `PLAN_EVENT` intent safely routes here without hitting a 401 wall.
 
 ## 2. Architectural Dimension
-- **Mode Hydration Source of Truth:** `auth.controller.ts` now casts intents strictly against the Prisma `PlatformMode` enum, resolving the TypeScript defect surfaced during AC-2.
+- **Mode Hydration Source of Truth:** `auth.controller.ts` casts intents strictly against the Prisma `PlatformMode` enum, resolving the TypeScript defect surfaced during AC-2. The `ATTEND_EVENT` enum value, hydration mapping, and tests are preserved in code despite being hidden from the UI.
 - **Routing Invariant:** `CONSUMER` role access to `/dashboard` is strictly blocked at the layout layer (`apps/web/src/app/dashboard/page.tsx`), enforcing the role-to-surface boundary.
-- **Architectural Gap Observation (R-1):** The implemented booking surface is the flat listing at `/experiences`. It does not accept URL parameters to pre-select an experience or slot on mount. Therefore, when the E-3 redirect returns the user to `/experiences`, the slot context is lost and the user must re-select the experience and slot. No implemented surface currently exists that can serve the return with slot context intact.
+- **Redirect Continuity Residual (R-1):** Surface-level continuity is delivered (the user returns to `/experiences`). Context-level continuity is NOT delivered because the `/experiences` surface does not support URL-based state restoration. This residual scope transfers to Cycle 2 G-4(i) as named inherited scope. The F-A cohort gate remains unchanged (both-cycles condition).
 
 ## 3. Verification Dimension
 - **Baseline SHA:** `25a9797bfbe3b29b5f0a5e6928bd566a94d5a19c`
-- **Completion SHA:** `c28e358b14a2a1c29e71b2d5d88e6e5a4f1a2b3c`
-- **CI Run:** `29707256964` — All jobs passed. API: 258/258 tests passed (including 6 new `consumerEntry01.test.ts` cases). Web: 40/44 (pre-existing `CategoryVisibilityTab` failures unchanged). Deploy API to Production: SKIPPED (0s).
-- **Browser Smoke (AC-3 & R-1):** Two-tier chooser rendered successfully. Registration of `ce01-bookexp-smoke@ce01.owambe.test` succeeded. Admin API verification confirmed `activeMode: EXPERIENCES` and `availableModes: ["EXPERIENCES"]` hydrated correctly. Login redirect landed correctly on `/experiences`. The end-to-end R-1 redirect journey was verified: interrupted booking at `/experiences` correctly redirected to `/login?redirect=/experiences`, and post-auth correctly landed back on `/experiences` (though slot context is lost per the architectural gap noted above).
-- **Verification Boundaries:** The E-4 AI Event Builder backend auth enforcement (`/api/ai/*`) was not functionally verified; only the frontend public rendering was confirmed. The `PLAN_EVENT` intent registration flow was verified via CI tests but not manual browser smoke. URL-based context restoration for the booking journey was not implemented, as it requires architectural changes to the `/experiences` surface (finding R-1(d)).
+- **Completion SHA:** `f833040c03aed3530279b304a2c0a1842025f1fb` (F-1 closure head)
+- **CI Run:** `29762802603` (from F-1 commit) — All jobs passed. API: 258/258 tests passed. Web: 40/44 (pre-existing `CategoryVisibilityTab` failures unchanged). Deploy API to Production: SKIPPED (0s).
+- **Browser Smoke (AC-3 & F-3):** 
+  - `PLAN_EVENT`: Registration → `/plan`, `activeMode: EVENTS` confirmed via V-2 smoke.
+  - `BOOK_STAY`: Registration through the "Book a Stay" intent with `ce01-v3-bookstay@smoke.owambe.test` succeeded. Admin API verification confirmed `activeMode: STAYS` and `availableModes: ["STAYS"]` hydrated correctly. Login redirect landed correctly on `/stays` (F-3).
+  - `BOOK_EXPERIENCE`: Registration succeeded, `activeMode: EXPERIENCES` confirmed, redirect to `/experiences` confirmed.
+- **Verification Boundaries:** The `/events` destination was verified as non-existent (404), prompting the F-1 honest-surface correction.
 
 ## 4. Enablement Dimension
-The walkthrough enablement document (`OWB-C3-INVARIANTS-AND-ENABLEMENT.md`) has been updated to remove the D-7 rough-edge entry. The consumer journey instructions have been updated to reflect the new two-tier registration flow and the intent chooser. The staging email configuration gap (EMAIL-DIAG-01) has been added to the rough edges register to warn the Founder that emails will not arrive during the walkthrough.
+The walkthrough enablement document (`OWB-C3-INVARIANTS-AND-ENABLEMENT.md`) has been updated to remove the D-7 rough-edge entry. The consumer journey instructions reflect the new two-tier registration flow and the intent chooser. The staging email configuration gap (EMAIL-DIAG-01) is recorded in the rough edges register.
