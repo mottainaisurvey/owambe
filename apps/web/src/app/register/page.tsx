@@ -22,7 +22,7 @@ const SUPPLY_ROLES = [
 const CONSUMER_INTENTS = [
   { value: 'BOOK_STAY', label: '🏠 Book a Stay', desc: 'Find and book short-stay properties', mode: 'STAYS', dest: '/stays' },
   { value: 'BOOK_EXPERIENCE', label: '🌍 Book an Experience', desc: 'Discover tours, workshops, and cultural experiences', mode: 'EXPERIENCES', dest: '/experiences' },
-  { value: 'ATTEND_EVENT', label: '🎟 Attend an Event', desc: 'Browse and register for events', mode: 'EVENTS', dest: '/events' },
+  { value: 'ATTEND_EVENT', label: '🎟 Attend an Event', desc: 'Browse and register for events', mode: 'EVENTS', dest: '/events', hidden: true },
   { value: 'PLAN_EVENT', label: '✨ Plan a Personal Event', desc: 'Plan your own event with AI assistance', mode: 'EVENTS', dest: '/plan' },
 ];
 
@@ -182,7 +182,7 @@ export default function RegisterPage() {
             {/* Intent selector */}
             {!selectedIntent ? (
               <div className="space-y-2 mb-6">
-                {CONSUMER_INTENTS.map(intent => (
+                {CONSUMER_INTENTS.filter((i: any) => !i.hidden).map(intent => (
                   <button
                     key={intent.value}
                     onClick={() => {
