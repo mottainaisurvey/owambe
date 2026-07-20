@@ -1,0 +1,25 @@
+{
+  "run_id": "29707256964",
+  "commit": "c28e358",
+  "branch": "staging",
+  "trigger": "push",
+  "overall_status": "success",
+  "jobs": [
+    {"name": "Vocabulary Lint (Advisory)", "status": "pass", "duration": "8s", "id": "88246235069"},
+    {"name": "Lint & Type Check", "status": "pass", "duration": "1m47s", "id": "88246235077"},
+    {"name": "Run Tests", "status": "pass (continue-on-error)", "duration": "2m59s", "id": "88246384460"},
+    {"name": "Build", "status": "pass", "duration": "1m39s", "id": "88246611964"},
+    {"name": "Deploy Web to Staging (Railway)", "status": "pass", "duration": "2m31s", "id": "88246725116"},
+    {"name": "Deploy API to Staging (Railway)", "status": "pass", "duration": "1m47s", "id": "88246725124"},
+    {"name": "Deploy API to Production (Railway)", "status": "skipped", "duration": "0s", "id": "88246725411"}
+  ],
+  "api_tests": {"suites": 17, "passed": 258, "total": 258},
+  "web_tests": {
+    "passed": 40,
+    "failed": 4,
+    "total": 44,
+    "pre_existing_failures": "CategoryVisibilityTab.test.tsx T1-T3, T5 (unchanged from prior runs)"
+  },
+  "consumerEntry01_result": "PASS",
+  "note": "No run arose from V-1/V-2 work — all four intents were already implemented and tested in this run; no new code was required."
+}

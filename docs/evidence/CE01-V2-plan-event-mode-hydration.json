@@ -1,0 +1,14 @@
+{
+  "account": "ce01-v2-plan@smoke.owambe.test",
+  "intent": "PLAN_EVENT",
+  "role": "CONSUMER",
+  "activeMode": "EVENTS",
+  "availableModes": [
+    "EVENTS"
+  ],
+  "expected_activeMode": "EVENTS",
+  "expected_availableModes": [
+    "EVENTS"
+  ],
+  "hydration_correct": true
+}
