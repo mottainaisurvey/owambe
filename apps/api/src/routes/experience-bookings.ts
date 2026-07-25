@@ -229,7 +229,11 @@ router.post('/:id/verify',
         const userRole = (req as any).userRole;
         const isGuest = booking.guestId === userId;
         const isOperator = booking.experience.operator.userId === userId;
-        if (!isGuest && !isOperator && userRole !== 'ADMIN') throw new AppError('Access denied', 403);
+        if (!isGuest && !isOperator && userRole !== 'ADMIN') {
+          // CS-1.5: also allow authenticated user whose email matches booking.guestEmail
+          const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+          if (!user || user.email !== booking.guestEmail) throw new AppError('Access denied', 403);
+        }
       }
 
       // CS-1.5: Verified email control — check for a valid unused GuestClaimToken
@@ -281,7 +285,8 @@ router.post('/:id/verify',
 
 // ─── POST /api/experience-bookings/:id/claim-account ─
 // G-5: Post-purchase account creation — sends magic link to guest's email.
-router.post('/:id/claim-account', async (req: Request, res: Response, next: NextFunction) => {
+// CS-1.2: authenticateOptional so userId is available for same-account idempotency check.
+router.post('/:id/claim-account', authenticateOptional, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const booking = await prisma.experienceBooking.findUnique({
       where: { id: req.params.id },
