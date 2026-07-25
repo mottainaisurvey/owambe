@@ -1232,3 +1232,37 @@ adminRouter.get('/events', async (req, res, next) => {
     res.json({ success: true, events, total });
   } catch (err) { next(err); }
 });
+
+// ─── GCO01-SMOKE: Create PAID guest booking for AC-3 smoke test ──────────────
+// STAGING-ONLY: Creates a pre-confirmed PAID booking to enable claim-account
+// flow testing without requiring a live Paystack checkout.
+// Protected by ADMIN role. Remove before production promotion.
+adminRouter.post('/gco01-smoke/paid-booking', async (req, res, next) => {
+  try {
+    const { guestEmail, guestName } = req.body;
+    if (!guestEmail || !guestName) {
+      return res.status(400).json({ success: false, error: 'guestEmail and guestName required' });
+    }
+    const ts = Date.now();
+    const booking = await prisma.experienceBooking.create({
+      data: {
+        reference: `EXP-AC3-SMOKE-${ts}`,
+        experienceId: 'd139f687-9b13-42f4-adc2-79eb1b5ae521',
+        slotId: '2e6444e8-40ff-437d-ae0c-b5e22e6c8b7a',
+        guestName,
+        guestEmail,
+        guestPhone: '+2348012345678',
+        guestCount: 1,
+        totalAmount: 5000,
+        currency: 'NGN',
+        status: 'CONFIRMED',
+        paymentStatus: 'PAID',
+        paystackRef: `EXP-AC3-SMOKE-${ts}`,
+        confirmedAt: new Date(),
+        guestUserId: null,
+        guestId: null,
+      }
+    });
+    res.status(201).json({ success: true, data: booking });
+  } catch (err) { next(err); }
+});
