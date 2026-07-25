@@ -55,6 +55,15 @@ export default function ExperiencesBookingClient() {
   const [guestCount, setGuestCount] = useState(1);
   const [specialRequests, setSpecialRequests] = useState('');
 
+  // ─── G-2: Auth + guest checkout state ─────────────
+  const { user } = useAuthStore();
+  const isAuthenticated = !!user;
+  const [guestName, setGuestName] = useState('');
+  const [guestEmail, setGuestEmail] = useState('');
+  const [guestPhone, setGuestPhone] = useState('');
+  // ─── G-4(i): Pending slot restoration from URL ───────
+  const [pendingSlotId, setPendingSlotId] = useState<string | null>(null);
+
   // ─── C3-c: Booking + payment state ───────────────
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingResult, setBookingResult] = useState<BookingResult | null>(null);
@@ -65,7 +74,7 @@ export default function ExperiencesBookingClient() {
   const [returningLoading, setReturningLoading] = useState(false);
   const [returningError, setReturningError] = useState<string | null>(null);
 
-  // ─── On mount: check for ?booking= query param ───
+  // ─── On mount: check for ?booking=, ?exp=, ?slot= query params ───
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
@@ -73,6 +82,14 @@ export default function ExperiencesBookingClient() {
     if (bookingId) {
       setReturningBookingId(bookingId);
       handleReturningBooking(bookingId);
+    }
+    // G-4(i): Restore experience + slot selection after login redirect
+    const expId = params.get('exp');
+    const slotId = params.get('slot');
+    if (expId) {
+      // Will be matched against loaded experiences after handleSearch completes
+      // Store slotId for restoration after slots load
+      if (slotId) setPendingSlotId(slotId);
     }
   }, []);
 
@@ -397,6 +414,47 @@ export default function ExperiencesBookingClient() {
                       </button>
                     );
                   })}
+                </div>
+              )}
+
+              {/* G-2: Guest checkout fields — shown only when unauthenticated */}
+              {selectedSlot && !isAuthenticated && (
+                <div className="space-y-4 mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                  <p className="text-sm font-medium text-gray-700">Your details</p>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Full name <span className="text-red-500">*</span></label>
+                    <input
+                      type="text"
+                      value={guestName}
+                      onChange={(e) => setGuestName(e.target.value)}
+                      placeholder="Your full name"
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email address <span className="text-red-500">*</span></label>
+                    <input
+                      type="email"
+                      value={guestEmail}
+                      onChange={(e) => setGuestEmail(e.target.value)}
+                      placeholder="your@email.com"
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Phone number (optional)</label>
+                    <input
+                      type="tel"
+                      value={guestPhone}
+                      onChange={(e) => setGuestPhone(e.target.value)}
+                      placeholder="+234..."
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Already have an account?{' '}
+                    <a href="/login" className="text-green-700 underline">Sign in</a> to book faster.
+                  </p>
                 </div>
               )}
 
