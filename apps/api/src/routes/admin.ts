@@ -1285,3 +1285,22 @@ adminRouter.post('/gco01-smoke/set-meeting-details', async (req, res, next) => {
     res.json({ success: true, data: experience });
   } catch (err) { next(err); }
 });
+
+// ─── GCO01-SMOKE: Get experience booking with GuestClaimTokens for CR-1b evidence ──
+// STAGING-ONLY: Returns the full booking record including GuestClaimToken artefacts.
+// Protected by ADMIN role. Remove before production promotion.
+adminRouter.get('/gco01-smoke/booking/:id', async (req, res, next) => {
+  try {
+    const booking = await prisma.experienceBooking.findUnique({
+      where: { id: req.params.id },
+      include: {
+        guestClaimTokens: {
+          select: { id: true, token: true, guestEmail: true, usedAt: true, expiresAt: true, createdAt: true },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+    if (!booking) return res.status(404).json({ success: false, error: 'Booking not found' });
+    res.json({ success: true, data: booking });
+  } catch (err) { next(err); }
+});
