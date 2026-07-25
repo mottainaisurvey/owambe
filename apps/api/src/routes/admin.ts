@@ -1266,3 +1266,22 @@ adminRouter.post('/gco01-smoke/paid-booking', async (req, res, next) => {
     res.status(201).json({ success: true, data: booking });
   } catch (err) { next(err); }
 });
+
+// ─── GCO01-SMOKE: Set meetingDetails on smoke experience for CR-1a disclosure evidence ──
+// STAGING-ONLY: Sets meetingDetails on the GCO01 smoke experience to enable
+// meetingDetails disclosure testing in the verify endpoint.
+// Protected by ADMIN role. Remove before production promotion.
+adminRouter.post('/gco01-smoke/set-meeting-details', async (req, res, next) => {
+  try {
+    const { experienceId, meetingDetails } = req.body;
+    if (!experienceId || !meetingDetails) {
+      return res.status(400).json({ success: false, error: 'experienceId and meetingDetails required' });
+    }
+    const experience = await prisma.experience.update({
+      where: { id: experienceId },
+      data: { meetingDetails },
+      select: { id: true, name: true, meetingDetails: true },
+    });
+    res.json({ success: true, data: experience });
+  } catch (err) { next(err); }
+});

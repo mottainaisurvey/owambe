@@ -539,6 +539,24 @@ const templates: Record<string, (data: any) => string> = {
         <p style="color:#9A9080;font-size:11px;text-align:center;font-family:monospace;word-break:break-all">${d.signingUrl}</p>
       </div>
     </div>`,
+  // ─── GCO01 G-5: Guest booking claim-account magic link ───
+  'guest-booking-claim-account': (d) => `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+      <div style="background:#2D6A4F;padding:24px 32px;border-radius:12px 12px 0 0">
+        <h1 style="color:#fff;margin:0;font-size:20px">🎉 Your booking is confirmed — create your account</h1>
+      </div>
+      <div style="padding:32px;background:#fff;border:1px solid #e5e7eb;border-top:0;border-radius:0 0 12px 12px">
+        <p>Hi ${d.firstName},</p>
+        <p style="color:#3D3730;line-height:1.6">Your booking for <strong>${d.experienceName}</strong> on <strong>${d.slotDate}</strong> is confirmed. Create your Owambe account to manage this booking and future experiences.</p>
+        <div style="text-align:center;margin:28px 0">
+          <a href="${d.claimUrl}" style="background:#E76F2A;color:#fff;padding:14px 36px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;display:inline-block">
+            Create My Account →
+          </a>
+        </div>
+        <p style="color:#9CA3AF;font-size:13px">This link expires in ${d.expiryHours} hours. If you did not make this booking, you can safely ignore this email.</p>
+        <p style="color:#9A9080;font-size:11px;text-align:center;font-family:monospace;word-break:break-all">${d.claimUrl}</p>
+      </div>
+    </div>`,
 };
 
 // ─── SEND EMAIL ──────────────────────────────────────
