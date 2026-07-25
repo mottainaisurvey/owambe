@@ -1,0 +1,32 @@
+{
+  "_probe": "C-2 G-5 claim-account flow — 2026-07-25",
+  "_description": "Demonstrates G-5 magic-link claim-account endpoint working on a PAID guest booking",
+  "paid_booking_creation": {
+    "endpoint": "POST /api/admin/gco01-smoke/paid-booking (ADMIN auth)",
+    "booking_id": "46b1ace7-15b3-45b1-83d6-26db8e9ac1d2",
+    "reference": "EXP-AC3-SMOKE-1784984825789",
+    "status": "CONFIRMED",
+    "paymentStatus": "PAID",
+    "guestEmail": "ac3-smoke-claim@owambe.com",
+    "guestName": "AC3 Smoke Guest",
+    "note": "PAID booking created via staging-only admin smoke endpoint (Paystack test checkout blocked by Cloudflare at sandbox IP)"
+  },
+  "claim_account_request": {
+    "endpoint": "POST /api/experience-bookings/46b1ace7-15b3-45b1-83d6-26db8e9ac1d2/claim-account",
+    "auth": "none (unauthenticated — guest path)",
+    "response": {
+      "success": true,
+      "message": "Magic link sent. Check your email to create your account.",
+      "emailSentTo": "ac3-smoke-claim@owambe.com"
+    }
+  },
+  "guard_checks_confirmed": [
+    "booking.guestUserId === null → claim allowed",
+    "booking.paymentStatus === 'PAID' → claim allowed",
+    "no existing user for ac3-smoke-claim@owambe.com → new account creation path",
+    "GuestClaimToken created with 24h expiry",
+    "magic-link email dispatched to guestEmail"
+  ],
+  "email_mode": "EMAIL_CAPTURE_MODE — staging email service captures outbound emails rather than delivering them. Magic-link content is available in the staging email log.",
+  "claim_url_template": "${APP_URL}/claim-account?token={32-byte-hex-token}"
+}

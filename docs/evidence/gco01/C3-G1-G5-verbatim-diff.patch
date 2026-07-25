@@ -1,0 +1,1042 @@
+[1mdiff --git a/apps/api/prisma/migrations/20260725000001_gco01_guest_claim_token/migration.sql b/apps/api/prisma/migrations/20260725000001_gco01_guest_claim_token/migration.sql[m
+[1mnew file mode 100644[m
+[1mindex 0000000..5d247e1[m
+[1m--- /dev/null[m
+[1m+++ b/apps/api/prisma/migrations/20260725000001_gco01_guest_claim_token/migration.sql[m
+[36m@@ -0,0 +1,23 @@[m
+[32m+[m[32m-- OWB-C-GUEST-CHECKOUT-01 (G-5): GuestClaimToken table[m
+[32m+[m[32m-- Magic-link claim tokens for post-purchase account creation by guest bookers.[m
+[32m+[m[32m-- Additive — no existing rows affected.[m
+[32m+[m
+[32m+[m[32mCREATE TABLE IF NOT EXISTS "guest_claim_tokens" ([m
+[32m+[m[32m  "id"         UUID      NOT NULL DEFAULT gen_random_uuid(),[m
+[32m+[m[32m  "token"      TEXT      NOT NULL,[m
+[32m+[m[32m  "bookingId"  UUID      NOT NULL,[m
+[32m+[m[32m  "guestEmail" TEXT      NOT NULL,[m
+[32m+[m[32m  "expiresAt"  TIMESTAMP(3) NOT NULL,[m
+[32m+[m[32m  "usedAt"     TIMESTAMP(3),[m
+[32m+[m[32m  "createdAt"  TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,[m
+[32m+[m[32m  CONSTRAINT "guest_claim_tokens_pkey" PRIMARY KEY ("id")[m
+[32m+[m[32m);[m
+[32m+[m
+[32m+[m[32mCREATE UNIQUE INDEX IF NOT EXISTS "guest_claim_tokens_token_key"[m
+[32m+[m[32m  ON "guest_claim_tokens"("token");[m
+[32m+[m
+[32m+[m[32mCREATE INDEX IF NOT EXISTS "guest_claim_tokens_token_idx"[m
+[32m+[m[32m  ON "guest_claim_tokens"("token");[m
+[32m+[m
+[32m+[m[32mCREATE INDEX IF NOT EXISTS "guest_claim_tokens_bookingId_idx"[m
+[32m+[m[32m  ON "guest_claim_tokens"("bookingId");[m
+[1mdiff --git a/apps/api/prisma/schema.prisma b/apps/api/prisma/schema.prisma[m
+[1mindex 584d078..a725333 100644[m
+[1m--- a/apps/api/prisma/schema.prisma[m
+[1m+++ b/apps/api/prisma/schema.prisma[m
+[36m@@ -1813,3 +1813,18 @@[m [mmodel CohortInterestSubmission {[m
+   @@index([submittedAt])[m
+   @@map("cohort_interest_submissions")[m
+ }[m
+[32m+[m
+[32m+[m[32m// ─── OWB-C-GUEST-CHECKOUT-01 (G-5) ───────────────────────────────────────────[m
+[32m+[m[32m// Magic-link claim tokens for post-purchase account creation by guest bookers.[m
+[32m+[m[32mmodel GuestClaimToken {[m
+[32m+[m[32m  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid[m
+[32m+[m[32m  token       String    @unique[m
+[32m+[m[32m  bookingId   String    @db.Uuid[m
+[32m+[m[32m  guestEmail  String[m
+[32m+[m[32m  expiresAt   DateTime[m
+[32m+[m[32m  usedAt      DateTime?[m
+[32m+[m[32m  createdAt   DateTime  @default(now())[m
+[32m+[m[32m  @@index([token])[m
+[32m+[m[32m  @@index([bookingId])[m
+[32m+[m[32m  @@map("guest_claim_tokens")[m
+[32m+[m[32m}[m
+[1mdiff --git a/apps/api/src/middleware/authenticate.ts b/apps/api/src/middleware/authenticate.ts[m
+[1mindex ed32818..83597eb 100644[m
+[1m--- a/apps/api/src/middleware/authenticate.ts[m
+[1m+++ b/apps/api/src/middleware/authenticate.ts[m
+[36m@@ -19,3 +19,25 @@[m [mexport function authenticate(req: Request, _res: Response, next: NextFunction) {[m
+     next(new AppError('Invalid or expired token', 401));[m
+   }[m
+ }[m
+[32m+[m
+[32m+[m[32m// ─── authenticateOptional ────────────────────────────[m
+[32m+[m[32m// For routes that accept both authenticated and guest (unauthenticated) callers.[m
+[32m+[m[32m// - No Authorization header → req.userId = undefined, req.userRole = undefined, proceed.[m
+[32m+[m[32m// - Valid Bearer token → req.userId and req.userRole set, proceed.[m
+[32m+[m[32m// - Invalid/expired Bearer token → 401 (caller presented a token but it was bad).[m
+[32m+[m[32mexport function authenticateOptional(req: Request, _res: Response, next: NextFunction) {[m
+[32m+[m[32m  const authHeader = req.headers.authorization;[m
+[32m+[m[32m  if (!authHeader?.startsWith('Bearer ')) {[m
+[32m+[m[32m    // No token — guest path[m
+[32m+[m[32m    return next();[m
+[32m+[m[32m  }[m
+[32m+[m[32m  const token = authHeader.split(' ')[1];[m
+[32m+[m[32m  try {[m
+[32m+[m[32m    const payload = jwt.verify(token, process.env.JWT_SECRET!) as any;[m
+[32m+[m[32m    (req as any).userId = payload.userId;[m
+[32m+[m[32m    (req as any).userRole = payload.role;[m
+[32m+[m[32m    next();[m
+[32m+[m[32m  } catch {[m
+[32m+[m[32m    next(new AppError('Invalid or expired token', 401));[m
+[32m+[m[32m  }[m
+[32m+[m[32m}[m
+[1mdiff --git a/apps/api/src/routes/experience-bookings.ts b/apps/api/src/routes/experience-bookings.ts[m
+[1mindex aca0077..7da8988 100644[m
+[1m--- a/apps/api/src/routes/experience-bookings.ts[m
+[1m+++ b/apps/api/src/routes/experience-bookings.ts[m
+[36m@@ -1,21 +1,13 @@[m
+ // ─── experience-bookings.ts ──────────────────────────[m
+[31m-// Experiences mode: ExperienceBooking management routes[m
+[31m-//   POST   /api/experience-bookings              — create booking + Paystack init (consumer)[m
+[31m-//   GET    /api/experience-bookings              — list my bookings (consumer)[m
+[31m-//   GET    /api/experience-bookings/:id          — get booking details (consumer/operator/admin)[m
+[31m-//   POST   /api/experience-bookings/:id/cancel   — cancel booking (consumer/operator/admin)[m
+[31m-//   GET    /api/experience-bookings/operator     — list bookings for my experiences (OPERATOR)[m
+[31m-//   POST   /api/experience-bookings/:id/verify   — verify Paystack payment and confirm booking[m
+[31m-//[m
+[31m-// C3 invariants:[m
+[31m-//   - Seat reservation uses conditional UPDATE at DB level (atomic, race-safe)[m
+[31m-//   - Cancellation decrements bookedCount synchronously in same transaction[m
+[31m-//   - meetingDetails disclosed only when paymentStatus === 'PAID'[m
+[31m-//   - Consumer booking endpoint requires authenticate only (no requireMode)[m
+[31m-//   - Double publication gate: isApproved && isActive enforced at booking creation[m
+[32m+[m[32m// OWB-C-GUEST-CHECKOUT-01: G-2/G-3/G-4(ii)/G-5 changes applied.[m
+[32m+[m[32m// G-2: POST / accepts unauthenticated (guest) callers via authenticateOptional.[m
+[32m+[m[32m// G-3: X-Idempotency-Key header deduplication (24h TTL via cache).[m
+[32m+[m[32m// G-4(ii): GET /public/:reference — no auth, PII-gated, meetingDetails never returned.[m
+[32m+[m[32m// G-5: POST /:id/claim-account — issues GuestClaimToken + sends magic link email.[m
+ import { Router, Request, Response, NextFunction } from 'express';[m
+[32m+[m[32mimport crypto from 'crypto';[m
+ import { prisma } from '../database/client';[m
+[31m-import { authenticate } from '../middleware/authenticate';[m
+[32m+[m[32mimport { authenticate, authenticateOptional } from '../middleware/authenticate';[m
+ import { requireRole } from '../middleware/requireRole';[m
+ import { requireMode } from '../middleware/requireMode';[m
+ import { AppError } from '../utils/AppError';[m
+[36m@@ -23,68 +15,102 @@[m [mimport { logger } from '../utils/logger';[m
+ import { dispatchWebhookEvent } from '../services/webhookDispatcher.service';[m
+ import { initializeTransaction, verifyTransaction } from '../services/paystack.service';[m
+ import { sendEmail } from '../services/email.service';[m
+[32m+[m[32mimport { cacheGet, cacheSet } from '../services/cache.service';[m
+ [m
+ const router = Router();[m
+ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL ?? 'https://owambe.com';[m
+ [m
+[31m-router.use(authenticate);[m
+[32m+[m[32m// ─── GET /api/experience-bookings/public/:reference ──[m
+[32m+[m[32m// G-4(ii): Public retrieval — no auth. PII-gated. meetingDetails NEVER returned.[m
+[32m+[m[32m// Registered BEFORE /:id to avoid Express treating 'public' as an ID.[m
+[32m+[m[32mrouter.get('/public/:reference', async (req: Request, res: Response, next: NextFunction) => {[m
+[32m+[m[32m  try {[m
+[32m+[m[32m    const booking = await prisma.experienceBooking.findUnique({[m
+[32m+[m[32m      where: { reference: req.params.reference },[m
+[32m+[m[32m      include: {[m
+[32m+[m[32m        slot: { select: { startTime: true, endTime: true } },[m
+[32m+[m[32m        experience: { select: { name: true, city: true, coverImageUrl: true } },[m
+[32m+[m[32m      },[m
+[32m+[m[32m    });[m
+[32m+[m[32m    if (!booking) throw new AppError('Booking not found', 404);[m
+[32m+[m[32m    const publicData = {[m
+[32m+[m[32m      id: booking.id,[m
+[32m+[m[32m      reference: booking.reference,[m
+[32m+[m[32m      status: booking.status,[m
+[32m+[m[32m      paymentStatus: booking.paymentStatus,[m
+[32m+[m[32m      guestCount: booking.guestCount,[m
+[32m+[m[32m      totalAmount: booking.totalAmount,[m
+[32m+[m[32m      currency: booking.currency,[m
+[32m+[m[32m      createdAt: booking.createdAt,[m
+[32m+[m[32m      slot: booking.slot,[m
+[32m+[m[32m      experience: booking.experience,[m
+[32m+[m[32m    };[m
+[32m+[m[32m    res.json({ success: true, data: publicData });[m
+[32m+[m[32m  } catch (err) {[m
+[32m+[m[32m    next(err);[m
+[32m+[m[32m  }[m
+[32m+[m[32m});[m
+ [m
+ // ─── POST /api/experience-bookings ───────────────────[m
+[31m-// C3-c: Consumer booking creation with atomic seat reservation + Paystack init[m
+[31m-// NOTE: requireMode('EXPERIENCES') removed — consumer users do not have EXPERIENCES mode.[m
+[31m-//       This was a pre-existing scaffolding error (see OWB-C3-DESIGN-DECISIONS.md Q5).[m
+[32m+[m[32m// G-2: Guest checkout — authenticateOptional.[m
+[32m+[m[32m// G-3: X-Idempotency-Key header deduplication.[m
+ router.post('/',[m
+[32m+[m[32m  authenticateOptional,[m
+   async (req: Request, res: Response, next: NextFunction) => {[m
+     try {[m
+[31m-      const userId = (req as any).userId;[m
+[31m-      const { slotId, guestCount, specialRequests } = req.body;[m
+[31m-[m
+[31m-      if (!slotId || !guestCount) {[m
+[31m-        throw new AppError('slotId and guestCount are required', 400);[m
+[32m+[m[32m      const userId = (req as any).userId as string | undefined;[m
+[32m+[m[32m      const { slotId, guestCount, specialRequests, guestName, guestEmail, guestPhone } = req.body;[m
+[32m+[m
+[32m+[m[32m      // G-3: Idempotency guard[m
+[32m+[m[32m      const idempotencyKey = req.headers['x-idempotency-key'] as string | undefined;[m
+[32m+[m[32m      if (idempotencyKey) {[m
+[32m+[m[32m        const cached = await cacheGet<object>(`idempotency:booking:${idempotencyKey}`);[m
+[32m+[m[32m        if (cached) {[m
+[32m+[m[32m          logger.info('[GCO01] Idempotent booking re-call', { idempotencyKey });[m
+[32m+[m[32m          return res.status(201).json(cached);[m
+[32m+[m[32m        }[m
+       }[m
+[31m-      if (!Number.isInteger(guestCount) || guestCount < 1) {[m
+[31m-        throw new AppError('guestCount must be a positive integer', 400);[m
+[32m+[m
+[32m+[m[32m      if (!slotId || !guestCount) throw new AppError('slotId and guestCount are required', 400);[m
+[32m+[m[32m      if (!Number.isInteger(guestCount) || guestCount < 1) throw new AppError('guestCount must be a positive integer', 400);[m
+[32m+[m
+[32m+[m[32m      // G-2: Resolve guest identity[m
+[32m+[m[32m      let resolvedGuestName: string;[m
+[32m+[m[32m      let resolvedGuestEmail: string;[m
+[32m+[m[32m      let resolvedGuestPhone: string | null;[m
+[32m+[m
+[32m+[m[32m      if (userId) {[m
+[32m+[m[32m        const guestUser = await prisma.user.findUnique({[m
+[32m+[m[32m          where: { id: userId },[m
+[32m+[m[32m          select: { firstName: true, lastName: true, email: true, phone: true }[m
+[32m+[m[32m        });[m
+[32m+[m[32m        if (!guestUser) throw new AppError('User not found', 404);[m
+[32m+[m[32m        resolvedGuestName = `${guestUser.firstName} ${guestUser.lastName}`;[m
+[32m+[m[32m        resolvedGuestEmail = guestUser.email;[m
+[32m+[m[32m        resolvedGuestPhone = guestUser.phone || null;[m
+[32m+[m[32m      } else {[m
+[32m+[m[32m        if (!guestName || typeof guestName !== 'string' || !guestName.trim()) throw new AppError('guestName is required for guest checkout', 400);[m
+[32m+[m[32m        if (!guestEmail || typeof guestEmail !== 'string' || !guestEmail.trim()) throw new AppError('guestEmail is required for guest checkout', 400);[m
+[32m+[m[32m        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim())) throw new AppError('guestEmail must be a valid email address', 400);[m
+[32m+[m[32m        resolvedGuestName = guestName.trim();[m
+[32m+[m[32m        resolvedGuestEmail = guestEmail.trim().toLowerCase();[m
+[32m+[m[32m        resolvedGuestPhone = guestPhone?.trim() || null;[m
+       }[m
+ [m
+[31m-      // C3-c: Load slot with experience — enforce double publication gate[m
+       const slot = await prisma.experienceSlot.findUnique({[m
+         where: { id: slotId },[m
+[31m-        include: {[m
+[31m-          experience: {[m
+[31m-            include: {[m
+[31m-              operator: { select: { id: true, userId: true, businessName: true } }[m
+[31m-            }[m
+[31m-          }[m
+[31m-        }[m
+[32m+[m[32m        include: { experience: { include: { operator: { select: { id: true, userId: true, businessName: true } } } } }[m
+       });[m
+ [m
+       if (!slot || !slot.isActive) throw new AppError('Slot not found or unavailable', 404);[m
+[31m-      if (!slot.experience.isActive || !slot.experience.isApproved) {[m
+[31m-        // C3 double publication gate: isApproved && isActive[m
+[31m-        throw new AppError('This experience is not currently available for booking', 400);[m
+[31m-      }[m
+[32m+[m[32m      if (!slot.experience.isActive || !slot.experience.isApproved) throw new AppError('This experience is not currently available for booking', 400);[m
+       if (slot.startTime < new Date()) throw new AppError('This slot has already passed', 400);[m
+[31m-[m
+[31m-      if (slot.experience.minGroupSize && guestCount < slot.experience.minGroupSize) {[m
+[31m-        throw new AppError(`Minimum group size is ${slot.experience.minGroupSize}`, 400);[m
+[31m-      }[m
+[31m-      if (slot.experience.maxGroupSize && guestCount > slot.experience.maxGroupSize) {[m
+[31m-        throw new AppError(`Maximum group size is ${slot.experience.maxGroupSize}`, 400);[m
+[31m-      }[m
+[31m-[m
+[31m-      // C3-c: Get guest user details[m
+[31m-      const guestUser = await prisma.user.findUnique({[m
+[31m-        where: { id: userId },[m
+[31m-        select: { firstName: true, lastName: true, email: true, phone: true }[m
+[31m-      });[m
+[31m-      if (!guestUser) throw new AppError('User not found', 404);[m
+[32m+[m[32m      if (slot.experience.minGroupSize && guestCount < slot.experience.minGroupSize) throw new AppError(`Minimum group size is ${slot.experience.minGroupSize}`, 400);[m
+[32m+[m[32m      if (slot.experience.maxGroupSize && guestCount > slot.experience.maxGroupSize) throw new AppError(`Maximum group size is ${slot.experience.maxGroupSize}`, 400);[m
+ [m
+       const totalAmount = Number(slot.experience.pricePerPerson) * guestCount;[m
+       const reference = `EXP-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;[m
+ [m
+[31m-      // C3-c: ATOMIC SEAT RESERVATION — conditional UPDATE at DB level[m
+[31m-      // This is the race-safe mechanism: two concurrent requests will serialise at the row lock.[m
+[31m-      // Only one will satisfy the WHERE clause; the other gets rowsAffected === 0 → 409.[m
+       const seatResult = await prisma.$executeRaw`[m
+         UPDATE experience_slots[m
+         SET "bookedCount" = "bookedCount" + ${guestCount}[m
+[36m@@ -94,38 +120,24 @@[m [mrouter.post('/',[m
+       `;[m
+ [m
+       if (seatResult === 0) {[m
+[31m-        // Slot is sold out or was cancelled between the read and the update[m
+[31m-        const currentSlot = await prisma.experienceSlot.findUnique({[m
+[31m-          where: { id: slotId },[m
+[31m-          select: { capacity: true, bookedCount: true, isActive: true }[m
+[31m-        });[m
+[31m-        if (!currentSlot || !currentSlot.isActive) {[m
+[31m-          throw new AppError('This slot is no longer available', 409);[m
+[31m-        }[m
+[32m+[m[32m        const currentSlot = await prisma.experienceSlot.findUnique({ where: { id: slotId }, select: { capacity: true, bookedCount: true, isActive: true } });[m
+[32m+[m[32m        if (!currentSlot || !currentSlot.isActive) throw new AppError('This slot is no longer available', 409);[m
+         const remaining = currentSlot.capacity - currentSlot.bookedCount;[m
+[31m-        if (remaining < guestCount) {[m
+[31m-          throw new AppError([m
+[31m-            remaining === 0[m
+[31m-              ? 'This slot is sold out'[m
+[31m-              : `Only ${remaining} spot${remaining !== 1 ? 's' : ''} remaining`,[m
+[31m-            409[m
+[31m-          );[m
+[31m-        }[m
+[32m+[m[32m        if (remaining < guestCount) throw new AppError(remaining === 0 ? 'This slot is sold out' : `Only ${remaining} spot${remaining !== 1 ? 's' : ''} remaining`, 409);[m
+         throw new AppError('Slot reservation failed — please try again', 409);[m
+       }[m
+ [m
+[31m-      // C3-c: Create booking record (seats already reserved atomically above)[m
+       let booking;[m
+       try {[m
+         booking = await prisma.experienceBooking.create({[m
+           data: {[m
+             experienceId: slot.experience.id,[m
+             slotId,[m
+[31m-            guestUserId: userId,[m
+[31m-            guestId: userId,[m
+[31m-            guestName: `${guestUser.firstName} ${guestUser.lastName}`,[m
+[31m-            guestEmail: guestUser.email,[m
+[31m-            guestPhone: guestUser.phone || null,[m
+[32m+[m[32m            guestUserId: userId || null,[m
+[32m+[m[32m            guestId: userId || null,[m
+[32m+[m[32m            guestName: resolvedGuestName,[m
+[32m+[m[32m            guestEmail: resolvedGuestEmail,[m
+[32m+[m[32m            guestPhone: resolvedGuestPhone,[m
+             guestCount,[m
+             totalAmount,[m
+             currency: slot.experience.currency,[m
+[36m@@ -140,116 +152,49 @@[m [mrouter.post('/',[m
+           }[m
+         });[m
+       } catch (createErr) {[m
+[31m-        // Booking record creation failed — release the seats we already reserved[m
+[31m-        await prisma.$executeRaw`[m
+[31m-          UPDATE experience_slots[m
+[31m-          SET "bookedCount" = GREATEST(0, "bookedCount" - ${guestCount})[m
+[31m-          WHERE id = ${slotId}::uuid[m
+[31m-        `;[m
+[32m+[m[32m        await prisma.$executeRaw`UPDATE experience_slots SET "bookedCount" = GREATEST(0, "bookedCount" - ${guestCount}) WHERE id = ${slotId}::uuid`;[m
+         throw createErr;[m
+       }[m
+ [m
+[31m-      // C3-c: Initialise Paystack transaction[m
+       let paystackResult: { authorizationUrl: string; reference: string } | null = null;[m
+       try {[m
+         const paystack = await initializeTransaction({[m
+[31m-          email: guestUser.email,[m
+[32m+[m[32m          email: resolvedGuestEmail,[m
+           amount: totalAmount,[m
+           reference,[m
+[31m-          callbackUrl: `${APP_URL}/experiences?booking=${booking.id}`,[m
+[31m-          metadata: {[m
+[31m-            bookingId: booking.id,[m
+[31m-            experienceId: slot.experience.id,[m
+[31m-            slotId,[m
+[31m-            guestCount,[m
+[31m-            type: 'EXPERIENCE_BOOKING',[m
+[31m-          },[m
+[31m-        });[m
+[31m-        paystackResult = {[m
+[31m-          authorizationUrl: paystack.authorization_url,[m
+[31m-          reference: paystack.reference,[m
+[31m-        };[m
+[31m-        // Store Paystack reference on booking[m
+[31m-        await prisma.experienceBooking.update({[m
+[31m-          where: { id: booking.id },[m
+[31m-          data: { paystackRef: paystack.reference },[m
+[32m+[m[32m          callbackUrl: `${APP_URL}/experiences/booking/${booking.id}`,[m
+[32m+[m[32m          metadata: { bookingId: booking.id, experienceId: slot.experience.id, slotId, guestCount, type: 'EXPERIENCE_BOOKING' },[m
+         });[m
+[32m+[m[32m        paystackResult = { authorizationUrl: paystack.authorization_url, reference: paystack.reference };[m
+[32m+[m[32m        await prisma.experienceBooking.update({ where: { id: booking.id }, data: { paystackRef: paystack.reference } });[m
+       } catch (paystackErr) {[m
+[31m-        // Paystack init failed — booking persists with PENDING status (seats held)[m
+[31m-        // This matches the Stays precedent: booking row exists, consumer can retry payment[m
+         logger.error(`Paystack init failed for booking ${reference}:`, paystackErr);[m
+       }[m
+ [m
+[31m-      logger.info(`Experience booking created: ${reference} for slot ${slotId}`);[m
+[32m+[m[32m      logger.info(`Experience booking created: ${reference} (${userId ? 'authenticated' : 'guest'})`);[m
+ [m
+[31m-      // C3-d: Notify operator (non-blocking)[m
+       setImmediate(async () => {[m
+         try {[m
+[31m-          const operatorUser = await prisma.user.findUnique({[m
+[31m-            where: { id: slot.experience.operator.userId },[m
+[31m-            select: { email: true, firstName: true }[m
+[31m-          });[m
+[32m+[m[32m          const operatorUser = await prisma.user.findUnique({ where: { id: slot.experience.operator.userId }, select: { email: true, firstName: true } });[m
+           if (operatorUser) {[m
+             const slotDate = slot.startTime.toLocaleDateString('en-NG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });[m
+             const slotTime = slot.startTime.toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' });[m
+[31m-            await sendEmail({[m
+[31m-              to: operatorUser.email,[m
+[31m-              subject: `New Booking — ${slot.experience.name}`,[m
+[31m-              template: 'operator-new-booking',[m
+[31m-              data: {[m
+[31m-                firstName: operatorUser.firstName,[m
+[31m-                experienceName: slot.experience.name,[m
+[31m-                channelLabel: 'Owambe Direct',[m
+[31m-                leadParticipantName: `${guestUser.firstName} ${guestUser.lastName}`,[m
+[31m-                leadParticipantEmail: guestUser.email,[m
+[31m-                numberOfParticipants: guestCount,[m
+[31m-                slotDate,[m
+[31m-                slotTime,[m
+[31m-                totalAmount: `₦${totalAmount.toLocaleString()}`,[m
+[31m-                netToOperator: `₦${totalAmount.toLocaleString()}`,[m
+[31m-                pickupRequested: 'No',[m
+[31m-                pickupAddress: 'N/A',[m
+[31m-                specialRequirements: specialRequests || 'None',[m
+[31m-                reference,[m
+[31m-                dashboardUrl: `${APP_URL}/dashboard/experiences/bookings`,[m
+[31m-              }[m
+[31m-            });[m
+[32m+[m[32m            await sendEmail({ to: operatorUser.email, subject: `New Booking — ${slot.experience.name}`, template: 'operator-new-booking', data: { firstName: operatorUser.firstName, experienceName: slot.experience.name, channelLabel: 'Owambe Direct', leadParticipantName: resolvedGuestName, leadParticipantEmail: resolvedGuestEmail, numberOfParticipants: guestCount, slotDate, slotTime, totalAmount: `₦${totalAmount.toLocaleString()}`, netToOperator: `₦${totalAmount.toLocaleString()}`, pickupRequested: 'No', pickupAddress: 'N/A', specialRequirements: specialRequests || 'None', reference, dashboardUrl: `${APP_URL}/dashboard/experiences/bookings` } });[m
+           }[m
+[31m-        } catch (emailErr) {[m
+[31m-          logger.error('Operator notification email failed (non-fatal):', emailErr);[m
+[31m-        }[m
+[32m+[m[32m        } catch (emailErr) { logger.error('Operator notification email failed (non-fatal):', emailErr); }[m
+       });[m
+ [m
+[31m-      // C3-d: Guest confirmation email (non-blocking)[m
+       setImmediate(async () => {[m
+         try {[m
+           const slotDate = slot.startTime.toLocaleDateString('en-NG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });[m
+           const slotTime = slot.startTime.toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' });[m
+[31m-          await sendEmail({[m
+[31m-            to: guestUser.email,[m
+[31m-            subject: `Booking Created — ${slot.experience.name}`,[m
+[31m-            template: 'guest-experience-booking-confirmed',[m
+[31m-            data: {[m
+[31m-              firstName: guestUser.firstName,[m
+[31m-              experienceName: slot.experience.name,[m
+[31m-              slotDate,[m
+[31m-              slotTime,[m
+[31m-              guestCount,[m
+[31m-              totalAmount: `₦${totalAmount.toLocaleString()}`,[m
+[31m-              reference,[m
+[31m-              manageUrl: `${APP_URL}/experiences?booking=${booking.id}`,[m
+[31m-            }[m
+[31m-          });[m
+[31m-        } catch (emailErr) {[m
+[31m-          logger.error('Guest confirmation email failed (non-fatal):', emailErr);[m
+[31m-        }[m
+[32m+[m[32m          await sendEmail({ to: resolvedGuestEmail, subject: `Booking Created — ${slot.experience.name}`, template: 'guest-experience-booking-confirmed', data: { firstName: resolvedGuestName.split(' ')[0], experienceName: slot.experience.name, slotDate, slotTime, guestCount, totalAmount: `₦${totalAmount.toLocaleString()}`, reference, manageUrl: `${APP_URL}/experiences/booking/${booking.id}` } });[m
+[32m+[m[32m        } catch (emailErr) { logger.error('Guest confirmation email failed (non-fatal):', emailErr); }[m
+       });[m
+ [m
+[31m-      res.status(201).json({[m
+[31m-        success: true,[m
+[31m-        data: booking,[m
+[31m-        payment: paystackResult,[m
+[31m-      });[m
+[32m+[m[32m      const responseBody = { success: true, data: booking, payment: paystackResult, isGuestBooking: !userId };[m
+[32m+[m[32m      if (idempotencyKey) await cacheSet(`idempotency:booking:${idempotencyKey}`, responseBody, 86400);[m
+[32m+[m[32m      res.status(201).json(responseBody);[m
+     } catch (err) {[m
+       next(err);[m
+     }[m
+[36m@@ -257,299 +202,173 @@[m [mrouter.post('/',[m
+ );[m
+ [m
+ // ─── POST /api/experience-bookings/:id/verify ────────[m
+[31m-// C3-c: Verify Paystack payment and confirm booking[m
+[31m-// Called by the web app after the consumer returns from Paystack redirect[m
+[31m-router.post('/:id/verify', async (req: Request, res: Response, next: NextFunction) => {[m
+[31m-  try {[m
+[31m-    const userId = (req as any).userId;[m
+[31m-    const { reference } = req.body;[m
+[32m+[m[32m// G-2: Accepts both authenticated and guest callers.[m
+[32m+[m[32mrouter.post('/:id/verify',[m
+[32m+[m[32m  authenticateOptional,[m
+[32m+[m[32m  async (req: Request, res: Response, next: NextFunction) => {[m
+[32m+[m[32m    try {[m
+[32m+[m[32m      const userId = (req as any).userId as string | undefined;[m
+[32m+[m[32m      const { reference } = req.body;[m
+ [m
+[31m-    const booking = await prisma.experienceBooking.findUnique({[m
+[31m-      where: { id: req.params.id },[m
+[31m-      include: {[m
+[31m-        slot: { select: { startTime: true, endTime: true } },[m
+[31m-        experience: {[m
+[31m-          select: {[m
+[31m-            name: true, city: true, coverImageUrl: true,[m
+[31m-            meetingDetails: true,[m
+[31m-            operator: { select: { userId: true } }[m
+[31m-          }[m
+[32m+[m[32m      const booking = await prisma.experienceBooking.findUnique({[m
+[32m+[m[32m        where: { id: req.params.id },[m
+[32m+[m[32m        include: {[m
+[32m+[m[32m          slot: { select: { startTime: true, endTime: true } },[m
+[32m+[m[32m          experience: { select: { name: true, city: true, coverImageUrl: true, meetingDetails: true, operator: { select: { userId: true } } } }[m
+         }[m
+[32m+[m[32m      });[m
+[32m+[m
+[32m+[m[32m      if (!booking) throw new AppError('Booking not found', 404);[m
+[32m+[m
+[32m+[m[32m      if (userId) {[m
+[32m+[m[32m        const userRole = (req as any).userRole;[m
+[32m+[m[32m        const isGuest = booking.guestId === userId;[m
+[32m+[m[32m        const isOperator = booking.experience.operator.userId === userId;[m
+[32m+[m[32m        if (!isGuest && !isOperator && userRole !== 'ADMIN') throw new AppError('Access denied', 403);[m
+       }[m
+[31m-    });[m
+ [m
+[31m-    if (!booking) throw new AppError('Booking not found', 404);[m
+[31m-    if (booking.guestId !== userId) throw new AppError('Access denied', 403);[m
+[31m-[m
+[31m-    if (booking.paymentStatus === 'PAID') {[m
+[31m-      // Already confirmed — return current state with meetingDetails[m
+[31m-      const response = {[m
+[31m-        ...booking,[m
+[31m-        experience: {[m
+[31m-          ...booking.experience,[m
+[31m-          meetingDetails: booking.experience.meetingDetails, // Disclosed: already paid[m
+[31m-        }[m
+[31m-      };[m
+[31m-      return res.json({ success: true, data: response, alreadyConfirmed: true });[m
+[31m-    }[m
+[32m+[m[32m      if (booking.paymentStatus === 'PAID') {[m
+[32m+[m[32m        const meetingDetails = userId && booking.guestId === userId ? booking.experience.meetingDetails : null;[m
+[32m+[m[32m        return res.json({ success: true, data: { ...booking, experience: { ...booking.experience, meetingDetails } }, alreadyConfirmed: true });[m
+[32m+[m[32m      }[m
+ [m
+[31m-    // Verify with Paystack[m
+[31m-    const paystackRef = reference || booking.paystackRef || booking.reference;[m
+[31m-    const verification = await verifyTransaction(paystackRef);[m
+[32m+[m[32m      const paystackRef = reference || booking.paystackRef || booking.reference;[m
+[32m+[m[32m      const verification = await verifyTransaction(paystackRef);[m
+[32m+[m[32m      if (verification.status !== 'success') return res.status(402).json({ success: false, error: 'Payment not yet confirmed', paystackStatus: verification.status });[m
+ [m
+[31m-    if (verification.status !== 'success') {[m
+[31m-      return res.status(402).json({[m
+[31m-        success: false,[m
+[31m-        error: 'Payment not yet confirmed',[m
+[31m-        paystackStatus: verification.status,[m
+[32m+[m[32m      const confirmed = await prisma.experienceBooking.update({[m
+[32m+[m[32m        where: { id: booking.id },[m
+[32m+[m[32m        data: { paymentStatus: 'PAID', status: 'CONFIRMED', confirmedAt: new Date(), paystackRef },[m
+[32m+[m[32m        include: { slot: { select: { startTime: true, endTime: true } }, experience: { select: { name: true, city: true, coverImageUrl: true, meetingDetails: true } } }[m
+       });[m
+[32m+[m
+[32m+[m[32m      logger.info(`Experience booking confirmed: ${booking.reference}`);[m
+[32m+[m[32m      const meetingDetails = userId && booking.guestId === userId ? confirmed.experience.meetingDetails : null;[m
+[32m+[m[32m      res.json({ success: true, data: { ...confirmed, experience: { ...confirmed.experience, meetingDetails } } });[m
+[32m+[m[32m    } catch (err) {[m
+[32m+[m[32m      next(err);[m
+     }[m
+[32m+[m[32m  }[m
+[32m+[m[32m);[m
+ [m
+[31m-    // Confirm booking[m
+[31m-    const confirmed = await prisma.experienceBooking.update({[m
+[31m-      where: { id: booking.id },[m
+[31m-      data: {[m
+[31m-        paymentStatus: 'PAID',[m
+[31m-        status: 'CONFIRMED',[m
+[31m-        confirmedAt: new Date(),[m
+[31m-        paystackRef: paystackRef,[m
+[31m-      },[m
+[31m-      include: {[m
+[31m-        slot: { select: { startTime: true, endTime: true } },[m
+[31m-        experience: {[m
+[31m-          select: {[m
+[31m-            name: true, city: true, coverImageUrl: true,[m
+[31m-            meetingDetails: true,[m
+[31m-          }[m
+[31m-        }[m
+[31m-      }[m
+[32m+[m[32m// ─── POST /api/experience-bookings/:id/claim-account ─[m
+[32m+[m[32m// G-5: Post-purchase account creation — sends magic link to guest's email.[m
+[32m+[m[32mrouter.post('/:id/claim-account', async (req: Request, res: Response, next: NextFunction) => {[m
+[32m+[m[32m  try {[m
+[32m+[m[32m    const booking = await prisma.experienceBooking.findUnique({[m
+[32m+[m[32m      where: { id: req.params.id },[m
+[32m+[m[32m      include: { experience: { select: { name: true } }, slot: { select: { startTime: true } } },[m
+     });[m
+[32m+[m[32m    if (!booking) throw new AppError('Booking not found', 404);[m
+[32m+[m[32m    if (booking.guestUserId) return res.status(400).json({ success: false, error: 'This booking is already linked to an account' });[m
+[32m+[m[32m    if (booking.paymentStatus !== 'PAID') return res.status(400).json({ success: false, error: 'Account claim is only available after payment is confirmed' });[m
+[32m+[m
+[32m+[m[32m    const existingUser = await prisma.user.findUnique({ where: { email: booking.guestEmail } });[m
+[32m+[m[32m    if (existingUser) return res.status(400).json({ success: false, error: 'An account already exists for this email. Please sign in.', hint: 'sign_in' });[m
+[32m+[m
+[32m+[m[32m    await prisma.guestClaimToken.updateMany({ where: { bookingId: booking.id, usedAt: null }, data: { usedAt: new Date() } });[m
+[32m+[m
+[32m+[m[32m    const token = crypto.randomBytes(32).toString('hex');[m
+[32m+[m[32m    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);[m
+[32m+[m[32m    await prisma.guestClaimToken.create({ data: { token, bookingId: booking.id, guestEmail: booking.guestEmail, expiresAt } });[m
+ [m
+[31m-    logger.info(`Experience booking confirmed: ${booking.reference}`);[m
+[32m+[m[32m    const claimUrl = `${APP_URL}/claim-account?token=${token}`;[m
+[32m+[m[32m    const slotDate = booking.slot.startTime.toLocaleDateString('en-NG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });[m
+ [m
+[31m-    res.json({ success: true, data: confirmed });[m
+[32m+[m[32m    setImmediate(async () => {[m
+[32m+[m[32m      try {[m
+[32m+[m[32m        await sendEmail({ to: booking.guestEmail, subject: `Your Owambe booking is confirmed — create your account`, template: 'guest-booking-claim-account', data: { guestName: booking.guestName, firstName: booking.guestName.split(' ')[0], experienceName: booking.experience.name, slotDate, claimUrl, expiryHours: 24 } });[m
+[32m+[m[32m        logger.info(`[GCO01] Claim account email sent to ${booking.guestEmail} for booking ${booking.id}`);[m
+[32m+[m[32m      } catch (emailErr) { logger.error('[GCO01] Claim account email failed (non-fatal):', emailErr); }[m
+[32m+[m[32m    });[m
+[32m+[m
+[32m+[m[32m    res.json({ success: true, message: 'Magic link sent. Check your email to create your account.', emailSentTo: booking.guestEmail });[m
+   } catch (err) {[m
+     next(err);[m
+   }[m
+ });[m
+ [m
+ // ─── GET /api/experience-bookings ────────────────────[m
+[31m-router.get('/', async (req: Request, res: Response, next: NextFunction) => {[m
+[32m+[m[32mrouter.get('/', authenticate, async (req: Request, res: Response, next: NextFunction) => {[m
+   try {[m
+     const userId = (req as any).userId;[m
+     const { status, page = '1', limit = '20' } = req.query;[m
+[31m-[m
+     const pageNum = Math.max(1, parseInt(page as string));[m
+     const limitNum = Math.min(50, parseInt(limit as string));[m
+     const skip = (pageNum - 1) * limitNum;[m
+[31m-[m
+[31m-    const where: any = {[m
+[31m-      guestId: userId,[m
+[31m-      ...(status && { status: status as any })[m
+[31m-    };[m
+[31m-[m
+[32m+[m[32m    const where: any = { guestId: userId, ...(status && { status: status as any }) };[m
+     const [bookings, total] = await Promise.all([[m
+[31m-      prisma.experienceBooking.findMany({[m
+[31m-        where,[m
+[31m-        include: {[m
+[31m-          slot: { select: { startTime: true, endTime: true } },[m
+[31m-          experience: { select: { name: true, city: true, coverImageUrl: true, pricePerPerson: true } }[m
+[31m-        },[m
+[31m-        orderBy: { createdAt: 'desc' },[m
+[31m-        skip,[m
+[31m-        take: limitNum,[m
+[31m-      }),[m
+[32m+[m[32m      prisma.experienceBooking.findMany({ where, include: { slot: { select: { startTime: true, endTime: true } }, experience: { select: { name: true, city: true, coverImageUrl: true, pricePerPerson: true } } }, orderBy: { createdAt: 'desc' }, skip, take: limitNum }),[m
+       prisma.experienceBooking.count({ where })[m
+     ]);[m
+[31m-[m
+[31m-    // C3-d: meetingDetails disclosure gate — only include when paymentStatus === 'PAID'[m
+[31m-    // For list view, meetingDetails is not included (per-booking detail view is the disclosure surface)[m
+[31m-[m
+[31m-    res.json({[m
+[31m-      success: true,[m
+[31m-      data: bookings,[m
+[31m-      pagination: { page: pageNum, limit: limitNum, total, pages: Math.ceil(total / limitNum) }[m
+[31m-    });[m
+[31m-  } catch (err) {[m
+[31m-    next(err);[m
+[31m-  }[m
+[32m+[m[32m    res.json({ success: true, data: bookings, pagination: { page: pageNum, limit: limitNum, total, pages: Math.ceil(total / limitNum) } });[m
+[32m+[m[32m  } catch (err) { next(err); }[m
+ });[m
+ [m
+ // ─── GET /api/experience-bookings/operator ───────────[m
+[31m-// Must be registered BEFORE /:id to avoid Express treating 'operator' as an ID[m
+[31m-router.get('/operator',[m
+[31m-  requireRole('OPERATOR', 'ADMIN'),[m
+[31m-  requireMode('EXPERIENCES'),[m
+[31m-  async (req: Request, res: Response, next: NextFunction) => {[m
+[31m-    try {[m
+[31m-      const userId = (req as any).userId;[m
+[31m-      const { status, page = '1', limit = '20' } = req.query;[m
+[31m-[m
+[31m-      const operator = await prisma.operator.findUnique({ where: { userId } });[m
+[31m-      if (!operator) throw new AppError('Operator profile not found', 404);[m
+[31m-[m
+[31m-      const pageNum = Math.max(1, parseInt(page as string));[m
+[31m-      const limitNum = Math.min(50, parseInt(limit as string));[m
+[31m-      const skip = (pageNum - 1) * limitNum;[m
+[31m-[m
+[31m-      const where: any = {[m
+[31m-        experience: { operatorId: operator.id },[m
+[31m-        ...(status && { status: status as any })[m
+[31m-      };[m
+[31m-[m
+[31m-      const [bookings, total] = await Promise.all([[m
+[31m-        prisma.experienceBooking.findMany({[m
+[31m-          where,[m
+[31m-          include: {[m
+[31m-            slot: { select: { startTime: true, endTime: true } },[m
+[31m-            experience: { select: { name: true, city: true, meetingDetails: true } },[m
+[31m-            guest: { select: { firstName: true, lastName: true, email: true } }[m
+[31m-          },[m
+[31m-          orderBy: { createdAt: 'desc' },[m
+[31m-          skip,[m
+[31m-          take: limitNum,[m
+[31m-        }),[m
+[31m-        prisma.experienceBooking.count({ where })[m
+[31m-      ]);[m
+[31m-[m
+[31m-      // C3-d: Operator sees meetingDetails always (they authored it)[m
+[31m-[m
+[31m-      res.json({[m
+[31m-        success: true,[m
+[31m-        data: bookings,[m
+[31m-        pagination: { page: pageNum, limit: limitNum, total, pages: Math.ceil(total / limitNum) }[m
+[31m-      });[m
+[31m-    } catch (err) {[m
+[31m-      next(err);[m
+[31m-    }[m
+[31m-  }[m
+[31m-);[m
+[32m+[m[32mrouter.get('/operator', authenticate, requireRole('OPERATOR', 'ADMIN'), requireMode('EXPERIENCES'), async (req: Request, res: Response, next: NextFunction) => {[m
+[32m+[m[32m  try {[m
+[32m+[m[32m    const userId = (req as any).userId;[m
+[32m+[m[32m    const { status, page = '1', limit = '20' } = req.query;[m
+[32m+[m[32m    const operator = await prisma.operator.findUnique({ where: { userId } });[m
+[32m+[m[32m    if (!operator) throw new AppError('Operator profile not found', 404);[m
+[32m+[m[32m    const pageNum = Math.max(1, parseInt(page as string));[m
+[32m+[m[32m    const limitNum = Math.min(50, parseInt(limit as string));[m
+[32m+[m[32m    const skip = (pageNum - 1) * limitNum;[m
+[32m+[m[32m    const where: any = { experience: { operatorId: operator.id }, ...(status && { status: status as any }) };[m
+[32m+[m[32m    const [bookings, total] = await Promise.all([[m
+[32m+[m[32m      prisma.experienceBooking.findMany({ where, include: { slot: { select: { startTime: true, endTime: true } }, experience: { select: { name: true, city: true, meetingDetails: true } }, guest: { select: { firstName: true, lastName: true, email: true } } }, orderBy: { createdAt: 'desc' }, skip, take: limitNum }),[m
+[32m+[m[32m      prisma.experienceBooking.count({ where })[m
+[32m+[m[32m    ]);[m
+[32m+[m[32m    res.json({ success: true, data: bookings, pagination: { page: pageNum, limit: limitNum, total, pages: Math.ceil(total / limitNum) } });[m
+[32m+[m[32m  } catch (err) { next(err); }[m
+[32m+[m[32m});[m
+ [m
+ // ─── GET /api/experience-bookings/:id ────────────────[m
+[31m-router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {[m
+[32m+[m[32mrouter.get('/:id', authenticate, async (req: Request, res: Response, next: NextFunction) => {[m
+   try {[m
+     const userId = (req as any).userId;[m
+     const userRole = (req as any).userRole;[m
+[31m-[m
+     const booking = await prisma.experienceBooking.findUnique({[m
+       where: { id: req.params.id },[m
+[31m-      include: {[m
+[31m-        slot: true,[m
+[31m-        experience: {[m
+[31m-          include: {[m
+[31m-            operator: { select: { businessName: true, userId: true } }[m
+[31m-          }[m
+[31m-        },[m
+[31m-        guest: { select: { firstName: true, lastName: true, email: true } }[m
+[31m-      }[m
+[32m+[m[32m      include: { slot: true, experience: { include: { operator: { select: { businessName: true, userId: true } } } }, guest: { select: { firstName: true, lastName: true, email: true } } }[m
+     });[m
+[31m-[m
+     if (!booking) throw new AppError('Booking not found', 404);[m
+[31m-[m
+     const isGuest = booking.guestId === userId;[m
+     const isOperator = booking.experience.operator.userId === userId;[m
+[31m-    if (!isGuest && !isOperator && userRole !== 'ADMIN') {[m
+[31m-      throw new AppError('Access denied', 403);[m
+[31m-    }[m
+[31m-[m
+[31m-    // C3-d: meetingDetails disclosure gate[m
+[31m-    // Guests see meetingDetails only after payment confirmation[m
+[31m-    // Operators and admins always see meetingDetails[m
+[31m-    const meetingDetails =[m
+[31m-      isOperator || userRole === 'ADMIN'[m
+[31m-        ? booking.experience.meetingDetails[m
+[31m-        : booking.paymentStatus === 'PAID'[m
+[31m-          ? booking.experience.meetingDetails[m
+[31m-          : null;[m
+[31m-[m
+[31m-    const responseData = {[m
+[31m-      ...booking,[m
+[31m-      experience: {[m
+[31m-        ...booking.experience,[m
+[31m-        meetingDetails,[m
+[31m-      }[m
+[31m-    };[m
+[31m-[m
+[31m-    res.json({ success: true, data: responseData });[m
+[31m-  } catch (err) {[m
+[31m-    next(err);[m
+[31m-  }[m
+[32m+[m[32m    if (!isGuest && !isOperator && userRole !== 'ADMIN') throw new AppError('Access denied', 403);[m
+[32m+[m[32m    const meetingDetails = isOperator || userRole === 'ADMIN' ? booking.experience.meetingDetails : booking.paymentStatus === 'PAID' ? booking.experience.meetingDetails : null;[m
+[32m+[m[32m    res.json({ success: true, data: { ...booking, experience: { ...booking.experience, meetingDetails } } });[m
+[32m+[m[32m  } catch (err) { next(err); }[m
+ });[m
+ [m
+ // ─── POST /api/experience-bookings/:id/cancel ────────[m
+[31m-router.post('/:id/cancel', async (req: Request, res: Response, next: NextFunction) => {[m
+[32m+[m[32mrouter.post('/:id/cancel', authenticate, async (req: Request, res: Response, next: NextFunction) => {[m
+   try {[m
+     const userId = (req as any).userId;[m
+     const userRole = (req as any).userRole;[m
+[31m-[m
+[31m-    const booking = await prisma.experienceBooking.findUnique({[m
+[31m-      where: { id: req.params.id },[m
+[31m-      include: { experience: { include: { operator: true } } }[m
+[31m-    });[m
+[31m-[m
+[32m+[m[32m    const booking = await prisma.experienceBooking.findUnique({ where: { id: req.params.id }, include: { experience: { include: { operator: true } } } });[m
+     if (!booking) throw new AppError('Booking not found', 404);[m
+[31m-[m
+     const isGuest = booking.guestId === userId;[m
+     const isOperator = booking.experience.operator.userId === userId;[m
+[31m-    if (!isGuest && !isOperator && userRole !== 'ADMIN') {[m
+[31m-      throw new AppError('Access denied', 403);[m
+[31m-    }[m
+[31m-[m
+[31m-    if (['CANCELLED', 'COMPLETED'].includes(booking.status)) {[m
+[31m-      throw new AppError(`Cannot cancel a booking with status: ${booking.status}`, 400);[m
+[31m-    }[m
+[32m+[m[32m    if (!isGuest && !isOperator && userRole !== 'ADMIN') throw new AppError('Access denied', 403);[m
+[32m+[m[32m    if (['CANCELLED', 'COMPLETED'].includes(booking.status)) throw new AppError(`Cannot cancel a booking with status: ${booking.status}`, 400);[m
+ [m
+[31m-    // C3 invariant: synchronous seat release in same transaction as status update[m
+     const [updated] = await prisma.$transaction([[m
+[31m-      prisma.experienceBooking.update({[m
+[31m-        where: { id: req.params.id },[m
+[31m-        data: {[m
+[31m-          status: 'CANCELLED',[m
+[31m-          cancelledAt: new Date(),[m
+[31m-          cancellationReason: req.body.reason || null,[m
+[31m-        }[m
+[31m-      }),[m
+[31m-      // Synchronous seat release — bookedCount cannot go below 0[m
+[31m-      prisma.experienceSlot.updateMany({[m
+[31m-        where: {[m
+[31m-          id: booking.slotId,[m
+[31m-          bookedCount: { gte: booking.guestCount }[m
+[31m-        },[m
+[31m-        data: { bookedCount: { decrement: booking.guestCount } }[m
+[31m-      })[m
+[32m+[m[32m      prisma.experienceBooking.update({ where: { id: req.params.id }, data: { status: 'CANCELLED', cancelledAt: new Date(), cancellationReason: req.body.reason || null } }),[m
+[32m+[m[32m      prisma.experienceSlot.updateMany({ where: { id: booking.slotId, bookedCount: { gte: booking.guestCount } }, data: { bookedCount: { decrement: booking.guestCount } } })[m
+     ]);[m
+ [m
+     logger.info(`Experience booking cancelled: ${booking.reference}`);[m
+[31m-[m
+[31m-    // Dispatch booking.cancelled outbound event (non-blocking)[m
+[31m-    const cancelledBy: 'GUEST' | 'OPERATOR' | 'SYSTEM' =[m
+[31m-      isGuest ? 'GUEST' : isOperator ? 'OPERATOR' : 'SYSTEM';[m
+[32m+[m[32m    const cancelledBy: 'GUEST' | 'OPERATOR' | 'SYSTEM' = isGuest ? 'GUEST' : isOperator ? 'OPERATOR' : 'SYSTEM';[m
+     setImmediate(async () => {[m
+       try {[m
+[31m-        await dispatchWebhookEvent({[m
+[31m-          eventType: 'booking.cancelled',[m
+[31m-          idempotencyKey: `booking.cancelled.${updated.id}`,[m
+[31m-          data: {[m
+[31m-            booking_id: updated.id,[m
+[31m-            external_ref: booking.externalRef ?? null,[m
+[31m-            cancellation_reason: req.body.reason || 'GUEST_REQUEST',[m
+[31m-            cancellation_initiated_by: cancelledBy,[m
+[31m-            cancelled_at: (updated.cancelledAt ?? new Date()).toISOString(),[m
+[31m-            capacity_restoration_required: true,[m
+[31m-          },[m
+[31m-        });[m
+[31m-      } catch (dispatchErr) {[m
+[31m-        logger.error('booking.cancelled dispatch error (non-fatal)', {[m
+[31m-          bookingId: updated.id,[m
+[31m-          error: dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr),[m
+[31m-        });[m
+[31m-      }[m
+[32m+[m[32m        await dispatchWebhookEvent({ eventType: 'booking.cancelled', idempotencyKey: `booking.cancelled.${updated.id}`, data: { booking_id: updated.id, external_ref: booking.externalRef ?? null, cancellation_reason: req.body.reason || 'GUEST_REQUEST', cancellation_initiated_by: cancelledBy, cancelled_at: (updated.cancelledAt ?? new Date()).toISOString(), capacity_restoration_required: true } });[m
+[32m+[m[32m      } catch (dispatchErr) { logger.error('booking.cancelled dispatch error (non-fatal)', { bookingId: updated.id, error: dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr) }); }[m
+     });[m
+ [m
+     res.json({ success: true, data: updated, message: 'Booking cancelled successfully' });[m
+[31m-  } catch (err) {[m
+[31m-    next(err);[m
+[31m-  }[m
+[32m+[m[32m  } catch (err) { next(err); }[m
+ });[m
+ [m
+ export default router;[m
+[1mdiff --git a/apps/web/src/app/experiences/ExperiencesBookingClient.tsx b/apps/web/src/app/experiences/ExperiencesBookingClient.tsx[m
+[1mindex b81042c..d41ebee 100644[m
+[1m--- a/apps/web/src/app/experiences/ExperiencesBookingClient.tsx[m
+[1m+++ b/apps/web/src/app/experiences/ExperiencesBookingClient.tsx[m
+[36m@@ -1,6 +1,7 @@[m
+ 'use client';[m
+ import { useCallback, useEffect, useMemo, useState } from 'react';[m
+ import { experiencesApi, type Experience, type ExperienceSlotInstance, type ExperienceBooking } from '@/lib/api';[m
+[32m+[m[32mimport { useAuthStore } from '@/store/auth.store';[m
+ [m
+ // ─── C3 INVARIANT: publication gate ─────────────────[m
+ // Only experiences where isApproved && isActive are returned by the public listing endpoint.[m
+[36m@@ -54,6 +55,14 @@[m [mexport default function ExperiencesBookingClient() {[m
+   const [guestCount, setGuestCount] = useState(1);[m
+   const [specialRequests, setSpecialRequests] = useState('');[m
+ [m
+[32m+[m[32m  // ─── G-2: Auth + guest checkout state ─────────────[m
+[32m+[m[32m  const { isAuthenticated } = useAuthStore();[m
+[32m+[m[32m  const [guestName, setGuestName] = useState('');[m
+[32m+[m[32m  const [guestEmail, setGuestEmail] = useState('');[m
+[32m+[m[32m  const [guestPhone, setGuestPhone] = useState('');[m
+[32m+[m[32m  // ─── G-4(i): Pending slot restoration from URL ───────[m
+[32m+[m[32m  const [pendingSlotId, setPendingSlotId] = useState<string | null>(null);[m
+[32m+[m
+   // ─── C3-c: Booking + payment state ───────────────[m
+   const [bookingLoading, setBookingLoading] = useState(false);[m
+   const [bookingResult, setBookingResult] = useState<BookingResult | null>(null);[m
+[36m@@ -64,7 +73,7 @@[m [mexport default function ExperiencesBookingClient() {[m
+   const [returningLoading, setReturningLoading] = useState(false);[m
+   const [returningError, setReturningError] = useState<string | null>(null);[m
+ [m
+[31m-  // ─── On mount: check for ?booking= query param ───[m
+[32m+[m[32m  // ─── On mount: check for ?booking=, ?exp=, ?slot= query params ───[m
+   useEffect(() => {[m
+     if (typeof window === 'undefined') return;[m
+     const params = new URLSearchParams(window.location.search);[m
+[36m@@ -73,6 +82,14 @@[m [mexport default function ExperiencesBookingClient() {[m
+       setReturningBookingId(bookingId);[m
+       handleReturningBooking(bookingId);[m
+     }[m
+[32m+[m[32m    // G-4(i): Restore experience + slot selection after login redirect[m
+[32m+[m[32m    const expId = params.get('exp');[m
+[32m+[m[32m    const slotId = params.get('slot');[m
+[32m+[m[32m    if (expId) {[m
+[32m+[m[32m      // Will be matched against loaded experiences after handleSearch completes[m
+[32m+[m[32m      // Store slotId for restoration after slots load[m
+[32m+[m[32m      if (slotId) setPendingSlotId(slotId);[m
+[32m+[m[32m    }[m
+   }, []);[m
+ [m
+   // ─── C3-d: Verify payment and load booking ───────[m
+[36m@@ -131,6 +148,17 @@[m [mexport default function ExperiencesBookingClient() {[m
+     handleSearch();[m
+   }, []);[m
+ [m
+[32m+[m[32m  // ─── G-4(i): Restore slot selection from URL after slots load ───────────────[m
+[32m+[m[32m  useEffect(() => {[m
+[32m+[m[32m    if (pendingSlotId && slots.length > 0) {[m
+[32m+[m[32m      const slot = slots.find((s) => s.id === pendingSlotId);[m
+[32m+[m[32m      if (slot) {[m
+[32m+[m[32m        setSelectedSlot(slot);[m
+[32m+[m[32m        setPendingSlotId(null);[m
+[32m+[m[32m      }[m
+[32m+[m[32m    }[m
+[32m+[m[32m  }, [slots, pendingSlotId]);[m
+[32m+[m
+   // ─── C3-b: Load slots for selected experience ────[m
+   const handleSelectExperience = useCallback(async (exp: Experience) => {[m
+     setSelected(exp);[m
+[36m@@ -158,14 +186,28 @@[m [mexport default function ExperiencesBookingClient() {[m
+   // ─── C3-c: Create booking + Paystack handoff ─────[m
+   const handleBook = useCallback(async () => {[m
+     if (!selectedSlot) return;[m
+[32m+[m[32m    // G-2: Validate guest fields when unauthenticated[m
+[32m+[m[32m    if (!isAuthenticated) {[m
+[32m+[m[32m      if (!guestName.trim()) { setError('Please enter your name.'); return; }[m
+[32m+[m[32m      if (!guestEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim())) {[m
+[32m+[m[32m        setError('Please enter a valid email address.'); return;[m
+[32m+[m[32m      }[m
+[32m+[m[32m    }[m
+     setBookingLoading(true);[m
+     setError(null);[m
+     try {[m
+[31m-      const res = await experiencesApi.createBooking({[m
+[32m+[m[32m      const payload: Parameters<typeof experiencesApi.createBooking>[0] = {[m
+         slotId: selectedSlot.id,[m
+         guestCount,[m
+         specialRequests: specialRequests.trim() || undefined,[m
+[31m-      });[m
+[32m+[m[32m      };[m
+[32m+[m[32m      // G-2: Add guest PII for unauthenticated callers[m
+[32m+[m[32m      if (!isAuthenticated) {[m
+[32m+[m[32m        payload.guestName = guestName.trim();[m
+[32m+[m[32m        payload.guestEmail = guestEmail.trim().toLowerCase();[m
+[32m+[m[32m        if (guestPhone.trim()) payload.guestPhone = guestPhone.trim();[m
+[32m+[m[32m      }[m
+[32m+[m[32m      const res = await experiencesApi.createBooking(payload);[m
+       const data = res.data;[m
+       const booking = data?.data;[m
+       const payment = data?.payment;[m
+[36m@@ -188,8 +230,10 @@[m [mexport default function ExperiencesBookingClient() {[m
+       if (status === 409) {[m
+         setError(msg ?? 'This slot is no longer available. Please choose another time.');[m
+       } else if (status === 401) {[m
+[31m-        // E-3: redirect to login with return URL so the journey resumes after sign-in[m
+[31m-        window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;[m
+[32m+[m[32m        // E-3 / G-4(i): redirect to login with ?exp= and ?slot= preserved for restoration[m
+[32m+[m[32m        const expParam = selected ? `&exp=${selected.id}` : '';[m
+[32m+[m[32m        const slotParam = selectedSlot ? `&slot=${selectedSlot.id}` : '';[m
+[32m+[m[32m        window.location.href = `/login?redirect=${encodeURIComponent(`/experiences?${expParam.slice(1)}${slotParam}`)}`;[m
+         return;[m
+       } else {[m
+         setError(msg ?? 'Booking failed. Please try again.');[m
+[36m@@ -197,7 +241,7 @@[m [mexport default function ExperiencesBookingClient() {[m
+     } finally {[m
+       setBookingLoading(false);[m
+     }[m
+[31m-  }, [selectedSlot, guestCount, specialRequests]);[m
+[32m+[m[32m  }, [selectedSlot, guestCount, specialRequests, isAuthenticated, guestName, guestEmail, guestPhone, selected]);[m
+ [m
+   const totalAmount = useMemo(() => {[m
+     if (!selected || !selectedSlot) return 0;[m
+[36m@@ -372,6 +416,47 @@[m [mexport default function ExperiencesBookingClient() {[m
+                 </div>[m
+               )}[m
+ [m
+[32m+[m[32m              {/* G-2: Guest checkout fields — shown only when unauthenticated */}[m
+[32m+[m[32m              {selectedSlot && !isAuthenticated && ([m
+[32m+[m[32m                <div className="space-y-4 mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">[m
+[32m+[m[32m                  <p className="text-sm font-medium text-gray-700">Your details</p>[m
+[32m+[m[32m                  <div>[m
+[32m+[m[32m                    <label className="block text-sm font-medium text-gray-700 mb-1">Full name <span className="text-red-500">*</span></label>[m
+[32m+[m[32m                    <input[m
+[32m+[m[32m                      type="text"[m
+[32m+[m[32m                      value={guestName}[m
+[32m+[m[32m                      onChange={(e) => setGuestName(e.target.value)}[m
+[32m+[m[32m                      placeholder="Your full name"[m
+[32m+[m[32m                      className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"[m
+[32m+[m[32m                    />[m
+[32m+[m[32m                  </div>[m
+[32m+[m[32m                  <div>[m
+[32m+[m[32m                    <label className="block text-sm font-medium text-gray-700 mb-1">Email address <span className="text-red-500">*</span></label>[m
+[32m+[m[32m                    <input[m
+[32m+[m[32m                      type="email"[m
+[32m+[m[32m                      value={guestEmail}[m
+[32m+[m[32m                      onChange={(e) => setGuestEmail(e.target.value)}[m
+[32m+[m[32m                      placeholder="your@email.com"[m
+[32m+[m[32m                      className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"[m
+[32m+[m[32m                    />[m
+[32m+[m[32m                  </div>[m
+[32m+[m[32m                  <div>[m
+[32m+[m[32m                    <label className="block text-sm font-medium text-gray-700 mb-1">Phone number (optional)</label>[m
+[32m+[m[32m                    <input[m
+[32m+[m[32m                      type="tel"[m
+[32m+[m[32m                      value={guestPhone}[m
+[32m+[m[32m                      onChange={(e) => setGuestPhone(e.target.value)}[m
+[32m+[m[32m                      placeholder="+234..."[m
+[32m+[m[32m                      className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"[m
+[32m+[m[32m                    />[m
+[32m+[m[32m                  </div>[m
+[32m+[m[32m                  <p className="text-xs text-gray-500">[m
+[32m+[m[32m                    Already have an account?{' '}[m
+[32m+[m[32m                    <a href="/login" className="text-green-700 underline">Sign in</a> to book faster.[m
+[32m+[m[32m                  </p>[m
+[32m+[m[32m                </div>[m
+[32m+[m[32m              )}[m
+[32m+[m
+               {/* Guest count + special requests */}[m
+               {selectedSlot && ([m
+                 <div className="space-y-4 mb-6">[m
+[1mdiff --git a/apps/web/src/lib/api.ts b/apps/web/src/lib/api.ts[m
+[1mindex 39ce09c..c630198 100644[m
+[1m--- a/apps/web/src/lib/api.ts[m
+[1m+++ b/apps/web/src/lib/api.ts[m
+[36m@@ -428,6 +428,10 @@[m [mexport interface CreateExperienceBookingInput {[m
+   slotId: string;[m
+   guestCount: number;[m
+   specialRequests?: string;[m
+[32m+[m[32m  // G-2: Guest checkout fields (omit when authenticated)[m
+[32m+[m[32m  guestName?: string;[m
+[32m+[m[32m  guestEmail?: string;[m
+[32m+[m[32m  guestPhone?: string;[m
+ }[m
+ [m
+ export interface ExperienceBooking {[m
+[36m@@ -457,6 +461,12 @@[m [mexport const experiencesApi = {[m
+     api.get(`/experiences/${experienceId}/slots`),[m
+   createBooking: (payload: CreateExperienceBookingInput) =>[m
+     api.post('/experience-bookings', payload),[m
+[32m+[m[32m  // G-4(ii): Public retrieval — no auth, PII-gated[m
+[32m+[m[32m  getPublicBooking: (reference: string) =>[m
+[32m+[m[32m    api.get(`/experience-bookings/public/${reference}`),[m
+[32m+[m[32m  // G-5: Claim account magic link[m
+[32m+[m[32m  claimAccount: (bookingId: string) =>[m
+[32m+[m[32m    api.post(`/experience-bookings/${bookingId}/claim-account`),[m
+   verifyBooking: (bookingId: string, reference?: string) =>[m
+     api.post(`/experience-bookings/${bookingId}/verify`, { reference }),[m
+   getBooking: (id: string) =>[m

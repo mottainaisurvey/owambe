@@ -1,0 +1,54 @@
+{
+  "success": true,
+  "data": {
+    "id": "39fcff22-60e0-4a6e-8919-204a33074c77",
+    "reference": "EXP-1784982841320-Y6MZ3B",
+    "experienceId": "d139f687-9b13-42f4-adc2-79eb1b5ae521",
+    "slotId": "2e6444e8-40ff-437d-ae0c-b5e22e6c8b7a",
+    "guestUserId": "dee2beb9-1ed5-4da6-93a9-683c982f6396",
+    "guestId": "dee2beb9-1ed5-4da6-93a9-683c982f6396",
+    "guestName": "Owambe Admin",
+    "guestEmail": "admin@owambe.com",
+    "guestPhone": null,
+    "guestCount": 1,
+    "totalAmount": "5000",
+    "currency": "NGN",
+    "status": "PENDING",
+    "paymentStatus": "PENDING",
+    "paystackRef": null,
+    "specialRequests": null,
+    "cancellationReason": null,
+    "cancelledAt": null,
+    "confirmedAt": null,
+    "completedAt": null,
+    "channelOrigin": "DIRECT",
+    "channelId": null,
+    "externalRef": null,
+    "externalExperienceId": null,
+    "channelCommissionAmount": null,
+    "channelCommissionPercent": null,
+    "netToOperator": null,
+    "paystackReference": null,
+    "numberOfParticipants": null,
+    "participantNames": [],
+    "pickupRequested": false,
+    "pickupAddress": null,
+    "depositAmount": "0",
+    "createdAt": "2026-07-25T12:34:01.326Z",
+    "updatedAt": "2026-07-25T12:34:01.326Z",
+    "slot": {
+      "startTime": "2026-08-01T11:00:00.000Z",
+      "endTime": "2026-08-01T13:00:00.000Z"
+    },
+    "experience": {
+      "name": "GCO01 Smoke Experience 1784977831",
+      "city": "Lagos",
+      "coverImageUrl": null
+    }
+  },
+  "payment": {
+    "authorizationUrl": "https://checkout.paystack.com/eji04jrb3hj6n1h",
+    "reference": "EXP-1784982841320-Y6MZ3B"
+  },
+  "isGuestBooking": false
+}

@@ -1,0 +1,118 @@
+{
+  "idempotencyKey": "4dde1aa5-cc6f-4a37-b7c4-fbb361a93d9a",
+  "submission1": {
+    "status": 201,
+    "body": {
+      "success": true,
+      "data": {
+        "id": "2ed5829d-fa2b-444c-9978-2678ac2ff0cb",
+        "reference": "EXP-1784983268368-GEGNRI",
+        "experienceId": "d139f687-9b13-42f4-adc2-79eb1b5ae521",
+        "slotId": "2e6444e8-40ff-437d-ae0c-b5e22e6c8b7a",
+        "guestUserId": null,
+        "guestId": null,
+        "guestName": "C4 Idempotency Probe",
+        "guestEmail": "c4-idem-probe-1784983265@owambe.com",
+        "guestPhone": "+2348000000099",
+        "guestCount": 1,
+        "totalAmount": "5000",
+        "currency": "NGN",
+        "status": "PENDING",
+        "paymentStatus": "PENDING",
+        "paystackRef": null,
+        "specialRequests": null,
+        "cancellationReason": null,
+        "cancelledAt": null,
+        "confirmedAt": null,
+        "completedAt": null,
+        "channelOrigin": "DIRECT",
+        "channelId": null,
+        "externalRef": null,
+        "externalExperienceId": null,
+        "channelCommissionAmount": null,
+        "channelCommissionPercent": null,
+        "netToOperator": null,
+        "paystackReference": null,
+        "numberOfParticipants": null,
+        "participantNames": [],
+        "pickupRequested": false,
+        "pickupAddress": null,
+        "depositAmount": "0",
+        "createdAt": "2026-07-25T12:41:08.375Z",
+        "updatedAt": "2026-07-25T12:41:08.375Z",
+        "slot": {
+          "startTime": "2026-08-01T11:00:00.000Z",
+          "endTime": "2026-08-01T13:00:00.000Z"
+        },
+        "experience": {
+          "name": "GCO01 Smoke Experience 1784977831",
+          "city": "Lagos",
+          "coverImageUrl": null
+        }
+      },
+      "payment": {
+        "authorizationUrl": "https://checkout.paystack.com/s86vupefocq6u76",
+        "reference": "EXP-1784983268368-GEGNRI"
+      },
+      "isGuestBooking": true
+    }
+  },
+  "submission2": {
+    "status": 201,
+    "body": {
+      "success": true,
+      "data": {
+        "id": "2ed5829d-fa2b-444c-9978-2678ac2ff0cb",
+        "reference": "EXP-1784983268368-GEGNRI",
+        "experienceId": "d139f687-9b13-42f4-adc2-79eb1b5ae521",
+        "slotId": "2e6444e8-40ff-437d-ae0c-b5e22e6c8b7a",
+        "guestUserId": null,
+        "guestId": null,
+        "guestName": "C4 Idempotency Probe",
+        "guestEmail": "c4-idem-probe-1784983265@owambe.com",
+        "guestPhone": "+2348000000099",
+        "guestCount": 1,
+        "totalAmount": "5000",
+        "currency": "NGN",
+        "status": "PENDING",
+        "paymentStatus": "PENDING",
+        "paystackRef": null,
+        "specialRequests": null,
+        "cancellationReason": null,
+        "cancelledAt": null,
+        "confirmedAt": null,
+        "completedAt": null,
+        "channelOrigin": "DIRECT",
+        "channelId": null,
+        "externalRef": null,
+        "externalExperienceId": null,
+        "channelCommissionAmount": null,
+        "channelCommissionPercent": null,
+        "netToOperator": null,
+        "paystackReference": null,
+        "numberOfParticipants": null,
+        "participantNames": [],
+        "pickupRequested": false,
+        "pickupAddress": null,
+        "depositAmount": "0",
+        "createdAt": "2026-07-25T12:41:08.375Z",
+        "updatedAt": "2026-07-25T12:41:08.375Z",
+        "slot": {
+          "startTime": "2026-08-01T11:00:00.000Z",
+          "endTime": "2026-08-01T13:00:00.000Z"
+        },
+        "experience": {
+          "name": "GCO01 Smoke Experience 1784977831",
+          "city": "Lagos",
+          "coverImageUrl": null
+        }
+      },
+      "payment": {
+        "authorizationUrl": "https://checkout.paystack.com/s86vupefocq6u76",
+        "reference": "EXP-1784983268368-GEGNRI"
+      },
+      "isGuestBooking": true
+    }
+  },
+  "guardActive": true
+}

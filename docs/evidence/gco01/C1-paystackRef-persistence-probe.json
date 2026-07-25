@@ -1,0 +1,28 @@
+{
+  "_probe": "C-1 paystackRef persistence verification — 2026-07-25",
+  "_finding": "paystackRef IS persisted. Creation response returns booking at creation time (before async update). Admin endpoint confirms paystackRef populated.",
+  "creation_response": {
+    "booking_id": "82629fab-e279-4917-9917-cb0b170057cf",
+    "reference": "EXP-1784983870352-JQEGRA",
+    "paystackRef_in_creation_response": null,
+    "payment": {
+      "authorizationUrl": "https://checkout.paystack.com/r6hw5ve7tqmqkf0",
+      "reference": "EXP-1784983870352-JQEGRA"
+    },
+    "isGuestBooking": true,
+    "note": "paystackRef is null in creation response because the booking object is returned before the async prisma.update completes"
+  },
+  "admin_endpoint_verification": {
+    "endpoint": "GET /api/experience-bookings/82629fab-e279-4917-9917-cb0b170057cf (authenticated)",
+    "paystackRef": "EXP-1784983870352-JQEGRA",
+    "status": "PENDING",
+    "finding": "paystackRef is correctly persisted in DB — matches the Paystack reference in the payment object"
+  },
+  "email_source": {
+    "guest_path": "resolvedGuestEmail = req.body.guestEmail (line ~95 of experience-bookings.ts)",
+    "authenticated_path": "resolvedGuestEmail = user.email (from JWT-authenticated user record)",
+    "paystack_init_call": "initializeTransaction({ email: resolvedGuestEmail, ... })"
+  },
+  "root_cause_of_null_in_creation_response": "The booking is created first, then Paystack is initialised, then prisma.experienceBooking.update sets paystackRef. The creation response returns the booking object from the initial create call, which predates the update. This is expected behaviour — the paystackRef is available in payment.reference in the same response.",
+  "variance_classification": "RESPONSE-SHAPE VARIANCE (not a persistence failure). The creation response does not include paystackRef in data.paystackRef, but the value is available in payment.reference and is persisted to DB."
+}

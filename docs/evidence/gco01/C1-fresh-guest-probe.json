@@ -1,0 +1,51 @@
+{
+  "success": true,
+  "data": {
+    "id": "efbb2a3a-23bd-4031-841b-064d7d4d1714",
+    "reference": "EXP-1784983052822-IMTMRP",
+    "experienceId": "d139f687-9b13-42f4-adc2-79eb1b5ae521",
+    "slotId": "2e6444e8-40ff-437d-ae0c-b5e22e6c8b7a",
+    "guestUserId": null,
+    "guestId": null,
+    "guestName": "C1 Probe Fresh",
+    "guestEmail": "c1-probe-fresh-1784983050@smoke.owambe.test",
+    "guestPhone": "+2348000000099",
+    "guestCount": 1,
+    "totalAmount": "5000",
+    "currency": "NGN",
+    "status": "PENDING",
+    "paymentStatus": "PENDING",
+    "paystackRef": null,
+    "specialRequests": null,
+    "cancellationReason": null,
+    "cancelledAt": null,
+    "confirmedAt": null,
+    "completedAt": null,
+    "channelOrigin": "DIRECT",
+    "channelId": null,
+    "externalRef": null,
+    "externalExperienceId": null,
+    "channelCommissionAmount": null,
+    "channelCommissionPercent": null,
+    "netToOperator": null,
+    "paystackReference": null,
+    "numberOfParticipants": null,
+    "participantNames": [],
+    "pickupRequested": false,
+    "pickupAddress": null,
+    "depositAmount": "0",
+    "createdAt": "2026-07-25T12:37:32.828Z",
+    "updatedAt": "2026-07-25T12:37:32.828Z",
+    "slot": {
+      "startTime": "2026-08-01T11:00:00.000Z",
+      "endTime": "2026-08-01T13:00:00.000Z"
+    },
+    "experience": {
+      "name": "GCO01 Smoke Experience 1784977831",
+      "city": "Lagos",
+      "coverImageUrl": null
+    }
+  },
+  "payment": null,
+  "isGuestBooking": true
+}

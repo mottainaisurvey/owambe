@@ -1,0 +1,39 @@
+{
+  "_probe": "C-2 G-4(ii) cross-device recovery — 2026-07-25",
+  "_description": "Demonstrates G-4(ii) public endpoint limited state vs authenticated full state",
+  "booking_reference": "EXP-AC3-SMOKE-1784984825789",
+  "booking_id": "46b1ace7-15b3-45b1-83d6-26db8e9ac1d2",
+  "public_endpoint": {
+    "url": "GET /api/experience-bookings/public/EXP-AC3-SMOKE-1784984825789",
+    "auth": "none",
+    "response": {
+      "success": true,
+      "data": {
+        "id": "46b1ace7-15b3-45b1-83d6-26db8e9ac1d2",
+        "reference": "EXP-AC3-SMOKE-1784984825789",
+        "status": "CONFIRMED",
+        "paymentStatus": "PAID",
+        "guestCount": 1,
+        "totalAmount": "5000",
+        "currency": "NGN",
+        "createdAt": "2026-07-25T13:07:05.790Z",
+        "slot": { "startTime": "2026-08-01T11:00:00.000Z", "endTime": "2026-08-01T13:00:00.000Z" },
+        "experience": { "name": "GCO01 Smoke Experience 1784977831", "city": "Lagos", "coverImageUrl": null }
+      }
+    },
+    "pii_absent": ["guestName", "guestEmail", "guestPhone", "guestUserId", "meetingDetails"],
+    "note": "PII-gated: no personal data or meetingDetails exposed on public route"
+  },
+  "authenticated_endpoint": {
+    "url": "GET /api/experience-bookings/46b1ace7-15b3-45b1-83d6-26db8e9ac1d2 (ADMIN auth)",
+    "auth": "Bearer JWT (admin@owambe.com)",
+    "response_subset": {
+      "id": "46b1ace7-15b3-45b1-83d6-26db8e9ac1d2",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAID",
+      "paystackRef": "EXP-AC3-SMOKE-1784984825789"
+    },
+    "note": "Full state available to authenticated callers. meetingDetails disclosed only when guestId === userId."
+  },
+  "cross_device_recovery_summary": "A guest on a new device can recover booking status via the public endpoint using the booking reference. Full PII and meetingDetails require authentication as the booking owner (guestId match) or ADMIN."
+}
