@@ -325,7 +325,8 @@ describe('OWB-F1-NEW-IMPLEMENTATION-01 AC-8: Booking Event Dispatch', () => {
       const authBooker = await prisma.user.create({
         data: {
           email: authBookerEmail,
-          name: 'Auth Booker',
+          firstName: 'Auth',
+          lastName: 'Booker',
           passwordHash: 'placeholder',
           role: 'CONSUMER',
         },
