@@ -24,6 +24,7 @@ jest.mock('../middleware/authenticate', () => ({
     req.userRole = 'CONSUMER';
     next();
   },
+  authenticateOptional: (_req: any, _res: any, next: any) => { next(); },
 }));
 
 jest.mock('../database/client', () => ({

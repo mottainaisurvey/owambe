@@ -36,6 +36,7 @@ jest.mock('../middleware/authenticate', () => ({
     req.userRole = (global as any).__c1Role ?? 'OPERATOR';
     next();
   },
+  authenticateOptional: (_req: any, _res: any, next: any) => { next(); },
 }));
 
 jest.mock('../middleware/requireMode', () => ({

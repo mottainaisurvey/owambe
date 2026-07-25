@@ -60,6 +60,7 @@ jest.mock('../middleware/authenticate', () => ({
     req.userRole = 'CONSUMER';
     next();
   },
+  authenticateOptional: (_req: any, _res: any, next: any) => { next(); },
 }));
 
 // Mock requireMode to always allow EXPERIENCES mode
