@@ -57,9 +57,12 @@ jest.mock('../middleware/authenticate', () => ({
     req.userRole = (global as any).__c3Role ?? 'CONSUMER';
     next();
   },
-  authenticateOptional: (_req: any, _res: any, next: any) => { next(); },
+  authenticateOptional: (req: any, _res: any, next: any) => {
+    req.userId = (global as any).__c3UserId ?? 'consumer-test-id';
+    req.userRole = (global as any).__c3Role ?? 'CONSUMER';
+    next();
+  },
 }));
-
 jest.mock('../middleware/requireMode', () => ({
   requireMode: () => (_req: any, _res: any, next: any) => next(),
 }));
