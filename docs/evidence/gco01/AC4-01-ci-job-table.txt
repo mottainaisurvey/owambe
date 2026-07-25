@@ -1,0 +1,68 @@
+
+[0;32m✓[0m [0;1;39mstaging[0m Owambe CI/CD · [0;36m30156652793[0m
+Triggered via push about 14 minutes ago
+
+[0;1;39mJOBS[0m
+[0;32m✓[0m [0;1;39mVocabulary Lint (Advisory)[0m in 10s (ID [0;36m89675577334[0m)
+[0;32m✓[0m [0;1;39mLint & Type Check[0m in 1m44s (ID [0;36m89675577348[0m)
+[0;32m✓[0m [0;1;39mRun Tests[0m in 2m57s (ID [0;36m89675703031[0m)
+[0;32m✓[0m [0;1;39mBuild[0m in 2m11s (ID [0;36m89675909858[0m)
+[0;32m✓[0m [0;1;39mDeploy Web to Staging (Railway)[0m in 2m33s (ID [0;36m89676064372[0m)
+[0;32m✓[0m [0;1;39mDeploy API to Staging (Railway)[0m in 1m21s (ID [0;36m89676064373[0m)
+[38;5;242m-[0m [0;1;39mDeploy API to Production (Railway)[0m (ID [0;36m89676064581[0m)
+
+[0;1;39mANNOTATIONS[0m
+[0;33m![0m Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+[38;5;242mVocabulary Lint (Advisory): .github#2
+[0m
+[0;33m![0m Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+[38;5;242mLint & Type Check: .github#2
+[0m
+[0;33m![0m React Hook useCallback has a missing dependency: 'onNotification'. Either include it or remove the dependency array
+[38;5;242mLint & Type Check: apps/mobile/src/hooks/useSocket.ts#60
+[0m
+[0;33m![0m React Hook useCallback has a missing dependency: 'onUpdate'. Either include it or remove the dependency array      
+[38;5;242mLint & Type Check: apps/mobile/src/hooks/useSocket.ts#33
+[0m
+[0;33m![0m Unexpected console statement                                                                                       
+[38;5;242mLint & Type Check: apps/mobile/src/hooks/useSocket.ts#22
+[0m
+[0;33m![0m Unexpected console statement                                                                                       
+[38;5;242mLint & Type Check: apps/mobile/src/hooks/useSocket.ts#21
+[0m
+[0;33m![0m Unexpected console statement                                                                                       
+[38;5;242mLint & Type Check: apps/mobile/src/hooks/useSocket.ts#20
+[0m
+[0;33m![0m 'aiApi' is defined but never used
+[38;5;242mLint & Type Check: apps/mobile/src/hooks/useData.ts#4
+[0m
+[0;33m![0m 'uri' is defined but never used. Allowed unused args must match /^_/u
+[38;5;242mLint & Type Check: apps/mobile/src/components/ui.tsx#258
+[0m
+[0;33m![0m 'isAccent' is assigned a value but never used                        
+[38;5;242mLint & Type Check: apps/mobile/src/components/ui.tsx#42
+[0m
+[0;33m![0m 'TextStyle' is defined but never used                                
+[38;5;242mLint & Type Check: apps/mobile/src/components/ui.tsx#4
+[0m
+[0;33m![0m 'StyleSheet' is defined but never used                               
+[38;5;242mLint & Type Check: apps/mobile/src/components/ui.tsx#4
+[0m
+[0;33m![0m Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+[38;5;242mRun Tests: .github#2
+[0m
+[0;31mX[0m Process completed with exit code 1.
+[38;5;242mRun Tests: .github#3513
+[0m
+[0;33m![0m Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+[38;5;242mBuild: .github#2
+[0m
+[0;33m![0m Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+[38;5;242mDeploy Web to Staging (Railway): .github#2
+[0m
+[0;33m![0m Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+[38;5;242mDeploy API to Staging (Railway): .github#2
+[0m
+
+For more information about a job, try: gh run view --job=<job-id>
+[38;5;242mView this run on GitHub: https://github.com/mottainaisurvey/owambe/actions/runs/30156652793[0m

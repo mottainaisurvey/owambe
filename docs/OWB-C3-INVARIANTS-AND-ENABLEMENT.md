@@ -25,7 +25,9 @@
 2. **Login & Redirect:** Log in with the new account — you will be automatically redirected to `/experiences`.
 3. **Discovery:** The newly published experience will be visible in the listing.
 4. **Selection:** Click on the experience to view details and available slots.
-5. **Booking Initiation:** Select a slot (e.g., a Saturday instance) and click "Book & Pay".
+5. **Booking Initiation:** Select a slot (e.g., a Saturday instance).
+   - **Authenticated path:** The form pre-fills with the logged-in user's details. Click "Book & Pay".
+   - **Guest path (GCO01):** The user can bypass registration by filling in "Full name", "Email address", and optional "Phone number" directly on the booking form. Click "Book & Pay".
 6. **Payment Handoff:** Upon confirming the booking, the system creates a pending reservation and initialises the Paystack payment handoff. The consumer is redirected to the Paystack checkout page to complete payment.
 7. **Confirmation:** After successful payment, the consumer is redirected back to the Owambe web app. The confirmation surface displays the booking details including the `meetingDetails` field, which is disclosed only upon successful payment.
 
@@ -53,4 +55,4 @@ Walkthrough participants will encounter the following known, non-blocking imperf
 3. **Staging email non-functional (configuration gap; EMAIL-DIAG-01):** no emails will arrive during the walkthrough unless the staging email variables are set beforehand.
 
 ---
-*Signed: Thread-2 — Walkthrough Enablement Completion 2026-07-13; updated PREWALK-01 2026-07-13; updated UIFIX-02 2026-07-19*
+*Signed: Thread-2 — Walkthrough Enablement Completion 2026-07-13; updated PREWALK-01 2026-07-13; updated UIFIX-02 2026-07-19; updated GCO01 2026-07-25*

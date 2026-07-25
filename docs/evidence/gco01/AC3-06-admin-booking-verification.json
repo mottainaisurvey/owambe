@@ -1,0 +1,35 @@
+{
+    "success": true,
+    "data": {
+        "id": "139eb149-e23a-4ba0-b723-fef2425c1e88",
+        "reference": "EXP-1784980435367-IU9NYL",
+        "experienceId": "d139f687-9b13-42f4-adc2-79eb1b5ae521",
+        "slotId": "2e6444e8-40ff-437d-ae0c-b5e22e6c8b7a",
+        "guestUserId": null,
+        "guestId": null,
+        "guestName": "GCO01 Smoke Guest",
+        "guestEmail": "gco01-smoke-guest@smoke.owambe.test",
+        "guestPhone": "+2348000000001",
+        "guestCount": 1,
+        "totalAmount": "5000",
+        "currency": "NGN",
+        "status": "PENDING",
+        "paymentStatus": "PENDING",
+        "paystackRef": null,
+        "specialRequests": null,
+        "createdAt": "2026-07-25T11:53:55.377Z",
+        "slot": {
+            "id": "2e6444e8-40ff-437d-ae0c-b5e22e6c8b7a",
+            "startTime": "2026-08-01T11:00:00.000Z",
+            "endTime": "2026-08-01T13:00:00.000Z",
+            "capacity": 20,
+            "bookedCount": 1,
+            "isActive": true
+        },
+        "experience": {
+            "id": "d139f687-9b13-42f4-adc2-79eb1b5ae521",
+            "name": "GCO01 Smoke Experience 1784977831"
+        },
+        "guest": null
+    }
+}
