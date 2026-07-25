@@ -428,6 +428,10 @@ export interface CreateExperienceBookingInput {
   slotId: string;
   guestCount: number;
   specialRequests?: string;
+  // G-2: Guest checkout fields (omit when authenticated)
+  guestName?: string;
+  guestEmail?: string;
+  guestPhone?: string;
 }
 
 export interface ExperienceBooking {
@@ -457,6 +461,12 @@ export const experiencesApi = {
     api.get(`/experiences/${experienceId}/slots`),
   createBooking: (payload: CreateExperienceBookingInput) =>
     api.post('/experience-bookings', payload),
+  // G-4(ii): Public retrieval — no auth, PII-gated
+  getPublicBooking: (reference: string) =>
+    api.get(`/experience-bookings/public/${reference}`),
+  // G-5: Claim account magic link
+  claimAccount: (bookingId: string) =>
+    api.post(`/experience-bookings/${bookingId}/claim-account`),
   verifyBooking: (bookingId: string, reference?: string) =>
     api.post(`/experience-bookings/${bookingId}/verify`, { reference }),
   getBooking: (id: string) =>

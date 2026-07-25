@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { experiencesApi, type Experience, type ExperienceSlotInstance, type ExperienceBooking } from '@/lib/api';
+import { useAuthStore } from '@/store/auth';
 
 // ─── C3 INVARIANT: publication gate ─────────────────
 // Only experiences where isApproved && isActive are returned by the public listing endpoint.
@@ -131,6 +132,17 @@ export default function ExperiencesBookingClient() {
     handleSearch();
   }, []);
 
+  // ─── G-4(i): Restore slot selection from URL after slots load ───────────────
+  useEffect(() => {
+    if (pendingSlotId && slots.length > 0) {
+      const slot = slots.find((s) => s.id === pendingSlotId);
+      if (slot) {
+        setSelectedSlot(slot);
+        setPendingSlotId(null);
+      }
+    }
+  }, [slots, pendingSlotId]);
+
   // ─── C3-b: Load slots for selected experience ────
   const handleSelectExperience = useCallback(async (exp: Experience) => {
     setSelected(exp);
@@ -158,14 +170,28 @@ export default function ExperiencesBookingClient() {
   // ─── C3-c: Create booking + Paystack handoff ─────
   const handleBook = useCallback(async () => {
     if (!selectedSlot) return;
+    // G-2: Validate guest fields when unauthenticated
+    if (!isAuthenticated) {
+      if (!guestName.trim()) { setError('Please enter your name.'); return; }
+      if (!guestEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim())) {
+        setError('Please enter a valid email address.'); return;
+      }
+    }
     setBookingLoading(true);
     setError(null);
     try {
-      const res = await experiencesApi.createBooking({
+      const payload: Parameters<typeof experiencesApi.createBooking>[0] = {
         slotId: selectedSlot.id,
         guestCount,
         specialRequests: specialRequests.trim() || undefined,
-      });
+      };
+      // G-2: Add guest PII for unauthenticated callers
+      if (!isAuthenticated) {
+        payload.guestName = guestName.trim();
+        payload.guestEmail = guestEmail.trim().toLowerCase();
+        if (guestPhone.trim()) payload.guestPhone = guestPhone.trim();
+      }
+      const res = await experiencesApi.createBooking(payload);
       const data = res.data;
       const booking = data?.data;
       const payment = data?.payment;
@@ -188,8 +214,10 @@ export default function ExperiencesBookingClient() {
       if (status === 409) {
         setError(msg ?? 'This slot is no longer available. Please choose another time.');
       } else if (status === 401) {
-        // E-3: redirect to login with return URL so the journey resumes after sign-in
-        window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+        // E-3 / G-4(i): redirect to login with ?exp= and ?slot= preserved for restoration
+        const expParam = selected ? `&exp=${selected.id}` : '';
+        const slotParam = selectedSlot ? `&slot=${selectedSlot.id}` : '';
+        window.location.href = `/login?redirect=${encodeURIComponent(`/experiences?${expParam.slice(1)}${slotParam}`)}`;
         return;
       } else {
         setError(msg ?? 'Booking failed. Please try again.');

@@ -1,21 +1,13 @@
 // ─── experience-bookings.ts ──────────────────────────
-// Experiences mode: ExperienceBooking management routes
-//   POST   /api/experience-bookings              — create booking + Paystack init (consumer)
-//   GET    /api/experience-bookings              — list my bookings (consumer)
-//   GET    /api/experience-bookings/:id          — get booking details (consumer/operator/admin)
-//   POST   /api/experience-bookings/:id/cancel   — cancel booking (consumer/operator/admin)
-//   GET    /api/experience-bookings/operator     — list bookings for my experiences (OPERATOR)
-//   POST   /api/experience-bookings/:id/verify   — verify Paystack payment and confirm booking
-//
-// C3 invariants:
-//   - Seat reservation uses conditional UPDATE at DB level (atomic, race-safe)
-//   - Cancellation decrements bookedCount synchronously in same transaction
-//   - meetingDetails disclosed only when paymentStatus === 'PAID'
-//   - Consumer booking endpoint requires authenticate only (no requireMode)
-//   - Double publication gate: isApproved && isActive enforced at booking creation
+// OWB-C-GUEST-CHECKOUT-01: G-2/G-3/G-4(ii)/G-5 changes applied.
+// G-2: POST / accepts unauthenticated (guest) callers via authenticateOptional.
+// G-3: X-Idempotency-Key header deduplication (24h TTL via cache).
+// G-4(ii): GET /public/:reference — no auth, PII-gated, meetingDetails never returned.
+// G-5: POST /:id/claim-account — issues GuestClaimToken + sends magic link email.
 import { Router, Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
 import { prisma } from '../database/client';
-import { authenticate } from '../middleware/authenticate';
+import { authenticate, authenticateOptional } from '../middleware/authenticate';
 import { requireRole } from '../middleware/requireRole';
 import { requireMode } from '../middleware/requireMode';
 import { AppError } from '../utils/AppError';
@@ -23,68 +15,102 @@ import { logger } from '../utils/logger';
 import { dispatchWebhookEvent } from '../services/webhookDispatcher.service';
 import { initializeTransaction, verifyTransaction } from '../services/paystack.service';
 import { sendEmail } from '../services/email.service';
+import { cacheGet, cacheSet } from '../services/cache.service';
 
 const router = Router();
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL ?? 'https://owambe.com';
 
-router.use(authenticate);
+// ─── GET /api/experience-bookings/public/:reference ──
+// G-4(ii): Public retrieval — no auth. PII-gated. meetingDetails NEVER returned.
+// Registered BEFORE /:id to avoid Express treating 'public' as an ID.
+router.get('/public/:reference', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const booking = await prisma.experienceBooking.findUnique({
+      where: { reference: req.params.reference },
+      include: {
+        slot: { select: { startTime: true, endTime: true } },
+        experience: { select: { name: true, city: true, coverImageUrl: true } },
+      },
+    });
+    if (!booking) throw new AppError('Booking not found', 404);
+    const publicData = {
+      id: booking.id,
+      reference: booking.reference,
+      status: booking.status,
+      paymentStatus: booking.paymentStatus,
+      guestCount: booking.guestCount,
+      totalAmount: booking.totalAmount,
+      currency: booking.currency,
+      createdAt: booking.createdAt,
+      slot: booking.slot,
+      experience: booking.experience,
+    };
+    res.json({ success: true, data: publicData });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // ─── POST /api/experience-bookings ───────────────────
-// C3-c: Consumer booking creation with atomic seat reservation + Paystack init
-// NOTE: requireMode('EXPERIENCES') removed — consumer users do not have EXPERIENCES mode.
-//       This was a pre-existing scaffolding error (see OWB-C3-DESIGN-DECISIONS.md Q5).
+// G-2: Guest checkout — authenticateOptional.
+// G-3: X-Idempotency-Key header deduplication.
 router.post('/',
+  authenticateOptional,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = (req as any).userId;
-      const { slotId, guestCount, specialRequests } = req.body;
+      const userId = (req as any).userId as string | undefined;
+      const { slotId, guestCount, specialRequests, guestName, guestEmail, guestPhone } = req.body;
 
-      if (!slotId || !guestCount) {
-        throw new AppError('slotId and guestCount are required', 400);
-      }
-      if (!Number.isInteger(guestCount) || guestCount < 1) {
-        throw new AppError('guestCount must be a positive integer', 400);
+      // G-3: Idempotency guard
+      const idempotencyKey = req.headers['x-idempotency-key'] as string | undefined;
+      if (idempotencyKey) {
+        const cached = await cacheGet<object>(`idempotency:booking:${idempotencyKey}`);
+        if (cached) {
+          logger.info('[GCO01] Idempotent booking re-call', { idempotencyKey });
+          return res.status(201).json(cached);
+        }
       }
 
-      // C3-c: Load slot with experience — enforce double publication gate
+      if (!slotId || !guestCount) throw new AppError('slotId and guestCount are required', 400);
+      if (!Number.isInteger(guestCount) || guestCount < 1) throw new AppError('guestCount must be a positive integer', 400);
+
+      // G-2: Resolve guest identity
+      let resolvedGuestName: string;
+      let resolvedGuestEmail: string;
+      let resolvedGuestPhone: string | null;
+
+      if (userId) {
+        const guestUser = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { firstName: true, lastName: true, email: true, phone: true }
+        });
+        if (!guestUser) throw new AppError('User not found', 404);
+        resolvedGuestName = `${guestUser.firstName} ${guestUser.lastName}`;
+        resolvedGuestEmail = guestUser.email;
+        resolvedGuestPhone = guestUser.phone || null;
+      } else {
+        if (!guestName || typeof guestName !== 'string' || !guestName.trim()) throw new AppError('guestName is required for guest checkout', 400);
+        if (!guestEmail || typeof guestEmail !== 'string' || !guestEmail.trim()) throw new AppError('guestEmail is required for guest checkout', 400);
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim())) throw new AppError('guestEmail must be a valid email address', 400);
+        resolvedGuestName = guestName.trim();
+        resolvedGuestEmail = guestEmail.trim().toLowerCase();
+        resolvedGuestPhone = guestPhone?.trim() || null;
+      }
+
       const slot = await prisma.experienceSlot.findUnique({
         where: { id: slotId },
-        include: {
-          experience: {
-            include: {
-              operator: { select: { id: true, userId: true, businessName: true } }
-            }
-          }
-        }
+        include: { experience: { include: { operator: { select: { id: true, userId: true, businessName: true } } } } }
       });
 
       if (!slot || !slot.isActive) throw new AppError('Slot not found or unavailable', 404);
-      if (!slot.experience.isActive || !slot.experience.isApproved) {
-        // C3 double publication gate: isApproved && isActive
-        throw new AppError('This experience is not currently available for booking', 400);
-      }
+      if (!slot.experience.isActive || !slot.experience.isApproved) throw new AppError('This experience is not currently available for booking', 400);
       if (slot.startTime < new Date()) throw new AppError('This slot has already passed', 400);
-
-      if (slot.experience.minGroupSize && guestCount < slot.experience.minGroupSize) {
-        throw new AppError(`Minimum group size is ${slot.experience.minGroupSize}`, 400);
-      }
-      if (slot.experience.maxGroupSize && guestCount > slot.experience.maxGroupSize) {
-        throw new AppError(`Maximum group size is ${slot.experience.maxGroupSize}`, 400);
-      }
-
-      // C3-c: Get guest user details
-      const guestUser = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { firstName: true, lastName: true, email: true, phone: true }
-      });
-      if (!guestUser) throw new AppError('User not found', 404);
+      if (slot.experience.minGroupSize && guestCount < slot.experience.minGroupSize) throw new AppError(`Minimum group size is ${slot.experience.minGroupSize}`, 400);
+      if (slot.experience.maxGroupSize && guestCount > slot.experience.maxGroupSize) throw new AppError(`Maximum group size is ${slot.experience.maxGroupSize}`, 400);
 
       const totalAmount = Number(slot.experience.pricePerPerson) * guestCount;
       const reference = `EXP-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
-      // C3-c: ATOMIC SEAT RESERVATION — conditional UPDATE at DB level
-      // This is the race-safe mechanism: two concurrent requests will serialise at the row lock.
-      // Only one will satisfy the WHERE clause; the other gets rowsAffected === 0 → 409.
       const seatResult = await prisma.$executeRaw`
         UPDATE experience_slots
         SET "bookedCount" = "bookedCount" + ${guestCount}
@@ -94,38 +120,24 @@ router.post('/',
       `;
 
       if (seatResult === 0) {
-        // Slot is sold out or was cancelled between the read and the update
-        const currentSlot = await prisma.experienceSlot.findUnique({
-          where: { id: slotId },
-          select: { capacity: true, bookedCount: true, isActive: true }
-        });
-        if (!currentSlot || !currentSlot.isActive) {
-          throw new AppError('This slot is no longer available', 409);
-        }
+        const currentSlot = await prisma.experienceSlot.findUnique({ where: { id: slotId }, select: { capacity: true, bookedCount: true, isActive: true } });
+        if (!currentSlot || !currentSlot.isActive) throw new AppError('This slot is no longer available', 409);
         const remaining = currentSlot.capacity - currentSlot.bookedCount;
-        if (remaining < guestCount) {
-          throw new AppError(
-            remaining === 0
-              ? 'This slot is sold out'
-              : `Only ${remaining} spot${remaining !== 1 ? 's' : ''} remaining`,
-            409
-          );
-        }
+        if (remaining < guestCount) throw new AppError(remaining === 0 ? 'This slot is sold out' : `Only ${remaining} spot${remaining !== 1 ? 's' : ''} remaining`, 409);
         throw new AppError('Slot reservation failed — please try again', 409);
       }
 
-      // C3-c: Create booking record (seats already reserved atomically above)
       let booking;
       try {
         booking = await prisma.experienceBooking.create({
           data: {
             experienceId: slot.experience.id,
             slotId,
-            guestUserId: userId,
-            guestId: userId,
-            guestName: `${guestUser.firstName} ${guestUser.lastName}`,
-            guestEmail: guestUser.email,
-            guestPhone: guestUser.phone || null,
+            guestUserId: userId || null,
+            guestId: userId || null,
+            guestName: resolvedGuestName,
+            guestEmail: resolvedGuestEmail,
+            guestPhone: resolvedGuestPhone,
             guestCount,
             totalAmount,
             currency: slot.experience.currency,
@@ -140,116 +152,49 @@ router.post('/',
           }
         });
       } catch (createErr) {
-        // Booking record creation failed — release the seats we already reserved
-        await prisma.$executeRaw`
-          UPDATE experience_slots
-          SET "bookedCount" = GREATEST(0, "bookedCount" - ${guestCount})
-          WHERE id = ${slotId}::uuid
-        `;
+        await prisma.$executeRaw`UPDATE experience_slots SET "bookedCount" = GREATEST(0, "bookedCount" - ${guestCount}) WHERE id = ${slotId}::uuid`;
         throw createErr;
       }
 
-      // C3-c: Initialise Paystack transaction
       let paystackResult: { authorizationUrl: string; reference: string } | null = null;
       try {
         const paystack = await initializeTransaction({
-          email: guestUser.email,
+          email: resolvedGuestEmail,
           amount: totalAmount,
           reference,
-          callbackUrl: `${APP_URL}/experiences?booking=${booking.id}`,
-          metadata: {
-            bookingId: booking.id,
-            experienceId: slot.experience.id,
-            slotId,
-            guestCount,
-            type: 'EXPERIENCE_BOOKING',
-          },
+          callbackUrl: `${APP_URL}/experiences/booking/${booking.id}`,
+          metadata: { bookingId: booking.id, experienceId: slot.experience.id, slotId, guestCount, type: 'EXPERIENCE_BOOKING' },
         });
-        paystackResult = {
-          authorizationUrl: paystack.authorization_url,
-          reference: paystack.reference,
-        };
-        // Store Paystack reference on booking
-        await prisma.experienceBooking.update({
-          where: { id: booking.id },
-          data: { paystackRef: paystack.reference },
-        });
+        paystackResult = { authorizationUrl: paystack.authorization_url, reference: paystack.reference };
+        await prisma.experienceBooking.update({ where: { id: booking.id }, data: { paystackRef: paystack.reference } });
       } catch (paystackErr) {
-        // Paystack init failed — booking persists with PENDING status (seats held)
-        // This matches the Stays precedent: booking row exists, consumer can retry payment
         logger.error(`Paystack init failed for booking ${reference}:`, paystackErr);
       }
 
-      logger.info(`Experience booking created: ${reference} for slot ${slotId}`);
+      logger.info(`Experience booking created: ${reference} (${userId ? 'authenticated' : 'guest'})`);
 
-      // C3-d: Notify operator (non-blocking)
       setImmediate(async () => {
         try {
-          const operatorUser = await prisma.user.findUnique({
-            where: { id: slot.experience.operator.userId },
-            select: { email: true, firstName: true }
-          });
+          const operatorUser = await prisma.user.findUnique({ where: { id: slot.experience.operator.userId }, select: { email: true, firstName: true } });
           if (operatorUser) {
             const slotDate = slot.startTime.toLocaleDateString('en-NG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
             const slotTime = slot.startTime.toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' });
-            await sendEmail({
-              to: operatorUser.email,
-              subject: `New Booking — ${slot.experience.name}`,
-              template: 'operator-new-booking',
-              data: {
-                firstName: operatorUser.firstName,
-                experienceName: slot.experience.name,
-                channelLabel: 'Owambe Direct',
-                leadParticipantName: `${guestUser.firstName} ${guestUser.lastName}`,
-                leadParticipantEmail: guestUser.email,
-                numberOfParticipants: guestCount,
-                slotDate,
-                slotTime,
-                totalAmount: `₦${totalAmount.toLocaleString()}`,
-                netToOperator: `₦${totalAmount.toLocaleString()}`,
-                pickupRequested: 'No',
-                pickupAddress: 'N/A',
-                specialRequirements: specialRequests || 'None',
-                reference,
-                dashboardUrl: `${APP_URL}/dashboard/experiences/bookings`,
-              }
-            });
+            await sendEmail({ to: operatorUser.email, subject: `New Booking — ${slot.experience.name}`, template: 'operator-new-booking', data: { firstName: operatorUser.firstName, experienceName: slot.experience.name, channelLabel: 'Owambe Direct', leadParticipantName: resolvedGuestName, leadParticipantEmail: resolvedGuestEmail, numberOfParticipants: guestCount, slotDate, slotTime, totalAmount: `₦${totalAmount.toLocaleString()}`, netToOperator: `₦${totalAmount.toLocaleString()}`, pickupRequested: 'No', pickupAddress: 'N/A', specialRequirements: specialRequests || 'None', reference, dashboardUrl: `${APP_URL}/dashboard/experiences/bookings` } });
           }
-        } catch (emailErr) {
-          logger.error('Operator notification email failed (non-fatal):', emailErr);
-        }
+        } catch (emailErr) { logger.error('Operator notification email failed (non-fatal):', emailErr); }
       });
 
-      // C3-d: Guest confirmation email (non-blocking)
       setImmediate(async () => {
         try {
           const slotDate = slot.startTime.toLocaleDateString('en-NG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
           const slotTime = slot.startTime.toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' });
-          await sendEmail({
-            to: guestUser.email,
-            subject: `Booking Created — ${slot.experience.name}`,
-            template: 'guest-experience-booking-confirmed',
-            data: {
-              firstName: guestUser.firstName,
-              experienceName: slot.experience.name,
-              slotDate,
-              slotTime,
-              guestCount,
-              totalAmount: `₦${totalAmount.toLocaleString()}`,
-              reference,
-              manageUrl: `${APP_URL}/experiences?booking=${booking.id}`,
-            }
-          });
-        } catch (emailErr) {
-          logger.error('Guest confirmation email failed (non-fatal):', emailErr);
-        }
+          await sendEmail({ to: resolvedGuestEmail, subject: `Booking Created — ${slot.experience.name}`, template: 'guest-experience-booking-confirmed', data: { firstName: resolvedGuestName.split(' ')[0], experienceName: slot.experience.name, slotDate, slotTime, guestCount, totalAmount: `₦${totalAmount.toLocaleString()}`, reference, manageUrl: `${APP_URL}/experiences/booking/${booking.id}` } });
+        } catch (emailErr) { logger.error('Guest confirmation email failed (non-fatal):', emailErr); }
       });
 
-      res.status(201).json({
-        success: true,
-        data: booking,
-        payment: paystackResult,
-      });
+      const responseBody = { success: true, data: booking, payment: paystackResult, isGuestBooking: !userId };
+      if (idempotencyKey) await cacheSet(`idempotency:booking:${idempotencyKey}`, responseBody, 86400);
+      res.status(201).json(responseBody);
     } catch (err) {
       next(err);
     }
@@ -257,299 +202,173 @@ router.post('/',
 );
 
 // ─── POST /api/experience-bookings/:id/verify ────────
-// C3-c: Verify Paystack payment and confirm booking
-// Called by the web app after the consumer returns from Paystack redirect
-router.post('/:id/verify', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const userId = (req as any).userId;
-    const { reference } = req.body;
-
-    const booking = await prisma.experienceBooking.findUnique({
-      where: { id: req.params.id },
-      include: {
-        slot: { select: { startTime: true, endTime: true } },
-        experience: {
-          select: {
-            name: true, city: true, coverImageUrl: true,
-            meetingDetails: true,
-            operator: { select: { userId: true } }
-          }
-        }
-      }
-    });
-
-    if (!booking) throw new AppError('Booking not found', 404);
-    if (booking.guestId !== userId) throw new AppError('Access denied', 403);
-
-    if (booking.paymentStatus === 'PAID') {
-      // Already confirmed — return current state with meetingDetails
-      const response = {
-        ...booking,
-        experience: {
-          ...booking.experience,
-          meetingDetails: booking.experience.meetingDetails, // Disclosed: already paid
-        }
-      };
-      return res.json({ success: true, data: response, alreadyConfirmed: true });
-    }
-
-    // Verify with Paystack
-    const paystackRef = reference || booking.paystackRef || booking.reference;
-    const verification = await verifyTransaction(paystackRef);
-
-    if (verification.status !== 'success') {
-      return res.status(402).json({
-        success: false,
-        error: 'Payment not yet confirmed',
-        paystackStatus: verification.status,
-      });
-    }
-
-    // Confirm booking
-    const confirmed = await prisma.experienceBooking.update({
-      where: { id: booking.id },
-      data: {
-        paymentStatus: 'PAID',
-        status: 'CONFIRMED',
-        confirmedAt: new Date(),
-        paystackRef: paystackRef,
-      },
-      include: {
-        slot: { select: { startTime: true, endTime: true } },
-        experience: {
-          select: {
-            name: true, city: true, coverImageUrl: true,
-            meetingDetails: true,
-          }
-        }
-      }
-    });
-
-    logger.info(`Experience booking confirmed: ${booking.reference}`);
-
-    res.json({ success: true, data: confirmed });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// ─── GET /api/experience-bookings ────────────────────
-router.get('/', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const userId = (req as any).userId;
-    const { status, page = '1', limit = '20' } = req.query;
-
-    const pageNum = Math.max(1, parseInt(page as string));
-    const limitNum = Math.min(50, parseInt(limit as string));
-    const skip = (pageNum - 1) * limitNum;
-
-    const where: any = {
-      guestId: userId,
-      ...(status && { status: status as any })
-    };
-
-    const [bookings, total] = await Promise.all([
-      prisma.experienceBooking.findMany({
-        where,
-        include: {
-          slot: { select: { startTime: true, endTime: true } },
-          experience: { select: { name: true, city: true, coverImageUrl: true, pricePerPerson: true } }
-        },
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: limitNum,
-      }),
-      prisma.experienceBooking.count({ where })
-    ]);
-
-    // C3-d: meetingDetails disclosure gate — only include when paymentStatus === 'PAID'
-    // For list view, meetingDetails is not included (per-booking detail view is the disclosure surface)
-
-    res.json({
-      success: true,
-      data: bookings,
-      pagination: { page: pageNum, limit: limitNum, total, pages: Math.ceil(total / limitNum) }
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// ─── GET /api/experience-bookings/operator ───────────
-// Must be registered BEFORE /:id to avoid Express treating 'operator' as an ID
-router.get('/operator',
-  requireRole('OPERATOR', 'ADMIN'),
-  requireMode('EXPERIENCES'),
+// G-2: Accepts both authenticated and guest callers.
+router.post('/:id/verify',
+  authenticateOptional,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = (req as any).userId;
-      const { status, page = '1', limit = '20' } = req.query;
+      const userId = (req as any).userId as string | undefined;
+      const { reference } = req.body;
 
-      const operator = await prisma.operator.findUnique({ where: { userId } });
-      if (!operator) throw new AppError('Operator profile not found', 404);
-
-      const pageNum = Math.max(1, parseInt(page as string));
-      const limitNum = Math.min(50, parseInt(limit as string));
-      const skip = (pageNum - 1) * limitNum;
-
-      const where: any = {
-        experience: { operatorId: operator.id },
-        ...(status && { status: status as any })
-      };
-
-      const [bookings, total] = await Promise.all([
-        prisma.experienceBooking.findMany({
-          where,
-          include: {
-            slot: { select: { startTime: true, endTime: true } },
-            experience: { select: { name: true, city: true, meetingDetails: true } },
-            guest: { select: { firstName: true, lastName: true, email: true } }
-          },
-          orderBy: { createdAt: 'desc' },
-          skip,
-          take: limitNum,
-        }),
-        prisma.experienceBooking.count({ where })
-      ]);
-
-      // C3-d: Operator sees meetingDetails always (they authored it)
-
-      res.json({
-        success: true,
-        data: bookings,
-        pagination: { page: pageNum, limit: limitNum, total, pages: Math.ceil(total / limitNum) }
+      const booking = await prisma.experienceBooking.findUnique({
+        where: { id: req.params.id },
+        include: {
+          slot: { select: { startTime: true, endTime: true } },
+          experience: { select: { name: true, city: true, coverImageUrl: true, meetingDetails: true, operator: { select: { userId: true } } } }
+        }
       });
+
+      if (!booking) throw new AppError('Booking not found', 404);
+
+      if (userId) {
+        const userRole = (req as any).userRole;
+        const isGuest = booking.guestId === userId;
+        const isOperator = booking.experience.operator.userId === userId;
+        if (!isGuest && !isOperator && userRole !== 'ADMIN') throw new AppError('Access denied', 403);
+      }
+
+      if (booking.paymentStatus === 'PAID') {
+        const meetingDetails = userId && booking.guestId === userId ? booking.experience.meetingDetails : null;
+        return res.json({ success: true, data: { ...booking, experience: { ...booking.experience, meetingDetails } }, alreadyConfirmed: true });
+      }
+
+      const paystackRef = reference || booking.paystackRef || booking.reference;
+      const verification = await verifyTransaction(paystackRef);
+      if (verification.status !== 'success') return res.status(402).json({ success: false, error: 'Payment not yet confirmed', paystackStatus: verification.status });
+
+      const confirmed = await prisma.experienceBooking.update({
+        where: { id: booking.id },
+        data: { paymentStatus: 'PAID', status: 'CONFIRMED', confirmedAt: new Date(), paystackRef },
+        include: { slot: { select: { startTime: true, endTime: true } }, experience: { select: { name: true, city: true, coverImageUrl: true, meetingDetails: true } } }
+      });
+
+      logger.info(`Experience booking confirmed: ${booking.reference}`);
+      const meetingDetails = userId && booking.guestId === userId ? confirmed.experience.meetingDetails : null;
+      res.json({ success: true, data: { ...confirmed, experience: { ...confirmed.experience, meetingDetails } } });
     } catch (err) {
       next(err);
     }
   }
 );
 
-// ─── GET /api/experience-bookings/:id ────────────────
-router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
+// ─── POST /api/experience-bookings/:id/claim-account ─
+// G-5: Post-purchase account creation — sends magic link to guest's email.
+router.post('/:id/claim-account', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const userId = (req as any).userId;
-    const userRole = (req as any).userRole;
-
     const booking = await prisma.experienceBooking.findUnique({
       where: { id: req.params.id },
-      include: {
-        slot: true,
-        experience: {
-          include: {
-            operator: { select: { businessName: true, userId: true } }
-          }
-        },
-        guest: { select: { firstName: true, lastName: true, email: true } }
-      }
+      include: { experience: { select: { name: true } }, slot: { select: { startTime: true } } },
+    });
+    if (!booking) throw new AppError('Booking not found', 404);
+    if (booking.guestUserId) return res.status(400).json({ success: false, error: 'This booking is already linked to an account' });
+    if (booking.paymentStatus !== 'PAID') return res.status(400).json({ success: false, error: 'Account claim is only available after payment is confirmed' });
+
+    const existingUser = await prisma.user.findUnique({ where: { email: booking.guestEmail } });
+    if (existingUser) return res.status(400).json({ success: false, error: 'An account already exists for this email. Please sign in.', hint: 'sign_in' });
+
+    await prisma.guestClaimToken.updateMany({ where: { bookingId: booking.id, usedAt: null }, data: { usedAt: new Date() } });
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await prisma.guestClaimToken.create({ data: { token, bookingId: booking.id, guestEmail: booking.guestEmail, expiresAt } });
+
+    const claimUrl = `${APP_URL}/claim-account?token=${token}`;
+    const slotDate = booking.slot.startTime.toLocaleDateString('en-NG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    setImmediate(async () => {
+      try {
+        await sendEmail({ to: booking.guestEmail, subject: `Your Owambe booking is confirmed — create your account`, template: 'guest-booking-claim-account', data: { guestName: booking.guestName, firstName: booking.guestName.split(' ')[0], experienceName: booking.experience.name, slotDate, claimUrl, expiryHours: 24 } });
+        logger.info(`[GCO01] Claim account email sent to ${booking.guestEmail} for booking ${booking.id}`);
+      } catch (emailErr) { logger.error('[GCO01] Claim account email failed (non-fatal):', emailErr); }
     });
 
-    if (!booking) throw new AppError('Booking not found', 404);
-
-    const isGuest = booking.guestId === userId;
-    const isOperator = booking.experience.operator.userId === userId;
-    if (!isGuest && !isOperator && userRole !== 'ADMIN') {
-      throw new AppError('Access denied', 403);
-    }
-
-    // C3-d: meetingDetails disclosure gate
-    // Guests see meetingDetails only after payment confirmation
-    // Operators and admins always see meetingDetails
-    const meetingDetails =
-      isOperator || userRole === 'ADMIN'
-        ? booking.experience.meetingDetails
-        : booking.paymentStatus === 'PAID'
-          ? booking.experience.meetingDetails
-          : null;
-
-    const responseData = {
-      ...booking,
-      experience: {
-        ...booking.experience,
-        meetingDetails,
-      }
-    };
-
-    res.json({ success: true, data: responseData });
+    res.json({ success: true, message: 'Magic link sent. Check your email to create your account.', emailSentTo: booking.guestEmail });
   } catch (err) {
     next(err);
   }
 });
 
-// ─── POST /api/experience-bookings/:id/cancel ────────
-router.post('/:id/cancel', async (req: Request, res: Response, next: NextFunction) => {
+// ─── GET /api/experience-bookings ────────────────────
+router.get('/', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = (req as any).userId;
+    const { status, page = '1', limit = '20' } = req.query;
+    const pageNum = Math.max(1, parseInt(page as string));
+    const limitNum = Math.min(50, parseInt(limit as string));
+    const skip = (pageNum - 1) * limitNum;
+    const where: any = { guestId: userId, ...(status && { status: status as any }) };
+    const [bookings, total] = await Promise.all([
+      prisma.experienceBooking.findMany({ where, include: { slot: { select: { startTime: true, endTime: true } }, experience: { select: { name: true, city: true, coverImageUrl: true, pricePerPerson: true } } }, orderBy: { createdAt: 'desc' }, skip, take: limitNum }),
+      prisma.experienceBooking.count({ where })
+    ]);
+    res.json({ success: true, data: bookings, pagination: { page: pageNum, limit: limitNum, total, pages: Math.ceil(total / limitNum) } });
+  } catch (err) { next(err); }
+});
+
+// ─── GET /api/experience-bookings/operator ───────────
+router.get('/operator', authenticate, requireRole('OPERATOR', 'ADMIN'), requireMode('EXPERIENCES'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = (req as any).userId;
+    const { status, page = '1', limit = '20' } = req.query;
+    const operator = await prisma.operator.findUnique({ where: { userId } });
+    if (!operator) throw new AppError('Operator profile not found', 404);
+    const pageNum = Math.max(1, parseInt(page as string));
+    const limitNum = Math.min(50, parseInt(limit as string));
+    const skip = (pageNum - 1) * limitNum;
+    const where: any = { experience: { operatorId: operator.id }, ...(status && { status: status as any }) };
+    const [bookings, total] = await Promise.all([
+      prisma.experienceBooking.findMany({ where, include: { slot: { select: { startTime: true, endTime: true } }, experience: { select: { name: true, city: true, meetingDetails: true } }, guest: { select: { firstName: true, lastName: true, email: true } } }, orderBy: { createdAt: 'desc' }, skip, take: limitNum }),
+      prisma.experienceBooking.count({ where })
+    ]);
+    res.json({ success: true, data: bookings, pagination: { page: pageNum, limit: limitNum, total, pages: Math.ceil(total / limitNum) } });
+  } catch (err) { next(err); }
+});
+
+// ─── GET /api/experience-bookings/:id ────────────────
+router.get('/:id', authenticate, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = (req as any).userId;
     const userRole = (req as any).userRole;
-
     const booking = await prisma.experienceBooking.findUnique({
       where: { id: req.params.id },
-      include: { experience: { include: { operator: true } } }
+      include: { slot: true, experience: { include: { operator: { select: { businessName: true, userId: true } } } }, guest: { select: { firstName: true, lastName: true, email: true } } }
     });
-
     if (!booking) throw new AppError('Booking not found', 404);
-
     const isGuest = booking.guestId === userId;
     const isOperator = booking.experience.operator.userId === userId;
-    if (!isGuest && !isOperator && userRole !== 'ADMIN') {
-      throw new AppError('Access denied', 403);
-    }
+    if (!isGuest && !isOperator && userRole !== 'ADMIN') throw new AppError('Access denied', 403);
+    const meetingDetails = isOperator || userRole === 'ADMIN' ? booking.experience.meetingDetails : booking.paymentStatus === 'PAID' ? booking.experience.meetingDetails : null;
+    res.json({ success: true, data: { ...booking, experience: { ...booking.experience, meetingDetails } } });
+  } catch (err) { next(err); }
+});
 
-    if (['CANCELLED', 'COMPLETED'].includes(booking.status)) {
-      throw new AppError(`Cannot cancel a booking with status: ${booking.status}`, 400);
-    }
+// ─── POST /api/experience-bookings/:id/cancel ────────
+router.post('/:id/cancel', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = (req as any).userId;
+    const userRole = (req as any).userRole;
+    const booking = await prisma.experienceBooking.findUnique({ where: { id: req.params.id }, include: { experience: { include: { operator: true } } } });
+    if (!booking) throw new AppError('Booking not found', 404);
+    const isGuest = booking.guestId === userId;
+    const isOperator = booking.experience.operator.userId === userId;
+    if (!isGuest && !isOperator && userRole !== 'ADMIN') throw new AppError('Access denied', 403);
+    if (['CANCELLED', 'COMPLETED'].includes(booking.status)) throw new AppError(`Cannot cancel a booking with status: ${booking.status}`, 400);
 
-    // C3 invariant: synchronous seat release in same transaction as status update
     const [updated] = await prisma.$transaction([
-      prisma.experienceBooking.update({
-        where: { id: req.params.id },
-        data: {
-          status: 'CANCELLED',
-          cancelledAt: new Date(),
-          cancellationReason: req.body.reason || null,
-        }
-      }),
-      // Synchronous seat release — bookedCount cannot go below 0
-      prisma.experienceSlot.updateMany({
-        where: {
-          id: booking.slotId,
-          bookedCount: { gte: booking.guestCount }
-        },
-        data: { bookedCount: { decrement: booking.guestCount } }
-      })
+      prisma.experienceBooking.update({ where: { id: req.params.id }, data: { status: 'CANCELLED', cancelledAt: new Date(), cancellationReason: req.body.reason || null } }),
+      prisma.experienceSlot.updateMany({ where: { id: booking.slotId, bookedCount: { gte: booking.guestCount } }, data: { bookedCount: { decrement: booking.guestCount } } })
     ]);
 
     logger.info(`Experience booking cancelled: ${booking.reference}`);
-
-    // Dispatch booking.cancelled outbound event (non-blocking)
-    const cancelledBy: 'GUEST' | 'OPERATOR' | 'SYSTEM' =
-      isGuest ? 'GUEST' : isOperator ? 'OPERATOR' : 'SYSTEM';
+    const cancelledBy: 'GUEST' | 'OPERATOR' | 'SYSTEM' = isGuest ? 'GUEST' : isOperator ? 'OPERATOR' : 'SYSTEM';
     setImmediate(async () => {
       try {
-        await dispatchWebhookEvent({
-          eventType: 'booking.cancelled',
-          idempotencyKey: `booking.cancelled.${updated.id}`,
-          data: {
-            booking_id: updated.id,
-            external_ref: booking.externalRef ?? null,
-            cancellation_reason: req.body.reason || 'GUEST_REQUEST',
-            cancellation_initiated_by: cancelledBy,
-            cancelled_at: (updated.cancelledAt ?? new Date()).toISOString(),
-            capacity_restoration_required: true,
-          },
-        });
-      } catch (dispatchErr) {
-        logger.error('booking.cancelled dispatch error (non-fatal)', {
-          bookingId: updated.id,
-          error: dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr),
-        });
-      }
+        await dispatchWebhookEvent({ eventType: 'booking.cancelled', idempotencyKey: `booking.cancelled.${updated.id}`, data: { booking_id: updated.id, external_ref: booking.externalRef ?? null, cancellation_reason: req.body.reason || 'GUEST_REQUEST', cancellation_initiated_by: cancelledBy, cancelled_at: (updated.cancelledAt ?? new Date()).toISOString(), capacity_restoration_required: true } });
+      } catch (dispatchErr) { logger.error('booking.cancelled dispatch error (non-fatal)', { bookingId: updated.id, error: dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr) }); }
     });
 
     res.json({ success: true, data: updated, message: 'Booking cancelled successfully' });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 });
 
 export default router;

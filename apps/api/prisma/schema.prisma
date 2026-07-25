@@ -1813,3 +1813,18 @@ model CohortInterestSubmission {
   @@index([submittedAt])
   @@map("cohort_interest_submissions")
 }
+
+// ─── OWB-C-GUEST-CHECKOUT-01 (G-5) ───────────────────────────────────────────
+// Magic-link claim tokens for post-purchase account creation by guest bookers.
+model GuestClaimToken {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  token       String    @unique
+  bookingId   String    @db.Uuid
+  guestEmail  String
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+  @@index([token])
+  @@index([bookingId])
+  @@map("guest_claim_tokens")
+}
