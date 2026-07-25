@@ -5,7 +5,7 @@
 //   via integration smoke (AC-3) rather than API unit tests.
 
 import request from 'supertest';
-import app from '../app';
+import { app } from '../app';
 import { prisma } from '../database/client';
 import { cacheGet, cacheSet } from '../services/cache.service';
 import * as paystackService from '../services/paystack.service';
@@ -55,7 +55,9 @@ beforeAll(async () => {
       name: 'GCO01 Test Experience',
       slug: `gco01-exp-${Date.now()}`,
       description: 'Guest checkout test experience',
+      experienceType: 'CULTURAL_TOUR',
       city: 'Lagos',
+      country: 'Nigeria',
       pricePerPerson: 5000,
       currency: 'NGN',
       isActive: true,
