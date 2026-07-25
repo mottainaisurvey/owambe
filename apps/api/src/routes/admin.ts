@@ -1234,10 +1234,14 @@ adminRouter.get('/events', async (req, res, next) => {
 });
 
 // ─── GCO01-SMOKE: Create PAID guest booking for AC-3 smoke test ──────────────
+// CS-1.7: Environment gate — all /gco01-smoke/* endpoints are non-executable in production.
+// The guard evaluates process.env.NODE_ENV at request time; Railway sets NODE_ENV=production
+// for the production service. Any request reaching this handler in production receives 404.
 // STAGING-ONLY: Creates a pre-confirmed PAID booking to enable claim-account
 // flow testing without requiring a live Paystack checkout.
 // Protected by ADMIN role. Remove before production promotion.
 adminRouter.post('/gco01-smoke/paid-booking', async (req, res, next) => {
+  if (process.env.NODE_ENV === 'production') return res.status(404).json({ success: false, error: 'Not found' });
   try {
     const { guestEmail, guestName } = req.body;
     if (!guestEmail || !guestName) {
@@ -1272,6 +1276,7 @@ adminRouter.post('/gco01-smoke/paid-booking', async (req, res, next) => {
 // meetingDetails disclosure testing in the verify endpoint.
 // Protected by ADMIN role. Remove before production promotion.
 adminRouter.post('/gco01-smoke/set-meeting-details', async (req, res, next) => {
+  if (process.env.NODE_ENV === 'production') return res.status(404).json({ success: false, error: 'Not found' });
   try {
     const { experienceId, meetingDetails } = req.body;
     if (!experienceId || !meetingDetails) {
@@ -1290,6 +1295,7 @@ adminRouter.post('/gco01-smoke/set-meeting-details', async (req, res, next) => {
 // STAGING-ONLY: Returns the full booking record including GuestClaimToken artefacts.
 // Protected by ADMIN role. Remove before production promotion.
 adminRouter.get('/gco01-smoke/booking/:id', async (req, res, next) => {
+  if (process.env.NODE_ENV === 'production') return res.status(404).json({ success: false, error: 'Not found' });
   try {
     const [booking, claimTokens] = await Promise.all([
       prisma.experienceBooking.findUnique({ where: { id: req.params.id } }),

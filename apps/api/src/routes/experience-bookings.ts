@@ -4,6 +4,11 @@
 // G-3: X-Idempotency-Key header deduplication (24h TTL via cache).
 // G-4(ii): GET /public/:reference — no auth, PII-gated, meetingDetails never returned.
 // G-5: POST /:id/claim-account — issues GuestClaimToken + sends magic link email.
+// CS-1.2: claim-account is idempotent: same-account → 200; different-account → 409.
+// CS-1.5: meetingDetails disclosure gated on verified email control (valid unused
+//         GuestClaimToken in X-Claim-Token header OR authenticated user whose email
+//         matches booking.guestEmail). Operator/admin retain access. Disclosure denied
+//         before verification and before the approved payment state.
 import { Router, Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { prisma } from '../database/client';
@@ -227,8 +232,31 @@ router.post('/:id/verify',
         if (!isGuest && !isOperator && userRole !== 'ADMIN') throw new AppError('Access denied', 403);
       }
 
+      // CS-1.5: Verified email control — check for a valid unused GuestClaimToken
+      // presented in X-Claim-Token header, OR an authenticated user whose email matches
+      // booking.guestEmail. Operator and admin retain access for operational purposes.
+      // Disclosure is denied before verification and before the approved payment state.
+      const claimTokenHeader = req.headers['x-claim-token'] as string | undefined;
+      let emailVerified = false;
+      if (claimTokenHeader) {
+        const claimToken = await prisma.guestClaimToken.findFirst({
+          where: { token: claimTokenHeader, bookingId: booking.id, usedAt: null },
+        });
+        if (claimToken && claimToken.expiresAt > new Date()) emailVerified = true;
+      }
+      if (!emailVerified && userId) {
+        const userRole = (req as any).userRole;
+        const isOperator = booking.experience.operator.userId === userId;
+        if (isOperator || userRole === 'ADMIN') {
+          emailVerified = true;
+        } else {
+          const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+          if (user && user.email === booking.guestEmail) emailVerified = true;
+        }
+      }
+
       if (booking.paymentStatus === 'PAID') {
-        const meetingDetails = userId && booking.guestId === userId ? booking.experience.meetingDetails : null;
+        const meetingDetails = emailVerified ? booking.experience.meetingDetails : null;
         return res.json({ success: true, data: { ...booking, experience: { ...booking.experience, meetingDetails } }, alreadyConfirmed: true });
       }
 
@@ -243,7 +271,7 @@ router.post('/:id/verify',
       });
 
       logger.info(`Experience booking confirmed: ${booking.reference}`);
-      const meetingDetails = userId && booking.guestId === userId ? confirmed.experience.meetingDetails : null;
+      const meetingDetails = emailVerified ? confirmed.experience.meetingDetails : null;
       res.json({ success: true, data: { ...confirmed, experience: { ...confirmed.experience, meetingDetails } } });
     } catch (err) {
       next(err);
@@ -260,7 +288,16 @@ router.post('/:id/claim-account', async (req: Request, res: Response, next: Next
       include: { experience: { select: { name: true } }, slot: { select: { startTime: true } } },
     });
     if (!booking) throw new AppError('Booking not found', 404);
-    if (booking.guestUserId) return res.status(400).json({ success: false, error: 'This booking is already linked to an account' });
+    // CS-1.2: Idempotent claim — same-account succeeds silently; different-account is a conflict.
+    if (booking.guestUserId) {
+      const requestUserId = (req as any).userId as string | undefined;
+      if (requestUserId && booking.guestUserId === requestUserId) {
+        // Same account re-claiming — idempotent success
+        return res.json({ success: true, message: 'Booking is already linked to your account.', alreadyClaimed: true });
+      }
+      // Different account (or unauthenticated) — explicit conflict
+      return res.status(409).json({ success: false, error: 'This booking has already been claimed by another account', code: 'BOOKING_ALREADY_CLAIMED' });
+    }
     if (booking.paymentStatus !== 'PAID') return res.status(400).json({ success: false, error: 'Account claim is only available after payment is confirmed' });
 
     const existingUser = await prisma.user.findUnique({ where: { email: booking.guestEmail } });
