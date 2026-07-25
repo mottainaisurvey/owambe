@@ -604,6 +604,157 @@ describe('CS-1.5: Verified email disclosure (meetingDetails gate)', () => {
     expect(res.body.success).toBe(true);
     await prisma.user.delete({ where: { id: matchUser.id } });
   });
+
+  // ── CS-1.0 invariant regression ──────────────────────
+  // Valid unused claim token + PENDING booking → meetingDetails MUST be withheld.
+  // Asserts the payment-state gate (booking.paymentStatus === 'PAID') is upstream
+  // of the emailVerified disclosure branch in the verify handler.
+  it('GCO01-T29 (CS-1.0): meetingDetails withheld for PENDING booking even with valid claim token', async () => {
+    const crypto = require('crypto');
+    const pendingToken = crypto.randomBytes(32).toString('hex');
+    const pendingBooking = await prisma.experienceBooking.create({
+      data: {
+        experienceId,
+        slotId,
+        guestName: 'Pending Invariant Guest',
+        guestEmail: `pending-inv-gco01-${Date.now()}@test.owambe.com`,
+        guestCount: 1,
+        totalAmount: 5000,
+        currency: 'NGN',
+        reference: `EXP-PEND-INV-${Date.now()}`,
+        status: 'PENDING',
+        paymentStatus: 'PENDING',
+        guestUserId: null,
+        guestId: null,
+      }
+    });
+    await prisma.guestClaimToken.create({
+      data: {
+        token: pendingToken,
+        bookingId: pendingBooking.id,
+        guestEmail: pendingBooking.guestEmail,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      }
+    });
+    // Paystack returns failure — payment not confirmed
+    mockVerifyTransaction.mockResolvedValueOnce({ status: 'failed', amount: 0, reference: pendingBooking.reference });
+    const res = await request(app)
+      .post(`/api/experience-bookings/${pendingBooking.id}/verify`)
+      .set('X-Claim-Token', pendingToken)
+      .send({ reference: pendingBooking.reference });
+    // Handler must return 402 (payment not confirmed) — meetingDetails never evaluated
+    expect(res.status).toBe(402);
+    expect(res.body.success).toBe(false);
+    // Confirm meetingDetails is absent from the response body entirely
+    expect(res.body.data).toBeUndefined();
+  });
+});
+
+// ─────────────────────────────────────────────────────
+// CS-1.1 / CS-1.2 / CS-1.3 / CS-1.4: Redeem claim token
+// ─────────────────────────────────────────────────────
+describe('CS-1.1/CS-1.2/CS-1.3/CS-1.4: Redeem claim token (account creation + ownership backfill)', () => {
+  let redeemBookingId: string;
+  let redeemToken: string;
+  const redeemEmail = `redeem-gco01-${Date.now()}@test.owambe.com`;
+
+  beforeAll(async () => {
+    const booking = await prisma.experienceBooking.create({
+      data: {
+        experienceId,
+        slotId,
+        guestName: 'Redeem Test Guest',
+        guestEmail: redeemEmail,
+        guestCount: 1,
+        totalAmount: 5000,
+        currency: 'NGN',
+        reference: `EXP-REDEEM-${Date.now()}`,
+        status: 'CONFIRMED',
+        paymentStatus: 'PAID',
+        guestUserId: null,
+        guestId: null,
+      }
+    });
+    redeemBookingId = booking.id;
+    const crypto = require('crypto');
+    redeemToken = crypto.randomBytes(32).toString('hex');
+    await prisma.guestClaimToken.create({
+      data: {
+        token: redeemToken,
+        bookingId: booking.id,
+        guestEmail: redeemEmail,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      }
+    });
+  });
+
+  it('GCO01-T30 (CS-1.1): rejects missing token', async () => {
+    const res = await request(app)
+      .post('/api/experience-bookings/redeem-claim-token')
+      .send({ password: 'Password123!' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/token/i);
+  });
+
+  it('GCO01-T31 (CS-1.1): rejects invalid token', async () => {
+    const res = await request(app)
+      .post('/api/experience-bookings/redeem-claim-token')
+      .send({ token: 'invalid-token-xyz', password: 'Password123!' });
+    expect(res.status).toBe(400);
+  });
+
+  it('GCO01-T32 (CS-1.1): rejects expired token', async () => {
+    const crypto = require('crypto');
+    const expiredToken = crypto.randomBytes(32).toString('hex');
+    await prisma.guestClaimToken.create({
+      data: {
+        token: expiredToken,
+        bookingId: redeemBookingId,
+        guestEmail: redeemEmail,
+        expiresAt: new Date(Date.now() - 1000),
+      }
+    });
+    const res = await request(app)
+      .post('/api/experience-bookings/redeem-claim-token')
+      .send({ token: expiredToken, password: 'Password123!' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/expired/i);
+  });
+
+  it('GCO01-T33 (CS-1.1/CS-1.2/CS-1.3/CS-1.4): creates account, backfills guestUserId, hydrates EXPERIENCES mode, returns post-claim view', async () => {
+    const res = await request(app)
+      .post('/api/experience-bookings/redeem-claim-token')
+      .send({ token: redeemToken, password: 'Password123!' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    // CS-1.1: Account created
+    expect(res.body.user).toBeDefined();
+    expect(res.body.user.email).toBe(redeemEmail);
+    expect(res.body.accessToken).toBeTruthy();
+    // CS-1.3: Transaction-derived hydration
+    expect(res.body.user.activeMode).toBe('EXPERIENCES');
+    expect(res.body.user.availableModes).toContain('EXPERIENCES');
+    // CS-1.4: Transaction-specific post-claim account view
+    expect(res.body.claimedBooking).toBeDefined();
+    expect(res.body.claimedBooking.id).toBe(redeemBookingId);
+    expect(res.body.claimedBooking.paymentStatus).toBe('PAID');
+    // CS-1.2: guestUserId backfilled in DB
+    const updated = await prisma.experienceBooking.findUnique({ where: { id: redeemBookingId } });
+    expect(updated!.guestUserId).toBe(res.body.user.id);
+    // CS-1.1: Token consumed
+    const usedToken = await prisma.guestClaimToken.findUnique({ where: { token: redeemToken } });
+    expect(usedToken!.usedAt).not.toBeNull();
+  });
+
+  it('GCO01-T34 (CS-1.1): rejects already-used token', async () => {
+    // redeemToken was consumed in T33
+    const res = await request(app)
+      .post('/api/experience-bookings/redeem-claim-token')
+      .send({ token: redeemToken, password: 'Password123!' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/already been used/i);
+  });
 });
 
 // ─────────────────────────────────────────────────────

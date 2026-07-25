@@ -330,6 +330,118 @@ router.post('/:id/claim-account', authenticateOptional, async (req: Request, res
   }
 });
 
+// ─── POST /api/experience-bookings/redeem-claim-token ─
+// CS-1.1: Claim-token consumption + account creation.
+// CS-1.2: guestUserId ownership backfill on successful consumption.
+// CS-1.3: Transaction-derived hydration — new account gets activeMode: EXPERIENCES.
+// CS-1.4: Returns transaction-specific post-claim account view.
+// Accepts: { token, password } — token from the magic link, password chosen by guest.
+// MUST be registered before /:id routes to avoid Express treating 'redeem-claim-token' as an ID.
+router.post('/redeem-claim-token', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || typeof token !== 'string') throw new AppError('Claim token is required', 400);
+    if (!password || typeof password !== 'string' || password.length < 8) throw new AppError('Password must be at least 8 characters', 400);
+
+    // CS-1.1: Validate the claim token — must exist, unused, and not expired.
+    const claimToken = await prisma.guestClaimToken.findUnique({ where: { token } });
+    if (!claimToken) throw new AppError('Invalid or expired claim token', 400);
+    if (claimToken.usedAt) throw new AppError('This claim token has already been used', 400);
+    if (claimToken.expiresAt < new Date()) throw new AppError('This claim token has expired', 400);
+
+    // Fetch the booking for this token.
+    const booking = await prisma.experienceBooking.findUnique({
+      where: { id: claimToken.bookingId },
+      include: {
+        experience: { select: { name: true, city: true, coverImageUrl: true } },
+        slot: { select: { startTime: true, endTime: true } }
+      }
+    });
+    if (!booking) throw new AppError('Booking not found', 404);
+    if (booking.paymentStatus !== 'PAID') throw new AppError('Account claim is only available after payment is confirmed', 400);
+
+    // Verify the token email matches the booking email (integrity check).
+    if (claimToken.guestEmail !== booking.guestEmail) throw new AppError('Token email mismatch', 400);
+
+    // Check if an account already exists for this email.
+    const existingUser = await prisma.user.findUnique({ where: { email: booking.guestEmail } });
+    if (existingUser) {
+      // Account already exists — consume the token and return a sign-in prompt.
+      await prisma.guestClaimToken.update({ where: { id: claimToken.id }, data: { usedAt: new Date() } });
+      return res.status(409).json({ success: false, error: 'An account already exists for this email. Please sign in.', hint: 'sign_in' });
+    }
+
+    // CS-1.1: Create the account.
+    // CS-1.3: Transaction-derived hydration — activeMode: EXPERIENCES (booking was an experience).
+    const bcrypt = require('bcryptjs');
+    const jwt = require('jsonwebtoken');
+    const passwordHash = await bcrypt.hash(password, 12);
+    const nameParts = booking.guestName.trim().split(' ');
+    const firstName = nameParts[0] ?? booking.guestName;
+    const lastName = nameParts.slice(1).join(' ') || 'Guest';
+
+    const newUser = await prisma.user.create({
+      data: {
+        email: booking.guestEmail,
+        passwordHash,
+        role: 'CONSUMER',
+        firstName,
+        lastName,
+        isEmailVerified: true, // email verified via claim token flow
+        activeMode: 'EXPERIENCES',
+        availableModes: ['EXPERIENCES'],
+      }
+    });
+
+    // CS-1.2: Backfill guestUserId on the booking with the new account ID.
+    await prisma.experienceBooking.update({
+      where: { id: booking.id },
+      data: { guestUserId: newUser.id }
+    });
+
+    // CS-1.1: Mark the claim token as consumed.
+    await prisma.guestClaimToken.update({ where: { id: claimToken.id }, data: { usedAt: new Date() } });
+
+    // Issue access token for immediate sign-in.
+    const JWT_SECRET = process.env.JWT_SECRET ?? 'dev-secret';
+    const JWT_ACCESS_EXPIRES = process.env.JWT_ACCESS_EXPIRES ?? '15m';
+    const accessToken = jwt.sign({ userId: newUser.id, role: newUser.role }, JWT_SECRET, { expiresIn: JWT_ACCESS_EXPIRES });
+
+    logger.info(`[GCO01] Guest account created for ${newUser.email}, booking ${booking.id} backfilled with guestUserId ${newUser.id}`);
+
+    // CS-1.4: Transaction-specific post-claim account view.
+    // Returns the new account state plus the booking that triggered the claim.
+    res.status(201).json({
+      success: true,
+      message: 'Account created successfully.',
+      accessToken,
+      user: {
+        id: newUser.id,
+        email: newUser.email,
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
+        role: newUser.role,
+        activeMode: newUser.activeMode,
+        availableModes: newUser.availableModes,
+      },
+      // CS-1.4: The booking that triggered the claim — transaction-specific view.
+      claimedBooking: {
+        id: booking.id,
+        reference: booking.reference,
+        status: booking.status,
+        paymentStatus: booking.paymentStatus,
+        guestCount: booking.guestCount,
+        totalAmount: booking.totalAmount,
+        currency: booking.currency,
+        experience: booking.experience,
+        slot: booking.slot,
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ─── GET /api/experience-bookings ────────────────────
 router.get('/', authenticate, async (req: Request, res: Response, next: NextFunction) => {
   try {
