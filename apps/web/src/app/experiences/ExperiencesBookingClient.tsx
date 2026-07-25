@@ -241,7 +241,7 @@ export default function ExperiencesBookingClient() {
     } finally {
       setBookingLoading(false);
     }
-  }, [selectedSlot, guestCount, specialRequests]);
+  }, [selectedSlot, guestCount, specialRequests, isAuthenticated, guestName, guestEmail, guestPhone, selected]);
 
   const totalAmount = useMemo(() => {
     if (!selected || !selectedSlot) return 0;
