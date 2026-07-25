@@ -1,0 +1,44 @@
+{
+  "_probe": "CR-1g: Test scaffolding identification — 2026-07-25",
+  "test_files": [
+    {
+      "file": "apps/api/src/__tests__/gco01GuestCheckout.test.ts",
+      "lines": 460,
+      "tests": [
+        "GCO01-T01: creates a booking without auth when guestName + guestEmail supplied",
+        "GCO01-T02: rejects guest booking with missing guestName",
+        "GCO01-T03: rejects guest booking with missing guestEmail",
+        "GCO01-T04: rejects guest booking with invalid email format",
+        "GCO01-T05: authenticated booking still works (regression)",
+        "GCO01-T06: rejects booking with invalid Bearer token",
+        "GCO01-T07: returns cached response on duplicate X-Idempotency-Key",
+        "GCO01-T08: stores response in cache when X-Idempotency-Key provided",
+        "GCO01-T09: does not call cacheSet when no X-Idempotency-Key header",
+        "GCO01-T10: returns booking without PII fields on public route",
+        "GCO01-T11: returns 404 for unknown reference on public route",
+        "GCO01-T12: public route does not require Authorization header",
+        "GCO01-T13: sends magic link for a confirmed guest booking",
+        "GCO01-T14: rejects claim for booking already linked to an account",
+        "GCO01-T15: rejects claim for unpaid booking",
+        "GCO01-T16: rejects claim when account already exists for guest email",
+        "GCO01-T17: supersedes previous unused token on re-claim",
+        "GCO01-T18: GET /api/experience-bookings requires auth (regression)",
+        "GCO01-T19: GET /api/experience-bookings/:id requires auth (regression)",
+        "GCO01-T20: POST /:id/cancel requires auth (regression)",
+        "GCO01-T21: POST / rejects missing slotId",
+        "GCO01-T22: POST / rejects guestCount < 1"
+      ]
+    },
+    {
+      "file": "apps/api/src/__tests__/bookingEventDispatch.test.ts",
+      "lines": 668,
+      "gco01_tests": [
+        "booking.created payload contains Amendment 009 Rev 4 §3.1 canonical fields (12 fields incl. user_id)",
+        "G-7 (C-6): booking.created user_id is populated for authenticated bookings"
+      ]
+    }
+  ],
+  "ci_run": "30162128275",
+  "ci_status": "passed",
+  "test_count": "281/281"
+}

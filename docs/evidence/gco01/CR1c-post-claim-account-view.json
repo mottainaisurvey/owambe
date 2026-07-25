@@ -1,0 +1,31 @@
+{
+  "_probe": "CR-1c: Post-claim account view — 2026-07-25",
+  "note": "CR-1c asks for the post-claim account view. The token redemption endpoint (GET /claim-account?token=...) is a frontend page that calls a backend token-consumption endpoint. The GuestClaimToken model has no Prisma relation back to ExperienceBooking (bookingId is a plain UUID field, not a @relation). The token consumption endpoint is not yet implemented in this cycle — G-5 scope is: (1) PAID booking → claim-account dispatch → GuestClaimToken created → magic link sent. The account creation step (token consumption → user creation → guestUserId backfill) is a forward work item.",
+  "g5_scope_boundary": "G-5 as implemented: POST /:id/claim-account → creates GuestClaimToken → sends magic link email. Token consumption (account creation) is out of scope for this cycle.",
+  "booking_state_at_probe": {
+    "id": "029894c0-a07f-4b70-9252-2dc610e9682e",
+    "paymentStatus": "PAID",
+    "status": "CONFIRMED",
+    "guestUserId": null,
+    "guestEmail": "cr1a-disclosure-probe@smoke.owambe.test",
+    "guestClaimTokens_count": 1,
+    "token_usedAt": null
+  },
+  "g4ii_public_endpoint_response": {
+    "endpoint": "GET /api/experience-bookings/public/EXP-AC3-SMOKE-1784990112533",
+    "auth": "none",
+    "response": {
+      "id": "029894c0-a07f-4b70-9252-2dc610e9682e",
+      "reference": "EXP-AC3-SMOKE-1784990112533",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAID",
+      "guestCount": 1,
+      "totalAmount": "5000",
+      "currency": "NGN",
+      "createdAt": "2026-07-25T14:35:12.534Z",
+      "slot": {"startTime": "2026-08-01T11:00:00.000Z", "endTime": "2026-08-01T13:00:00.000Z"},
+      "experience": {"name": "GCO01 Smoke Experience 1784977831", "city": "Lagos", "coverImageUrl": null}
+    },
+    "pii_fields_absent": ["guestName", "guestEmail", "guestPhone", "meetingDetails", "guestUserId"]
+  }
+}

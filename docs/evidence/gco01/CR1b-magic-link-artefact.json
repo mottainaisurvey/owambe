@@ -1,0 +1,24 @@
+{
+  "_probe": "CR-1b: EMAIL_CAPTURE_MODE magic-link artefact — 2026-07-25",
+  "claim_account_dispatch": {
+    "endpoint": "POST /api/experience-bookings/029894c0-a07f-4b70-9252-2dc610e9682e/claim-account",
+    "auth": "none",
+    "response": {
+      "success": true,
+      "message": "Magic link sent. Check your email to create your account.",
+      "emailSentTo": "cr1a-disclosure-probe@smoke.owambe.test"
+    }
+  },
+  "guest_claim_token_artefact": {
+    "token_id": "089aabee-e0b3-4e74-91db-bfbbab8439be",
+    "token_prefix": "83fa113f1800e79c...",
+    "guestEmail": "cr1a-disclosure-probe@smoke.owambe.test",
+    "usedAt": null,
+    "expiresAt": "2026-07-26T14:35:35.904Z",
+    "createdAt": "2026-07-25T14:35:35.904Z",
+    "note": "Token is 24h TTL, unused (usedAt: null). Token is persisted in guest_claim_tokens table."
+  },
+  "email_delivery_note": "POSTMARK_API_KEY is absent from staging. sendEmail() catches the Postmark error and logs `Email failed: guest-booking-claim-account → cr1a-disclosure-probe@smoke.owambe.test`. The magic link dispatch is confirmed by the GuestClaimToken artefact in the DB — the token was created before the email send was attempted.",
+  "email_template": "guest-booking-claim-account template added in commit 47f0be7. Template renders claimUrl, experienceName, slotDate, expiryHours.",
+  "claim_url_pattern": "${APP_URL}/claim-account?token=${token}"
+}

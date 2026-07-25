@@ -1,0 +1,15 @@
+{
+  "_probe": "CR-1e: Cycle 1 switchover — auth-required → guest-checkout transition — 2026-07-25",
+  "baseline_commit": "f833040",
+  "baseline_state": "POST /api/experience-bookings required authentication (router.use(authenticate) at line 30). guestUserId was already nullable (String? @db.Uuid) at baseline.",
+  "switchover_commit": "4e28fbf",
+  "switchover_message": "feat(gco01): G-1 through G-5 guest checkout implementation",
+  "changes": [
+    "G-2: Split POST / into guest path (no auth) and authenticated path",
+    "G-3: X-Idempotency-Key header with Redis-backed 24h deduplication",
+    "G-4(ii): New GET /public/:reference route (no auth, PII-gated)",
+    "G-5: POST /:id/claim-account — GuestClaimToken + magic link email",
+    "authenticateOptional middleware replaces authenticate on POST /"
+  ],
+  "channel_ts_unchanged": "channel.ts had 0 diff lines in the G-1..G-5 commit (confirmed by C-3 patch)"
+}

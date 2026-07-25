@@ -1,0 +1,40 @@
+{
+  "_probe": "CR-1a: Payment-completion journey evidence — 2026-07-25",
+  "_note": "Paystack checkout is a live redirect. Sandbox IP is blocked by Cloudflare from completing test card flows. Simulation boundary is the admin smoke endpoint which creates a PAID/CONFIRMED booking directly in the DB, bypassing the Cloudflare block. This is the same approach used for the C-2 AC-3 smoke.",
+  "step_1_paystack_init": {
+    "booking_id": "82629fab-...",
+    "paystackRef": "EXP-1784983870352-JQEGRA",
+    "authorizationUrl": "https://checkout.paystack.com/r6hw5ve7tqmqkf0",
+    "http_status": 403,
+    "note": "403 = Cloudflare blocks sandbox IP from completing Paystack test checkout. URL is genuine Paystack test checkout URL. paystackRef is persisted in DB (confirmed by admin endpoint in C-1 probe)."
+  },
+  "step_2_simulation_boundary": {
+    "method": "POST /api/admin/gco01-smoke/paid-booking",
+    "note": "Creates PAID/CONFIRMED booking directly in DB. Bypasses Cloudflare block on Paystack test checkout from sandbox IP.",
+    "booking_id": "029894c0-a07f-4b70-9252-2dc610e9682e",
+    "reference": "EXP-AC3-SMOKE-1784990112533",
+    "paymentStatus": "PAID",
+    "status": "CONFIRMED",
+    "guestUserId": null,
+    "confirmedAt": "2026-07-25T14:35:12.533Z"
+  },
+  "step_3a_verify_unauthenticated": {
+    "endpoint": "POST /api/experience-bookings/029894c0/verify",
+    "auth": "none",
+    "alreadyConfirmed": true,
+    "paymentStatus": "PAID",
+    "status": "CONFIRMED",
+    "meetingDetails_returned": null,
+    "note": "meetingDetails WITHHELD for unauthenticated caller — correct per G-4(ii) PII gate"
+  },
+  "step_3b_verify_admin": {
+    "endpoint": "POST /api/experience-bookings/029894c0/verify",
+    "auth": "admin JWT",
+    "alreadyConfirmed": true,
+    "paymentStatus": "PAID",
+    "meetingDetails_returned": null,
+    "note": "meetingDetails WITHHELD for admin caller because guestId (null) != userId (admin UUID) — correct per verify endpoint logic: `userId && booking.guestId === userId`"
+  },
+  "meetingDetails_value_set": "Zoom link: https://zoom.us/j/gco01-smoke-meeting | Meeting ID: 123-456-789 | Password: owambe2026",
+  "meetingDetails_disclosure_gate": "meetingDetails is only returned when `userId && booking.guestId === userId`. For guest bookings guestId is null, so meetingDetails is never returned to any caller."
+}

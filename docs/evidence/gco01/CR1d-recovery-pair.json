@@ -1,0 +1,16 @@
+{
+  "_probe": "CR-1d: Recovery pair — G-4(i) URL state + G-4(ii) public endpoint — 2026-07-25",
+  "g4i_url_state_preservation": {
+    "file": "apps/web/src/app/experiences/ExperiencesBookingClient.tsx",
+    "implementation": "On mount, reads ?exp=<id>&slot=<id> query params. Restores experience + slot selection after login redirect. State is preserved through the login redirect by appending ?exp=&slot= to the login URL.",
+    "code_lines": "63-90, 151-160, 233-235",
+    "key_code": "const expParam = selected ? `&exp=${selected.id}` : ''; const slotParam = selectedSlot ? `&slot=${selectedSlot.id}` : '';"
+  },
+  "g4ii_public_endpoint": {
+    "endpoint": "GET /api/experience-bookings/public/:reference",
+    "auth": "none",
+    "pii_gate": "Returns: id, reference, status, paymentStatus, guestCount, totalAmount, currency, createdAt, slot.startTime, slot.endTime, experience.name, experience.city, experience.coverImageUrl",
+    "pii_withheld": "guestName, guestEmail, guestPhone, meetingDetails, guestUserId, paystackRef",
+    "live_probe": "EXP-AC3-SMOKE-1784990112533 → 200 OK, all PII absent"
+  }
+}
