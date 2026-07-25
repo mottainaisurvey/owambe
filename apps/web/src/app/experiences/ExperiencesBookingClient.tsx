@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { experiencesApi, type Experience, type ExperienceSlotInstance, type ExperienceBooking } from '@/lib/api';
-import { useAuthStore } from '@/store/auth';
+import { useAuthStore } from '@/store/auth.store';
 
 // ─── C3 INVARIANT: publication gate ─────────────────
 // Only experiences where isApproved && isActive are returned by the public listing endpoint.
@@ -56,8 +56,7 @@ export default function ExperiencesBookingClient() {
   const [specialRequests, setSpecialRequests] = useState('');
 
   // ─── G-2: Auth + guest checkout state ─────────────
-  const { user } = useAuthStore();
-  const isAuthenticated = !!user;
+  const { isAuthenticated } = useAuthStore();
   const [guestName, setGuestName] = useState('');
   const [guestEmail, setGuestEmail] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
