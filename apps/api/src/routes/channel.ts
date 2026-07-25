@@ -1048,16 +1048,17 @@ router.post('/experiences/bookings', async (req: Request, res: Response): Promis
     }
 
     // ─── F1-NEW-IMPLEMENTATION-01 AC-2: Dispatch booking.created outbound event ──
-    // Amendment 009 Rev 3 § 3.1 canonical payload — fired asynchronously (fire-and-forget)
-    // after DB commit so the 201 response is not delayed by delivery latency.
+    // Amendment 009 Rev 4 § 3.1 canonical payload (12 fields) — fired asynchronously
+    // (fire-and-forget) after DB commit so the 201 response is not delayed by delivery latency.
     // Gated by OWAMBE_OUTBOUND_BOOKING_EVENTS_ENABLED feature flag in dispatchWebhookEvent.
+    // Rev 4 change: user_id added (string | null). Authorised by CC strategic anchor 2026-07-25.
     setImmediate(async () => {
       try {
         await dispatchWebhookEvent({
           eventType: 'booking.created',
           idempotencyKey: `booking.created.${booking.id}`,
           data: {
-            // Amendment 009 Rev 3 § 3.1 — booking.created canonical payload
+            // Amendment 009 Rev 4 § 3.1 — booking.created canonical payload (12 fields)
             booking_id: booking.id,
             external_ref: booking.externalRef ?? null,
             experience_id: booking.experienceId,
@@ -1073,6 +1074,7 @@ router.post('/experiences/bookings', async (req: Request, res: Response): Promis
             total_amount_kobo: Math.round(parseFloat(booking.totalAmount.toString()) * 100),
             currency: booking.currency ?? 'NGN',
             created_at: booking.createdAt.toISOString(),
+            user_id: booking.guestUserId ?? null,
           },
         });
       } catch (dispatchErr) {
