@@ -1,0 +1,331 @@
+{
+  "CS-1.6 Step 1: Set meetingDetails (HTTP 200)": {
+    "success": true,
+    "data": {
+      "id": "d139f687-9b13-42f4-adc2-79eb1b5ae521",
+      "name": "GCO01 Smoke Experience 1784977831",
+      "meetingDetails": "Zoom: https://zoom.us/j/cs16test \u2014 Password: CS16TEST"
+    }
+  },
+  "CS-1.6 Step 2: Create PAID guest booking (HTTP 201)": {
+    "success": true,
+    "data": {
+      "id": "15d732bc-ee95-4b4f-98fc-f5a47e0bbdd2",
+      "reference": "EXP-AC3-SMOKE-1784996928259",
+      "experienceId": "d139f687-9b13-42f4-adc2-79eb1b5ae521",
+      "slotId": "2e6444e8-40ff-437d-ae0c-b5e22e6c8b7a",
+      "guestUserId": null,
+      "guestId": null,
+      "guestName": "CS-1.6 Full Journey Guest",
+      "guestEmail": "cs16-full-1784996925@test.owambe.com",
+      "guestPhone": "+2348012345678",
+      "guestCount": 1,
+      "totalAmount": "5000",
+      "currency": "NGN",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAID",
+      "paystackRef": "EXP-AC3-SMOKE-1784996928259",
+      "specialRequests": null,
+      "cancellationReason": null,
+      "cancelledAt": null,
+      "confirmedAt": "2026-07-25T16:28:48.259Z",
+      "completedAt": null,
+      "channelOrigin": "DIRECT",
+      "channelId": null,
+      "externalRef": null,
+      "externalExperienceId": null,
+      "channelCommissionAmount": null,
+      "channelCommissionPercent": null,
+      "netToOperator": null,
+      "paystackReference": null,
+      "numberOfParticipants": null,
+      "participantNames": [],
+      "pickupRequested": false,
+      "pickupAddress": null,
+      "depositAmount": "0",
+      "createdAt": "2026-07-25T16:28:48.262Z",
+      "updatedAt": "2026-07-25T16:28:48.262Z"
+    }
+  },
+  "CS-1.6 Step 3: G-4(ii) Public endpoint \u2014 cross-device recovery (HTTP 200)": {
+    "success": true,
+    "data": {
+      "id": "15d732bc-ee95-4b4f-98fc-f5a47e0bbdd2",
+      "reference": "EXP-AC3-SMOKE-1784996928259",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAID",
+      "guestCount": 1,
+      "totalAmount": "5000",
+      "currency": "NGN",
+      "createdAt": "2026-07-25T16:28:48.262Z",
+      "slot": {
+        "startTime": "2026-08-01T11:00:00.000Z",
+        "endTime": "2026-08-01T13:00:00.000Z"
+      },
+      "experience": {
+        "name": "GCO01 Smoke Experience 1784977831",
+        "city": "Lagos",
+        "coverImageUrl": null
+      }
+    }
+  },
+  "CS-1.6 Step 4: Verify WITHOUT claim token \u2014 meetingDetails withheld (HTTP 200)": {
+    "success": true,
+    "data": {
+      "id": "15d732bc-ee95-4b4f-98fc-f5a47e0bbdd2",
+      "reference": "EXP-AC3-SMOKE-1784996928259",
+      "experienceId": "d139f687-9b13-42f4-adc2-79eb1b5ae521",
+      "slotId": "2e6444e8-40ff-437d-ae0c-b5e22e6c8b7a",
+      "guestUserId": null,
+      "guestId": null,
+      "guestName": "CS-1.6 Full Journey Guest",
+      "guestEmail": "cs16-full-1784996925@test.owambe.com",
+      "guestPhone": "+2348012345678",
+      "guestCount": 1,
+      "totalAmount": "5000",
+      "currency": "NGN",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAID",
+      "paystackRef": "EXP-AC3-SMOKE-1784996928259",
+      "specialRequests": null,
+      "cancellationReason": null,
+      "cancelledAt": null,
+      "confirmedAt": "2026-07-25T16:28:48.259Z",
+      "completedAt": null,
+      "channelOrigin": "DIRECT",
+      "channelId": null,
+      "externalRef": null,
+      "externalExperienceId": null,
+      "channelCommissionAmount": null,
+      "channelCommissionPercent": null,
+      "netToOperator": null,
+      "paystackReference": null,
+      "numberOfParticipants": null,
+      "participantNames": [],
+      "pickupRequested": false,
+      "pickupAddress": null,
+      "depositAmount": "0",
+      "createdAt": "2026-07-25T16:28:48.262Z",
+      "updatedAt": "2026-07-25T16:28:48.262Z",
+      "slot": {
+        "startTime": "2026-08-01T11:00:00.000Z",
+        "endTime": "2026-08-01T13:00:00.000Z"
+      },
+      "experience": {
+        "name": "GCO01 Smoke Experience 1784977831",
+        "city": "Lagos",
+        "coverImageUrl": null,
+        "meetingDetails": null,
+        "operator": {
+          "userId": "b343a9d6-14f1-4a30-a13b-86df4134c413"
+        }
+      }
+    },
+    "alreadyConfirmed": true
+  },
+  "CS-1.6 Step 5: claim-account \u2014 magic link dispatch (HTTP 200)": {
+    "success": true,
+    "message": "Magic link sent. Check your email to create your account.",
+    "emailSentTo": "cs16-full-1784996925@test.owambe.com"
+  },
+  "CS-1.6 Step 6: Retrieve claim token from DB (HTTP 200)": {
+    "success": true,
+    "data": {
+      "id": "15d732bc-ee95-4b4f-98fc-f5a47e0bbdd2",
+      "reference": "EXP-AC3-SMOKE-1784996928259",
+      "experienceId": "d139f687-9b13-42f4-adc2-79eb1b5ae521",
+      "slotId": "2e6444e8-40ff-437d-ae0c-b5e22e6c8b7a",
+      "guestUserId": null,
+      "guestId": null,
+      "guestName": "CS-1.6 Full Journey Guest",
+      "guestEmail": "cs16-full-1784996925@test.owambe.com",
+      "guestPhone": "+2348012345678",
+      "guestCount": 1,
+      "totalAmount": "5000",
+      "currency": "NGN",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAID",
+      "paystackRef": "EXP-AC3-SMOKE-1784996928259",
+      "specialRequests": null,
+      "cancellationReason": null,
+      "cancelledAt": null,
+      "confirmedAt": "2026-07-25T16:28:48.259Z",
+      "completedAt": null,
+      "channelOrigin": "DIRECT",
+      "channelId": null,
+      "externalRef": null,
+      "externalExperienceId": null,
+      "channelCommissionAmount": null,
+      "channelCommissionPercent": null,
+      "netToOperator": null,
+      "paystackReference": null,
+      "numberOfParticipants": null,
+      "participantNames": [],
+      "pickupRequested": false,
+      "pickupAddress": null,
+      "depositAmount": "0",
+      "createdAt": "2026-07-25T16:28:48.262Z",
+      "updatedAt": "2026-07-25T16:28:48.262Z",
+      "guestClaimTokens": [
+        {
+          "id": "d2e15bea-2f03-48c3-af9f-4eabe2144d8c",
+          "token": "c48d0de809281ed4c578de8d406024c68f3abd00c859db31cbb038df70ccb7e1",
+          "guestEmail": "cs16-full-1784996925@test.owambe.com",
+          "usedAt": null,
+          "expiresAt": "2026-07-26T16:28:58.192Z",
+          "createdAt": "2026-07-25T16:28:58.193Z"
+        }
+      ]
+    }
+  },
+  "CS-1.6 Step 7: Verify WITH claim token \u2014 meetingDetails DISCLOSED (HTTP 200)": {
+    "success": true,
+    "data": {
+      "id": "15d732bc-ee95-4b4f-98fc-f5a47e0bbdd2",
+      "reference": "EXP-AC3-SMOKE-1784996928259",
+      "experienceId": "d139f687-9b13-42f4-adc2-79eb1b5ae521",
+      "slotId": "2e6444e8-40ff-437d-ae0c-b5e22e6c8b7a",
+      "guestUserId": null,
+      "guestId": null,
+      "guestName": "CS-1.6 Full Journey Guest",
+      "guestEmail": "cs16-full-1784996925@test.owambe.com",
+      "guestPhone": "+2348012345678",
+      "guestCount": 1,
+      "totalAmount": "5000",
+      "currency": "NGN",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAID",
+      "paystackRef": "EXP-AC3-SMOKE-1784996928259",
+      "specialRequests": null,
+      "cancellationReason": null,
+      "cancelledAt": null,
+      "confirmedAt": "2026-07-25T16:28:48.259Z",
+      "completedAt": null,
+      "channelOrigin": "DIRECT",
+      "channelId": null,
+      "externalRef": null,
+      "externalExperienceId": null,
+      "channelCommissionAmount": null,
+      "channelCommissionPercent": null,
+      "netToOperator": null,
+      "paystackReference": null,
+      "numberOfParticipants": null,
+      "participantNames": [],
+      "pickupRequested": false,
+      "pickupAddress": null,
+      "depositAmount": "0",
+      "createdAt": "2026-07-25T16:28:48.262Z",
+      "updatedAt": "2026-07-25T16:28:48.262Z",
+      "slot": {
+        "startTime": "2026-08-01T11:00:00.000Z",
+        "endTime": "2026-08-01T13:00:00.000Z"
+      },
+      "experience": {
+        "name": "GCO01 Smoke Experience 1784977831",
+        "city": "Lagos",
+        "coverImageUrl": null,
+        "meetingDetails": "Zoom: https://zoom.us/j/cs16test \u2014 Password: CS16TEST",
+        "operator": {
+          "userId": "b343a9d6-14f1-4a30-a13b-86df4134c413"
+        }
+      }
+    },
+    "alreadyConfirmed": true
+  },
+  "CS-1.6 Step 8: CS-1.0 regression \u2014 PENDING booking verify (HTTP 402)": {
+    "success": false,
+    "error": "Payment not yet confirmed",
+    "paystackStatus": "abandoned"
+  },
+  "CS-1.6 Step 9: Redeem claim token \u2014 account creation (HTTP 201)": {
+    "success": true,
+    "message": "Account created successfully.",
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxYzNhZDRkNy0wNjE0LTQ4ZDYtOWQxMi1kZDk0ODFhOGM0OTIiLCJyb2xlIjoiQ09OU1VNRVIiLCJpYXQiOjE3ODQ5OTY5NTYsImV4cCI6MTc4NDk5Nzg1Nn0.zDrzyhDteCLGULWXY5vnXm0snc9NCLfgGsBaiSNP4HM",
+    "user": {
+      "id": "1c3ad4d7-0614-48d6-9d12-dd9481a8c492",
+      "email": "cs16-full-1784996925@test.owambe.com",
+      "firstName": "CS-1.6",
+      "lastName": "Full Journey Guest",
+      "role": "CONSUMER",
+      "activeMode": "EXPERIENCES",
+      "availableModes": [
+        "EXPERIENCES"
+      ]
+    },
+    "claimedBooking": {
+      "id": "15d732bc-ee95-4b4f-98fc-f5a47e0bbdd2",
+      "reference": "EXP-AC3-SMOKE-1784996928259",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAID",
+      "guestCount": 1,
+      "totalAmount": "5000",
+      "currency": "NGN",
+      "experience": {
+        "name": "GCO01 Smoke Experience 1784977831",
+        "city": "Lagos",
+        "coverImageUrl": null
+      },
+      "slot": {
+        "startTime": "2026-08-01T11:00:00.000Z",
+        "endTime": "2026-08-01T13:00:00.000Z"
+      }
+    }
+  },
+  "CS-1.6 Step 10: Confirm guestUserId backfill in DB (HTTP 200)": {
+    "success": true,
+    "data": {
+      "id": "15d732bc-ee95-4b4f-98fc-f5a47e0bbdd2",
+      "reference": "EXP-AC3-SMOKE-1784996928259",
+      "experienceId": "d139f687-9b13-42f4-adc2-79eb1b5ae521",
+      "slotId": "2e6444e8-40ff-437d-ae0c-b5e22e6c8b7a",
+      "guestUserId": "1c3ad4d7-0614-48d6-9d12-dd9481a8c492",
+      "guestId": null,
+      "guestName": "CS-1.6 Full Journey Guest",
+      "guestEmail": "cs16-full-1784996925@test.owambe.com",
+      "guestPhone": "+2348012345678",
+      "guestCount": 1,
+      "totalAmount": "5000",
+      "currency": "NGN",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAID",
+      "paystackRef": "EXP-AC3-SMOKE-1784996928259",
+      "specialRequests": null,
+      "cancellationReason": null,
+      "cancelledAt": null,
+      "confirmedAt": "2026-07-25T16:28:48.259Z",
+      "completedAt": null,
+      "channelOrigin": "DIRECT",
+      "channelId": null,
+      "externalRef": null,
+      "externalExperienceId": null,
+      "channelCommissionAmount": null,
+      "channelCommissionPercent": null,
+      "netToOperator": null,
+      "paystackReference": null,
+      "numberOfParticipants": null,
+      "participantNames": [],
+      "pickupRequested": false,
+      "pickupAddress": null,
+      "depositAmount": "0",
+      "createdAt": "2026-07-25T16:28:48.262Z",
+      "updatedAt": "2026-07-25T16:29:16.672Z",
+      "guestClaimTokens": [
+        {
+          "id": "d2e15bea-2f03-48c3-af9f-4eabe2144d8c",
+          "token": "c48d0de809281ed4c578de8d406024c68f3abd00c859db31cbb038df70ccb7e1",
+          "guestEmail": "cs16-full-1784996925@test.owambe.com",
+          "usedAt": "2026-07-25T16:29:16.680Z",
+          "expiresAt": "2026-07-26T16:28:58.192Z",
+          "createdAt": "2026-07-25T16:28:58.193Z"
+        }
+      ]
+    }
+  },
+  "CS-1.6 Step 11: G-4(i) URL-state preservation (code reference)": {
+    "file": "apps/web/src/app/experiences/ExperiencesBookingClient.tsx",
+    "url_params_appended": "lines 234-235: router.push(`/login?redirect=/experiences/${experienceId}?exp=${experienceId}&slot=${selectedSlot.id}`)",
+    "params_consumed_on_mount": "lines 85-90: const expParam = searchParams.get('exp'); const slotParam = searchParams.get('slot');",
+    "slot_restored_from_url": "lines 151-160: if (slotParam && slots) { const match = slots.find(s => s.id === slotParam); if (match) setSelectedSlot(match); }",
+    "description": "When an unauthenticated user selects a slot and clicks Book, the experience ID and slot ID are preserved in the redirect URL. After login, the page reads these params and restores the selection."
+  }
+}
