@@ -772,8 +772,8 @@ describe('CS-1.1/CS-1.2/CS-1.3/CS-1.4: Redeem claim token (account creation + ow
     const withPwdEmail = `q6-with-pwd-${Date.now()}@owambe-test.com`;
     const withPwdBooking = await prisma.experienceBooking.create({
       data: {
-        experienceId: testExperienceId,
-        slotId: testSlotId,
+        experienceId,
+        slotId,
         guestName: 'Q6 With Password',
         guestEmail: withPwdEmail,
         guestCount: 1,
