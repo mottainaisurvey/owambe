@@ -721,10 +721,11 @@ describe('CS-1.1/CS-1.2/CS-1.3/CS-1.4: Redeem claim token (account creation + ow
     expect(res.body.error).toMatch(/expired/i);
   });
 
-  it('GCO01-T33 (CS-1.1/CS-1.2/CS-1.3/CS-1.4): creates account, backfills guestUserId, hydrates EXPERIENCES mode, returns post-claim view', async () => {
+  it('GCO01-T33 (CS-1.1/CS-1.2/CS-1.3/CS-1.4/Q6): creates account WITHOUT password (magic-link-first), backfills guestUserId, hydrates EXPERIENCES mode, returns post-claim view', async () => {
+    // Q6-CONFORMANCE: password omitted — account created on verified token possession alone.
     const res = await request(app)
       .post('/api/experience-bookings/redeem-claim-token')
-      .send({ token: redeemToken, password: 'Password123!' });
+      .send({ token: redeemToken }); // no password field
 
     expect(res.status).toBe(201);
     expect(res.body.success).toBe(true);
@@ -751,9 +752,57 @@ describe('CS-1.1/CS-1.2/CS-1.3/CS-1.4: Redeem claim token (account creation + ow
     // redeemToken was consumed in T33
     const res = await request(app)
       .post('/api/experience-bookings/redeem-claim-token')
-      .send({ token: redeemToken, password: 'Password123!' });
+      .send({ token: redeemToken }); // no password — Q6 conformance
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/already been used/i);
+  });
+
+  it('GCO01-T35 (Q6): rejects password shorter than 8 characters when password IS supplied', async () => {
+    // Q6-CONFORMANCE: when password is supplied, minimum length still enforced.
+    const res = await request(app)
+      .post('/api/experience-bookings/redeem-claim-token')
+      .send({ token: 'any-token', password: 'short' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/password must be at least 8/i);
+  });
+
+  it('GCO01-T36 (Q6): with-password path unchanged — creates account with password hash', async () => {
+    // Q6-CONFORMANCE: when password IS supplied, behaviour is unchanged from pre-Q6.
+    // Create a fresh PAID booking + token for this test.
+    const withPwdEmail = `q6-with-pwd-${Date.now()}@owambe-test.com`;
+    const withPwdBooking = await prisma.experienceBooking.create({
+      data: {
+        experienceId: testExperienceId,
+        slotId: testSlotId,
+        guestName: 'Q6 With Password',
+        guestEmail: withPwdEmail,
+        guestCount: 1,
+        totalAmount: 5000,
+        currency: 'NGN',
+        reference: `EXP-Q6-PWD-${Date.now()}`,
+        status: 'CONFIRMED',
+        paymentStatus: 'PAID',
+      },
+    });
+    const withPwdToken = `q6-pwd-token-${Date.now()}`;
+    await prisma.guestClaimToken.create({
+      data: {
+        token: withPwdToken,
+        bookingId: withPwdBooking.id,
+        guestEmail: withPwdEmail,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      },
+    });
+    const res = await request(app)
+      .post('/api/experience-bookings/redeem-claim-token')
+      .send({ token: withPwdToken, password: 'Password123!' });
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.accessToken).toBeTruthy();
+    // Verify passwordHash is NOT null in DB (password was supplied)
+    const createdUser = await prisma.user.findUnique({ where: { email: withPwdEmail } });
+    expect(createdUser).not.toBeNull();
+    expect(createdUser!.passwordHash).not.toBeNull();
   });
 });
 

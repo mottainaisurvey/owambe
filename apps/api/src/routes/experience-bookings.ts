@@ -335,13 +335,18 @@ router.post('/:id/claim-account', authenticateOptional, async (req: Request, res
 // CS-1.2: guestUserId ownership backfill on successful consumption.
 // CS-1.3: Transaction-derived hydration — new account gets activeMode: EXPERIENCES.
 // CS-1.4: Returns transaction-specific post-claim account view.
-// Accepts: { token, password } — token from the magic link, password chosen by guest.
+// Q6-CONFORMANCE: password is OPTIONAL (magic-link-first).
+//   Without password: account created on verified token possession alone; password settable later.
+//   With password: account created with the supplied password (length >= 8 required).
+// Accepts: { token, password? } — token from the magic link, optional password chosen by guest.
 // MUST be registered before /:id routes to avoid Express treating 'redeem-claim-token' as an ID.
 router.post('/redeem-claim-token', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { token, password } = req.body;
     if (!token || typeof token !== 'string') throw new AppError('Claim token is required', 400);
-    if (!password || typeof password !== 'string' || password.length < 8) throw new AppError('Password must be at least 8 characters', 400);
+    // Q6-CONFORMANCE: password is optional. When supplied, enforce minimum length.
+    if (password !== undefined && password !== null && (typeof password !== 'string' || password.length < 8))
+      throw new AppError('Password must be at least 8 characters', 400);
 
     // CS-1.1: Validate the claim token — must exist, unused, and not expired.
     const claimToken = await prisma.guestClaimToken.findUnique({ where: { token } });
@@ -375,7 +380,8 @@ router.post('/redeem-claim-token', async (req: Request, res: Response, next: Nex
     // CS-1.3: Transaction-derived hydration — activeMode: EXPERIENCES (booking was an experience).
     const bcrypt = require('bcryptjs');
     const jwt = require('jsonwebtoken');
-    const passwordHash = await bcrypt.hash(password, 12);
+    // Q6-CONFORMANCE: hash password if supplied; null otherwise (magic-link-only account).
+    const passwordHash = password ? await bcrypt.hash(password, 12) : null;
     const nameParts = booking.guestName.trim().split(' ');
     const firstName = nameParts[0] ?? booking.guestName;
     const lastName = nameParts.slice(1).join(' ') || 'Guest';
